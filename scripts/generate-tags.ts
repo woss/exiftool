@@ -1,70 +1,144 @@
-const EXIFTOOL_LIB = '/Users/woss/projects/woss/exiftool-action/exiftool/lib';
-
-interface ParsedTag {
+interface TagDef {
+  id: string;
   name: string;
-  tagId: string;
-  format?: string;
+  type: string;
   writable: boolean;
-  groups: Record<string, string>;
   description?: string;
+  g2?: string;
+  values?: Record<string, string>;
 }
 
-async function parsePerlTagModule(filePath: string): Promise<ParsedTag[]> {
-  const text = await Deno.readTextFile(filePath);
-  const tags: ParsedTag[] = [];
-
-  const moduleMatch = text.match(/package\s+Image::ExifTool::(\w+)/);
-  const moduleName = moduleMatch?.[1] ?? 'Unknown';
-
-  const groupMatch = text.match(/%Image::ExifTool::(\w+)::(\w+)/);
-  const groupName = groupMatch?.[2] ?? moduleName;
-
-  const tagEntries = text.matchAll(
-    /(\w+)\s*=>\s*{([^}]+)}/g,
-  );
-
-  for (const match of tagEntries) {
-    const name = match[1];
-    const props = match[2];
-
-    const idMatch = props.match(/(\d+)/);
-    const writable = !props.includes('Writable => 0') && !props.includes('Protect');
-    const formatMatch = props.match(/Writable\s*=>\s*['"](\w+)['"]/);
-
-    tags.push({
-      name,
-      tagId: idMatch?.[1] ?? '0',
-      format: formatMatch?.[1],
-      writable,
-      groups: { family0: 'Image', family1: groupName },
-    });
-  }
-
-  return tags;
+interface TableDef {
+  perlName: string;
+  groups: { g0?: string; g1?: string; g2?: string };
+  description: string;
+  tags: TagDef[];
 }
 
-async function main() {
-  console.error('Scanning', EXIFTOOL_LIB, 'for tag definitions...');
+const ROOT = `${import.meta.dirname}/..`;
+const OUTPUT_JSON = `${ROOT}/src/tags/generated/tags.json`;
 
-  const files: string[] = [];
-  for await (const entry of Deno.readDir(EXIFTOOL_LIB)) {
-    if (entry.isFile && entry.name.endsWith('.pm')) {
-      files.push(entry.name);
+function parseExifToolXml(xml: string): TableDef[] {
+  const tables: TableDef[] = [];
+  let currentTable: TableDef | null = null;
+  let currentTag: TagDef | null = null;
+  let currentValues: Record<string, string> | null = null;
+  let currentKeyId: string | null = null;
+  let textBuf = '';
+
+  for (const line of xml.split('\n')) {
+    const trimmed = line.trim();
+
+    if (trimmed.startsWith('<table ')) {
+      currentTable = {
+        perlName: extractAttr(trimmed, 'name') ?? '',
+        groups: {
+          g0: extractAttr(trimmed, 'g0'),
+          g1: extractAttr(trimmed, 'g1'),
+          g2: extractAttr(trimmed, 'g2'),
+        },
+        description: '',
+        tags: [],
+      };
+      continue;
+    }
+    if (trimmed === '</table>' && currentTable) {
+      tables.push(currentTable);
+      currentTable = null;
+      continue;
+    }
+    if (!currentTable) continue;
+
+    if (trimmed.startsWith('<desc ')) {
+      const lang = extractAttr(trimmed, 'lang');
+      if (lang === 'en' || !lang) {
+        if (currentTag) currentTag.description = extractText(trimmed);
+        else currentTable.description = extractText(trimmed);
+      }
+      continue;
+    }
+    if (trimmed.startsWith('<tag ')) {
+      currentTag = {
+        id: extractAttr(trimmed, 'id') ?? '?',
+        name: extractAttr(trimmed, 'name') ?? '?',
+        type: extractAttr(trimmed, 'type') ?? '?',
+        writable: (extractAttr(trimmed, 'writable') ?? 'false') === 'true',
+        g2: extractAttr(trimmed, 'g2'),
+      };
+      currentValues = null;
+      continue;
+    }
+    if (trimmed === '</tag>' && currentTag && currentTable) {
+      if (currentValues && Object.keys(currentValues).length > 0) {
+        currentTag.values = currentValues;
+      }
+      currentTable.tags.push(currentTag);
+      currentTag = null;
+      currentValues = null;
+      continue;
+    }
+    if (trimmed.startsWith('<values>')) {
+      currentValues = {};
+      continue;
+    }
+    if (trimmed === '</values>') {
+      currentValues = null;
+      continue;
+    }
+    if (trimmed.startsWith('<key ')) {
+      currentKeyId = extractAttr(trimmed, 'id');
+      textBuf = '';
+      continue;
+    }
+    if (trimmed.startsWith('<val ')) {
+      const lang = extractAttr(trimmed, 'lang');
+      if (lang === 'en' || !lang) textBuf = extractText(trimmed);
+      continue;
+    }
+    if (trimmed === '</key>' && currentValues && currentKeyId !== null && textBuf) {
+      currentValues[currentKeyId] = textBuf;
+      currentKeyId = null;
+      textBuf = '';
+      continue;
     }
   }
 
-  let totalTags = 0;
-  for (const file of files.slice(0, 5)) {
-    const filePath = `${EXIFTOOL_LIB}/${file}`;
-    const tags = await parsePerlTagModule(filePath);
-    totalTags += tags.length;
-    console.error(`  ${file}: ${tags.length} tags`);
+  return tables;
+}
+
+function extractAttr(line: string, attr: string): string | undefined {
+  const m = line.match(new RegExp(`${attr}='([^']*)'`));
+  return m?.[1];
+}
+
+function extractText(line: string): string {
+  const m = line.match(/>(.*)</);
+  return m?.[1] ?? '';
+}
+
+async function generate() {
+  console.error('Spawning exiftool -listx...');
+  const cmd = new Deno.Command('exiftool', { args: ['-listx'], stdout: 'piped', stderr: 'piped' });
+  const output = await cmd.output();
+  if (!output.success) {
+    console.error('exiftool failed:', new TextDecoder().decode(output.stderr));
+    Deno.exit(1);
   }
 
-  console.error(`\nTotal tags parsed: ${totalTags}`);
-  console.error('Generation complete (stub). Full pipeline TBD.');
+  const xml = new TextDecoder().decode(output.stdout);
+  console.error(`Parsing ${(xml.length / 1024 / 1024).toFixed(1)}MB of XML...`);
+  const tables = parseExifToolXml(xml);
+
+  const totalTags = tables.reduce((s, t) => s + t.tags.length, 0);
+  console.error(`Found ${tables.length} tables with ${totalTags} tags`);
+
+  await Deno.mkdir(`${ROOT}/src/tags/generated`, { recursive: true });
+
+  const json = JSON.stringify(tables);
+  await Deno.writeTextFile(OUTPUT_JSON, json);
+  console.error(`Wrote ${OUTPUT_JSON} (${(json.length / 1024 / 1024).toFixed(1)}MB)`);
 }
 
 if (import.meta.main) {
-  main();
+  generate();
 }

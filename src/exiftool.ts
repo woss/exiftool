@@ -1,13 +1,39 @@
 import { TagDb } from './tag-db.ts';
-import type { ExifToolOptions, FileInfo } from './types.ts';
+import type { ExifToolOptions, FileInfo, TagEntry } from './types.ts';
 import { DEFAULT_OPTIONS } from './types.ts';
+import tagData from './tags/generated/tags.json' with { type: 'json' };
+import type { TableDef } from './tags.ts';
+
+function buildTagDb(): TagDb {
+  const db = new TagDb();
+  const tables = tagData as TableDef[];
+  for (const table of tables) {
+    const entries: TagEntry[] = table.tags.map((t) => ({
+      id: t.id,
+      name: t.name,
+      description: t.description,
+      format: t.type !== '?' ? t.type as TagEntry['format'] : undefined,
+      writable: t.writable,
+      groups: {
+        family0: table.groups.g0,
+        family1: table.groups.g1,
+        family2: table.groups.g2,
+        family7: t.g2,
+      },
+      values: t.values && Object.keys(t.values).length > 0 ? t.values : undefined,
+    }));
+    db.registerBatch(entries);
+  }
+  return db;
+}
 
 export class ExifTool {
-  readonly tagDb = new TagDb();
+  readonly tagDb: TagDb;
   readonly options: ExifToolOptions;
 
   constructor(opts?: Partial<ExifToolOptions>) {
     this.options = { ...DEFAULT_OPTIONS, ...opts };
+    this.tagDb = buildTagDb();
   }
 
   async run(args: string[]): Promise<number> {

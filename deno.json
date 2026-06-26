@@ -19,11 +19,14 @@
   },
   "lint": {
     "include": ["src/", "scripts/"],
+    "exclude": ["src/tags/generated/"],
     "rules": {
       "exclude": ["no-unused-vars"]
     }
   },
   "fmt": {
+    "include": ["src/", "scripts/"],
+    "exclude": ["src/tags/generated/"],
     "lineWidth": 100,
     "semiColons": true,
     "singleQuote": true
