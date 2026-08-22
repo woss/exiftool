@@ -10,6 +10,7 @@ export interface CliOptions {
   dateFormat?: string;
   coordFormat?: string;
   groupHeadings?: string;
+  groupPrefix?: string;
   charset?: string;
   lang?: string;
   exclude: string[];
@@ -216,12 +217,7 @@ export function parseCliArgs(args: string[]): CliOptions {
       continue;
     }
 
-    const gMatch = arg.match(/^-g(roupnames)?(?:(\d+))?$/i);
-    if (gMatch) {
-      opts.groupHeadings = gMatch[2] || '0';
-      i++;
-      continue;
-    }
+    // -g/-G/-groupNames flags are handled by cli.ts via @cliffy/command
 
     if (lower === '-@') {
       opts.argfile = args[i + 1];

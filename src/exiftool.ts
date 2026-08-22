@@ -3,6 +3,11 @@ import type { ExifToolOptions, FileInfo, TagEntry } from './types.ts';
 import { DEFAULT_OPTIONS } from './types.ts';
 import tagData from './tags/generated/tags.json' with { type: 'json' };
 import type { TableDef } from './tags.ts';
+import { detectParser } from './format/mod.ts';
+import './format/jpeg.ts';
+import './format/png.ts';
+import './format/webp.ts';
+import './format/avif.ts';
 
 function buildTagDb(): TagDb {
   const db = new TagDb();
@@ -54,39 +59,13 @@ export class ExifTool {
 
   async read(filePath: string): Promise<FileInfo> {
     const bytes = await Deno.readFile(filePath);
-    const format = this.detectFormat(bytes);
+    const parser = detectParser(bytes);
 
-    const result: FileInfo = {
-      path: filePath,
-      format,
-      tags: {},
-    };
+    if (parser) {
+      return parser.parse(bytes, filePath, this.tagDb);
+    }
 
-    return result;
-  }
-
-  private detectFormat(bytes: Uint8Array): string {
-    if (bytes[0] === 0xff && bytes[1] === 0xd8) return 'JPEG';
-    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) {
-      return 'PNG';
-    }
-    if (bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70) {
-      return 'HEIC';
-    }
-    if (
-      bytes[0] === 0x00 && bytes[1] === 0x00 && bytes[2] === 0x00 &&
-      (bytes[3] === 0x66 || bytes[3] === 0x6d || bytes[3] === 0x18)
-    ) return 'MP4';
-    if (bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46) {
-      return 'RIFF';
-    }
-    if (bytes[0] === 0x49 && bytes[1] === 0x49 && bytes[2] === 0x2a && bytes[3] === 0x00) {
-      return 'TIFF';
-    }
-    if (bytes[0] === 0x4d && bytes[1] === 0x4d && bytes[2] === 0x00 && bytes[3] === 0x2a) {
-      return 'TIFF';
-    }
-    return 'Unknown';
+    return { path: filePath, format: 'Unknown', tags: {} };
   }
 
   private printHelp(): void {
