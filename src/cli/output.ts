@@ -46,26 +46,21 @@ export function formatDateValue(value: TagValue, fmt: string): TagValue {
 
 export function formatJSON(files: FileInfo[], options?: FormatOptions): string {
   const prefixFamily = resolveFamily(options?.groupPrefix, '1');
-  const obj: Record<string, unknown> = {};
+  const arr: Record<string, TagValue>[] = [];
   for (const file of files) {
-    if (options?.groupPrefix) {
-      const prefixed: Record<string, TagValue> = {};
-      for (const [tag, value] of Object.entries(file.tags)) {
-        const v = options?.dateFormat ? formatDateValue(value, options.dateFormat) : value;
+    const entry: Record<string, TagValue> = {};
+    for (const [tag, value] of Object.entries(file.tags)) {
+      const v = options?.dateFormat ? formatDateValue(value, options.dateFormat) : value;
+      if (options?.groupPrefix) {
         const group = getGroupName(tag, prefixFamily, options.tagDb);
-        const key = group ? `${group}:${tag}` : tag;
-        prefixed[key] = v;
+        entry[group ? `${group}:${tag}` : tag] = v;
+      } else {
+        entry[tag] = v;
       }
-      obj[file.path] = prefixed;
-    } else {
-      const formatted: Record<string, TagValue> = {};
-      for (const [tag, value] of Object.entries(file.tags)) {
-        formatted[tag] = options?.dateFormat ? formatDateValue(value, options.dateFormat) : value;
-      }
-      obj[file.path] = formatted;
     }
+    arr.push(entry);
   }
-  return JSON.stringify(obj, null, 2);
+  return JSON.stringify(arr, null, 2);
 }
 
 export function formatXML(files: FileInfo[], options?: FormatOptions): string {

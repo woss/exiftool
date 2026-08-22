@@ -94,8 +94,10 @@ Deno.test('formatTabular — groupPrefix (family 1)', () => {
 Deno.test('formatJSON — no options (backward compat)', () => {
   const result = formatJSON(mockFiles);
   const parsed = JSON.parse(result);
-  assertEquals(parsed['test.jpg']['Make'], 'Canon');
-  assertEquals(parsed['test.jpg']['FileName'], 'test.jpg');
+  assertEquals(Array.isArray(parsed), true);
+  assertEquals(parsed.length, 1);
+  assertEquals(parsed[0]['Make'], 'Canon');
+  assertEquals(parsed[0]['FileName'], 'test.jpg');
 });
 
 Deno.test('formatJSON — groupPrefix (family 1)', () => {
@@ -103,11 +105,23 @@ Deno.test('formatJSON — groupPrefix (family 1)', () => {
   const result = formatJSON(mockFiles, opts);
   const parsed = JSON.parse(result);
   // Keys should be prefixed
-  assertEquals(parsed['test.jpg']['EXIF:Make'], 'Canon');
-  assertEquals(parsed['test.jpg']['EXIF:Model'], 'EOS R5');
-  assertEquals(parsed['test.jpg']['File:FileName'], 'test.jpg');
+  assertEquals(parsed[0]['EXIF:Make'], 'Canon');
+  assertEquals(parsed[0]['EXIF:Model'], 'EOS R5');
+  assertEquals(parsed[0]['File:FileName'], 'test.jpg');
   // Original keys should NOT exist
-  assertEquals(parsed['test.jpg']['Make'], undefined);
+  assertEquals(parsed[0]['Make'], undefined);
+});
+
+Deno.test('formatJSON — multiple files produce array elements', () => {
+  const files: FileInfo[] = [
+    { path: 'a.jpg', format: 'JPEG', tags: { Make: 'Canon' } },
+    { path: 'b.jpg', format: 'JPEG', tags: { Make: 'Nikon' } },
+  ];
+  const parsed = JSON.parse(formatJSON(files));
+  assertEquals(Array.isArray(parsed), true);
+  assertEquals(parsed.length, 2);
+  assertEquals(parsed[0]['Make'], 'Canon');
+  assertEquals(parsed[1]['Make'], 'Nikon');
 });
 
 Deno.test('formatCSV — no options (backward compat)', () => {
@@ -208,8 +222,8 @@ Deno.test('formatJSON — with dateFormat formats dates', () => {
   }];
   const result = formatJSON(files, opts);
   const parsed = JSON.parse(result);
-  assertEquals(parsed['test.jpg']['DateTimeOriginal'], '2025-06-26');
-  assertEquals(parsed['test.jpg']['Make'], 'Canon');
+  assertEquals(parsed[0]['DateTimeOriginal'], '2025-06-26');
+  assertEquals(parsed[0]['Make'], 'Canon');
 });
 
 function assert(condition: boolean, msg?: string): void {
