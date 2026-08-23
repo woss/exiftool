@@ -25,7 +25,7 @@
   },
   "agents": {
     "architect": {
-      "model": "opencode/big-pickle",
+      "model": "opencode/x-preview-f-free",
       "fallback_models": [
         "opencode/deepseek-v4-flash-free",
         "opencode/big-pickle"
@@ -35,139 +35,95 @@
       }
     },
     "coder": {
-      "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/deepseek-v4-flash-free"
-      ],
+      "model": "opencode/x-preview-f-free",
+      "fallback_models": ["opencode/deepseek-v4-flash-free"],
       "options": {
         "reasoningEffort": "high"
       }
     },
     "reviewer": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/deepseek-v4-flash-free"
-      ]
+      "fallback_models": ["opencode/deepseek-v4-flash-free"]
     },
     "test_engineer": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/deepseek-v4-flash-free"
-      ]
+      "fallback_models": ["opencode/deepseek-v4-flash-free"]
     },
     "explorer": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/nemotron-3-ultra-free"
-      ]
+      "fallback_models": ["opencode/nemotron-3-ultra-free"]
     },
     "sme": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/nemotron-3-ultra-free"
-      ]
+      "fallback_models": ["opencode/nemotron-3-ultra-free"]
     },
     "researcher": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/nemotron-3-ultra-free"
-      ]
+      "fallback_models": ["opencode/nemotron-3-ultra-free"]
     },
     "critic": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/nemotron-3-ultra-free"
-      ]
+      "fallback_models": ["opencode/nemotron-3-ultra-free"]
     },
     "docs": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/deepseek-v4-flash-free"
-      ]
+      "fallback_models": ["opencode/deepseek-v4-flash-free"]
     },
     "docs_design": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/deepseek-v4-flash-free"
-      ]
+      "fallback_models": ["opencode/deepseek-v4-flash-free"]
     },
     "designer": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/deepseek-v4-flash-free"
-      ]
+      "fallback_models": ["opencode/deepseek-v4-flash-free"]
     },
     "critic_sounding_board": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/deepseek-v4-flash-free"
-      ]
+      "fallback_models": ["opencode/deepseek-v4-flash-free"]
     },
     "critic_drift_verifier": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/deepseek-v4-flash-free"
-      ]
+      "fallback_models": ["opencode/deepseek-v4-flash-free"]
     },
     "critic_hallucination_verifier": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/deepseek-v4-flash-free"
-      ]
+      "fallback_models": ["opencode/deepseek-v4-flash-free"]
     },
     "critic_oversight": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/deepseek-v4-flash-free"
-      ]
+      "fallback_models": ["opencode/deepseek-v4-flash-free"]
     },
     "critic_architecture_supervisor": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/deepseek-v4-flash-free"
-      ]
+      "fallback_models": ["opencode/deepseek-v4-flash-free"]
     },
     "critic_finding_validator": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/deepseek-v4-flash-free"
-      ]
+      "fallback_models": ["opencode/deepseek-v4-flash-free"]
     },
     "curator_init": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/deepseek-v4-flash-free"
-      ]
+      "fallback_models": ["opencode/deepseek-v4-flash-free"]
     },
     "curator_phase": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/deepseek-v4-flash-free"
-      ]
+      "fallback_models": ["opencode/deepseek-v4-flash-free"]
     },
     "curator_postmortem": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/deepseek-v4-flash-free"
-      ]
+      "fallback_models": ["opencode/deepseek-v4-flash-free"]
     },
     "curator_consolidation": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/deepseek-v4-flash-free"
-      ]
+      "fallback_models": ["opencode/deepseek-v4-flash-free"]
     },
     "skill_improver": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/nemotron-3-ultra-free"
-      ]
+      "fallback_models": ["opencode/nemotron-3-ultra-free"]
     },
     "spec_writer": {
       "model": "opencode/big-pickle",
-      "fallback_models": [
-        "opencode/nemotron-3-ultra-free"
-      ]
+      "fallback_models": ["opencode/nemotron-3-ultra-free"]
     }
   },
   "default_swarm": "default",
