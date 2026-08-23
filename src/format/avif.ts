@@ -64,15 +64,10 @@ function parseBoxTree(
         : xmp;
     }
 
-    if (box.type === 'mdat') {
-      continue;
-    }
-
     if (
       box.type === 'moov' || box.type === 'trak' || box.type === 'mdia' ||
       box.type === 'minf' || box.type === 'stbl' || box.type === 'meta' ||
-      box.type === 'iprp' || box.type === 'ipco' || box.type === ' infe' ||
-      box.type === 'mdat'
+      box.type === 'iprp' || box.type === 'ipco' || box.type === 'infe'
     ) {
       const subLimit = Math.min(pos + box.size, limit);
       parseBoxTree(bytes, pos + box.headerSize, subLimit, result, depth + 1, tagDb);

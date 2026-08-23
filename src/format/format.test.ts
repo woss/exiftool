@@ -325,3 +325,32 @@ Deno.test('PNG parse — IHDR and eXIf', async () => {
   assertEquals(result.tags['Make'], 'PNGMake');
   assertEquals(result.tags['Model'], 'PNGModel');
 });
+
+Deno.test('avif: parses minimal ftyp+mdat without hanging', async () => {
+  const encoder = new TextEncoder();
+
+  // ftyp box: size=16, type='ftyp', major brand 'avif', minor version 0
+  const ftyp = new Uint8Array(16);
+  new DataView(ftyp.buffer).setUint32(0, 16, false);
+  ftyp.set(encoder.encode('ftyp'), 4);
+  ftyp.set(encoder.encode('avif'), 8);
+
+  // mdat box: size=16, type='mdat', 8 bytes of opaque payload
+  const mdat = new Uint8Array(16);
+  new DataView(mdat.buffer).setUint32(0, 16, false);
+  mdat.set(encoder.encode('mdat'), 4);
+
+  const bytes = new Uint8Array(ftyp.length + mdat.length);
+  bytes.set(ftyp, 0);
+  bytes.set(mdat, ftyp.length);
+
+  const parser = detectParser(bytes)!;
+  const startedAt = Date.now();
+  const result = await parser.parse(bytes, 'test.avif');
+  const elapsedMs = Date.now() - startedAt;
+
+  assertEquals(result.format, 'AVIF');
+  assertEquals(result.tags['FileTypeBrand'], 'avif');
+  // Secondary coarse guard only — completion without throwing is the primary proof.
+  assertEquals(elapsedMs < 1000, true);
+});
