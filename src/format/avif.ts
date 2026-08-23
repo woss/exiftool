@@ -16,6 +16,7 @@ function readBoxHeader(
   let headerSize = 8;
 
   if (size === 0) {
+    // ISO BMFF: a 32-bit size of 0 means the box extends to the end of the file.
     size = bytes.length - offset;
   } else if (size === 1) {
     if (offset + 16 > bytes.length) return null;
@@ -23,6 +24,10 @@ function readBoxHeader(
     size = Number(extendedView.getBigUint64(0, false));
     headerSize = 16;
   }
+
+  // A box smaller than its own header can never advance the walk; reject it
+  // exactly like a truncated header so parseBoxTree breaks instead of stalling.
+  if (size < headerSize) return null;
 
   return { size, type, headerSize };
 }

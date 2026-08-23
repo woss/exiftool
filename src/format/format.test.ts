@@ -354,3 +354,35 @@ Deno.test('avif: parses minimal ftyp+mdat without hanging', async () => {
   // Secondary coarse guard only — completion without throwing is the primary proof.
   assertEquals(elapsedMs < 1000, true);
 });
+
+Deno.test('avif: degenerate extended-size box (ext size 0) terminates cleanly', async () => {
+  const encoder = new TextEncoder();
+
+  // ftyp box: size=16, type='ftyp', major brand 'avif', minor version 0
+  const ftyp = new Uint8Array(16);
+  new DataView(ftyp.buffer).setUint32(0, 16, false);
+  ftyp.set(encoder.encode('ftyp'), 4);
+  ftyp.set(encoder.encode('avif'), 8);
+
+  // Degenerate free box: 32-bit size=1 (extended-size marker) whose 64-bit
+  // extended size is 0 — smaller than its own 16-byte header.
+  const degenerateFreeBox = new Uint8Array(16);
+  new DataView(degenerateFreeBox.buffer).setUint32(0, 1, false);
+  degenerateFreeBox.set(encoder.encode('free'), 4);
+  // extended size field stays all-zero
+
+  const bytes = new Uint8Array(ftyp.length + degenerateFreeBox.length);
+  bytes.set(ftyp, 0);
+  bytes.set(degenerateFreeBox, ftyp.length);
+
+  const parser = detectParser(bytes)!;
+  const startedAt = Date.now();
+  const result = await parser.parse(bytes, 'test.avif');
+  const elapsedMs = Date.now() - startedAt;
+
+  // Reaching these assertions at all proves the walk terminated instead of hanging.
+  assertEquals(result.format, 'AVIF');
+  assertEquals(result.tags['FileTypeBrand'], 'avif');
+  // Secondary coarse guard only — completion plus well-formed result come first.
+  assertEquals(elapsedMs < 1000, true);
+});
