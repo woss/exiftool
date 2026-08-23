@@ -58,10 +58,12 @@ const cmd = new Command()
     }
 
     if (options.binary) {
+      // Known limitation: with multiple files/tags, all Uint8Array values are
+      // concatenated to stdout without separators and without per-tag selection.
       let foundBinary = false;
       for (const file of results) {
         for (const value of Object.values(file.tags)) {
-          if (value instanceof Uint8Array) {
+          if (value instanceof Uint8Array && value.length > 0) {
             await Deno.stdout.write(value);
             foundBinary = true;
           }
