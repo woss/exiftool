@@ -1,6 +1,6 @@
 {
   "dependencies": {
-    "@opencode-ai/plugin": "1.18.19"
+    "@opencode-ai/plugin": "1.18.21"
   },
   "devDependencies": {
     "detect-terminal": "2.0.0",
