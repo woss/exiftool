@@ -1,6 +1,5 @@
 import { TagDb } from './tag-db.ts';
-import type { ExifToolOptions, FileInfo, TagEntry } from './types.ts';
-import { DEFAULT_OPTIONS } from './types.ts';
+import { DEFAULT_OPTIONS, type ExifToolOptions, type FileInfo, type TagEntry, type TagValue } from './types.ts';
 import tagData from './tags/generated/tags.json' with { type: 'json' };
 import type { TableDef } from './tags.ts';
 import { detectParser } from './format/mod.ts';
@@ -10,6 +9,7 @@ import './format/png.ts';
 import './format/webp.ts';
 import './format/avif.ts';
 
+import { writeTags, type WriteResult } from './write/pipeline.ts';
 function buildTagDb(): TagDb {
   const db = new TagDb();
   const tables = tagData as TableDef[];
@@ -67,6 +67,19 @@ export class ExifTool {
     }
 
     return { path: filePath, format: 'Unknown', tags: {} };
+  }
+
+  /**
+   * Writes the writable tag subset into the file's native metadata
+   * container (JPEG APP1, PNG eXIf, WebP EXIF, AVIF meta). Creates a
+   * `<file>_original` backup unless overwriteOriginal is set.
+   */
+  async write(
+    filePath: string,
+    tags: Record<string, TagValue>,
+    opts: { overwriteOriginal?: boolean } = {},
+  ): Promise<WriteResult> {
+    return writeTags(filePath, tags, opts);
   }
 
   private printHelp(): void {

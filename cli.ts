@@ -9,13 +9,18 @@ import { extractEmbeddedJpegs, jpegParser } from './src/format/jpeg.ts';
 
 export function normalizeArgs(args: string[]): string[] {
   return args.flatMap((a) => {
+    // TAG=VALUE write assignments pass through as operands
+    if (a === '-overwrite_original' || a === '--overwrite_original') {
+      return ['--overwrite-original'];
+    }
+    if (/^-?[A-Za-z][A-Za-z0-9_]*=/.test(a)) return [a];
     if (a === '--ee') return ['--extract-embedded'];
     if (a.startsWith('-') && !a.startsWith('--') && a.length > 2) {
       if (a === '-ver') return ['--version'];
       // -ext maps to the long-only --extension option
       if (a === '-ext') return ['--extension'];
-      // -ee/--ee form maps to the long-only --extract-embedded option
-      if (a === '-ee' || a === '--ee') return ['--extract-embedded'];
+      // -ee maps to the long-only --extract-embedded option
+      if (a === '-ee') return ['--extract-embedded'];
       if (/^-[gG]\d$/.test(a)) return [a.slice(0, 2), a.slice(2)];
       return ['--' + a.slice(1)];
     }
@@ -44,6 +49,7 @@ export interface CliOptions {
   ignore?: string[];
   output?: string;
   extractEmbedded?: boolean;
+  overwriteOriginal?: boolean;
 }
 
 export async function runAction(options: CliOptions, ...files: string[]): Promise<number> {
@@ -52,7 +58,37 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
   const coordFormat: string | undefined = options.coordFormat;
   const failures: string[] = [];
 
-  const expanded = await expandInputs(files, {
+  // Write mode: any TAG=VALUE operands turn the invocation into an update.
+  const assignments = files.filter((f) => /^-?[A-Za-z][A-Za-z0-9_]*=/.test(f));
+  if (assignments.length > 0) {
+    const tags: Record<string, string> = {};
+    for (const a of assignments) {
+      const eq = a.indexOf('=');
+      tags[a.slice(0, eq).replace(/^-/, '')] = a.slice(eq + 1);
+    }
+    const paths = files.filter((f) => !assignments.includes(f));
+    const expandedWrite = await expandInputs(paths, {
+      recurse: options.recurse === true,
+      extensions: options.extension ?? [],
+      ignoreDirs: options.ignore ?? [],
+    });
+    let updated = 0;
+    for (const file of expandedWrite) {
+      try {
+        await tool.write(file, tags, {
+          overwriteOriginal: options.overwriteOriginal === true,
+        });
+        updated++;
+      } catch (e) {
+        failures.push(`Error writing ${file}: ${(e as Error).message}`);
+      }
+    }
+    if (updated > 0 && quietCount < 1) console.log(`${updated} image files updated`);
+    for (const line of failures) console.error(line);
+    return failures.length > 0 ? 1 : 0;
+  }
+
+  const expanded = await expandInputs(files.filter((f) => !assignments.includes(f)), {
     recurse: options.recurse === true,
     extensions: options.extension ?? [],
     ignoreDirs: options.ignore ?? [],
@@ -181,6 +217,7 @@ export const cmd = new Command()
   .option('--extension <ext:string>', 'Extension filter for directory scans (use -ext EXT)', { collect: true })
   .option('-i, --ignore <dirname:string>', 'Ignore a directory name during scans', { collect: true })
   .option('--extract-embedded', 'Extract embedded documents from supported formats (Multi-Picture JPEG); use -ee')
+  .option('--overwrite-original', 'Skip creating <file>_original backups when writing (use -overwrite_original)')
   .arguments('<files...:string>')
   .action(async (options, ...files: string[]) => {
     const code = await runAction(options as CliOptions, ...files);

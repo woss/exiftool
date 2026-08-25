@@ -308,7 +308,8 @@ function buildMpfFixture(): Uint8Array {
 Deno.test('normalizeArgs maps -ext and -ee to long-only options', () => {
   assertEquals(normalizeArgs(['-ext', 'jpg']), ['--extension', 'jpg']);
   assertEquals(normalizeArgs(['-ee']), ['--extract-embedded']);
-  assertEquals(normalizeArgs(['--ee']), ['--extract-embedded']);
+  assertEquals(normalizeArgs(['-overwrite_original']), ['--overwrite-original']);
+  assertEquals(normalizeArgs(['--overwrite_original']), ['--overwrite-original']);
 });
 
 Deno.test('runAction walks directories with recurse, extension filter, and ignore', async () => {
@@ -505,4 +506,67 @@ Deno.test('CLI entrypoint succeeds on a real file', async () => {
   const outText = new TextDecoder().decode(stdout);
   assertEquals(code, 0);
   assertEquals(outText.includes('Make'), true);
+});
+
+// --- Phase 5: TAG=VALUE write mode ---
+
+Deno.test('runAction write mode updates file and creates backup', async () => {
+  const tmp = await Deno.makeTempFile({ suffix: '.jpg' });
+  await Deno.writeFile(tmp, await Deno.readFile('assets/01.jpg'));
+  const cap = captureConsole();
+  try {
+    const code = await runAction({}, '-Make=Acme', tmp);
+    assertEquals(code, 0);
+    assertEquals(cap.out.join('\n').includes('1 image files updated'), true);
+    const tool = new ExifTool();
+    const info = await tool.read(tmp);
+    assertEquals(info.tags.Make, 'Acme');
+    const originalInfo = await tool.read(`${tmp}_original`);
+    assertEquals(originalInfo.tags.Make, 'Canon');
+  } finally {
+    try { await Deno.remove(`${tmp}_original`); } catch { /* absent */ }
+    await Deno.remove(tmp);
+  }
+});
+
+Deno.test('runAction write mode with overwriteOriginal skips backup', async () => {
+  const tmp = await Deno.makeTempFile({ suffix: '.jpg' });
+  await Deno.writeFile(tmp, await Deno.readFile('assets/01.jpg'));
+  const cap = captureConsole();
+  try {
+    const opts: CliOptions = { overwriteOriginal: true };
+    const code = await runAction(opts, '-Software=tiny', tmp);
+    assertEquals(code, 0);
+    let exists = true;
+    try {
+      await Deno.stat(`${tmp}_original`);
+    } catch {
+      exists = false;
+    }
+    assertEquals(exists, false);
+    const tool = new ExifTool();
+    assertEquals((await tool.read(tmp)).tags.Software, 'tiny');
+  } finally {
+    cap.restore();
+    await Deno.remove(tmp);
+  }
+});
+
+Deno.test('runAction write mode reports unsupported files and returns 1', async () => {
+  const txt = await Deno.makeTempFile({ suffix: '.txt' });
+  await Deno.writeTextFile(txt, 'plain');
+  const cap = captureConsole();
+  try {
+    const code = await runAction({}, '-Make=X', txt);
+    assertEquals(code, 1);
+    assertEquals(
+      cap.err.some((l) => l.startsWith('Error writing')),
+      true,
+    );
+    // No summary line when nothing was updated.
+    assertEquals(cap.out.join('\n').includes('updated'), false);
+  } finally {
+    cap.restore();
+    await Deno.remove(txt);
+  }
 });
