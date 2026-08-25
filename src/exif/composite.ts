@@ -36,7 +36,9 @@ export function computeCompositeTags(tags: Record<string, TagValue>): void {
   }
 
   if (focalLength) {
-    const flStr = `${focalLength.toFixed(1).replace(/\.0$/, '')}.0 mm`;
+    const flStr = Number.isInteger(focalLength)
+      ? `${focalLength.toFixed(1)} mm`
+      : `${focalLength.toFixed(1).replace(/\.0$/, '')} mm`;
     if (focalLength35) {
       const fl35Str = `${focalLength35.toFixed(0).replace(/\.0$/, '')} mm`;
       if (!('FocalLength35efl' in tags)) {
