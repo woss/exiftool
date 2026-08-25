@@ -312,7 +312,7 @@ function formatFlash(value: number): string {
   return parts.join(', ');
 }
 
-const ENUMS: Record<string, Record<number, string>> = {
+const ENUMS: Record<string, Record<number | string, string>> = {
   ExposureProgram: {
     0: 'Not Defined',
     1: 'Manual',
@@ -576,11 +576,11 @@ export function formatExifValue(value: TagValue, tagName: string): TagValue {
   }
 
   if (tagName === 'GPSStatus' && typeof value === 'string') {
-    return ENUMS.GPSStatus[value as keyof typeof ENUMS.GPSStatus] ?? value;
+    return ENUMS.GPSStatus[value] ?? value;
   }
 
   if (tagName === 'GPSMeasureMode' && typeof value === 'string') {
-    return ENUMS.GPSMeasureMode[value as keyof typeof ENUMS.GPSMeasureMode] ?? value;
+    return ENUMS.GPSMeasureMode[value] ?? value;
   }
 
   if (tagName === 'GPSDifferential' && typeof value === 'number') {

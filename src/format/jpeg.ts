@@ -169,7 +169,7 @@ export const jpegParser: FormatParser = {
       const subject = result['Subject'];
       const subArr = Array.isArray(subject) ? subject : [subject as string];
       for (const s of subArr) {
-        if (!existing.includes(s)) existing.push(s);
+        if (typeof s === 'string' && !existing.includes(s)) existing.push(s);
       }
     } else if (result['Subject'] && !result['Keywords']) {
       result['Keywords'] = result['Subject'];

@@ -6,6 +6,7 @@
     "jsr:@cliffy/internal@1.2.1": "1.2.1",
     "jsr:@cliffy/table@1.2.1": "1.2.1",
     "jsr:@std/assert@*": "1.0.19",
+    "jsr:@std/assert@1": "1.0.19",
     "jsr:@std/assert@1.0": "1.0.19",
     "jsr:@std/cli@1.0": "1.0.30",
     "jsr:@std/fmt@1.0": "1.0.10",

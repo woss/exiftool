@@ -353,6 +353,6 @@ Deno.test('JPEG parse — EXIF IFD1 thumbnail extracted as exact bytes (Thumbnai
   assertEquals(Array.from(thumbImage), Array.from(thumbBytes));
 });
 
-function assert(condition: boolean, msg?: string): void {
+function assert(condition: boolean, msg?: string): asserts condition {
   if (!condition) throw new Error(msg || 'Assertion failed');
 }
