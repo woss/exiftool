@@ -167,16 +167,6 @@ Deno.test('runAction nonexistent file prints error and returns 1', async () => {
   }
 });
 
-Deno.test('runAction error on first file stops before later files', async () => {
-  const cap = captureConsole();
-  try {
-    const code = await runAction({}, 'missing.jpg', 'assets/01.jpg');
-    assertEquals(code, 1);
-    assertEquals(cap.out.length, 0);
-  } finally {
-    cap.restore();
-  }
-});
 
 Deno.test('runAction -if keeps matching files only', async () => {
   const cap = captureConsole();
@@ -265,6 +255,205 @@ Deno.test('runAction date format reformats date tags', async () => {
     const code = await runAction({ dateFormat: '%Y-%m-%d' }, 'assets/01.jpg');
     assertEquals(code, 0);
     assertEquals(cap.out.join('\n').includes('2023-08-02'), true);
+  } finally {
+    cap.restore();
+  }
+});
+
+// --- Phase 4: input expansion, error continuation, XML, output redirect, -ee ---
+
+function buildMpfFixture(): Uint8Array {
+  const miniJpeg = (marker: number): Uint8Array =>
+    new Uint8Array([
+      0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00,
+      0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, marker, 0xFF, 0xD9,
+    ]);
+  const imgs = [miniJpeg(0xB1), miniJpeg(0xB2)];
+  const t: number[] = [0x49, 0x49, 0x2A, 0x00, 0x08, 0x00, 0x00, 0x00, 0x03, 0x00];
+  const u32 = (v: number) =>
+    t.push(v & 255, (v >> 8) & 255, (v >> 16) & 255, (v >>> 24) & 255);
+  const entry = (tag: number, count: number, valOff: number) => {
+    t.push(tag & 255, tag >> 8, 7, 0);
+    u32(count);
+    u32(valOff);
+  };
+  const verOff = 8 + 2 + 12 * 3 + 4;
+  const entriesOff = verOff + 4;
+  const blobBase = entriesOff + 16 * imgs.length;
+  entry(0xb000, 4, verOff);
+  entry(0xb001, 1, imgs.length);
+  entry(0xb002, imgs.length * 16, entriesOff);
+  t.push(0, 0, 0, 0);
+  t.push(0x30, 0x31, 0x30, 0x30);
+  let cursor = blobBase;
+  for (const img of imgs) {
+    u32(0);
+    u32(img.length);
+    u32(cursor);
+    t.push(0, 0, 0, 0);
+    cursor += img.length;
+  }
+  for (const img of imgs) t.push(...img);
+  const payload = [0x4d, 0x50, 0x46, 0x00, ...t];
+  const segLen = payload.length + 2;
+  return new Uint8Array([
+    0xff, 0xd8,
+    0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x00,
+    0x00, 0x01, 0x00, 0x01, 0x00, 0x00,
+    0xff, 0xe2, (segLen >> 8) & 255, segLen & 255, ...payload,
+    0xff, 0xd9,
+  ]);
+}
+
+Deno.test('normalizeArgs maps -ext and -ee to long-only options', () => {
+  assertEquals(normalizeArgs(['-ext', 'jpg']), ['--extension', 'jpg']);
+  assertEquals(normalizeArgs(['-ee']), ['--extract-embedded']);
+  assertEquals(normalizeArgs(['--ee']), ['--extract-embedded']);
+});
+
+Deno.test('runAction walks directories with recurse, extension filter, and ignore', async () => {
+  const root = await Deno.makeTempDir();
+  try {
+    await Deno.mkdir(`${root}/nested/skipme`, { recursive: true });
+    await Deno.writeFile(`${root}/top.jpg`, await Deno.readFile('assets/01.jpg'));
+    await Deno.writeTextFile(`${root}/note.txt`, 'x');
+    await Deno.writeFile(`${root}/nested/in.jpg`, await Deno.readFile('assets/03.jpg'));
+    await Deno.writeTextFile(`${root}/nested/skipme/hidden.jpg`, 'x');
+    const cap = captureConsole();
+    try {
+      const opts: CliOptions = {
+        json: true,
+        recurse: true,
+        extension: ['JPG'],
+        ignore: ['skipme'],
+      };
+      const code = await runAction(opts, root);
+      assertEquals(code, 0);
+      const parsed = JSON.parse(cap.out.join('\n'));
+      assertEquals(parsed.length, 2);
+      assertEquals(
+        parsed.map((f: { SourceFile: string }) => f.SourceFile.endsWith('top.jpg'))
+          .includes(true),
+        true,
+      );
+    } finally {
+      cap.restore();
+    }
+  } finally {
+    await Deno.remove(root, { recursive: true });
+  }
+});
+
+Deno.test('runAction continues after unreadable files and reports each failure', async () => {
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ json: true }, 'missing.jpg', 'assets/01.jpg');
+    assertEquals(code, 1);
+    assertEquals(
+      cap.err.some((l) => l.startsWith('Error reading missing.jpg:')),
+      true,
+    );
+    // The readable file still made it through to the formatter.
+    const parsed = JSON.parse(cap.out.join('\n'));
+    assertEquals(parsed.length, 1);
+    assertEquals(parsed[0].Make, 'Canon');
+  } finally {
+    cap.restore();
+  }
+});
+
+Deno.test('runAction quiet suppresses per-file failure lines but keeps exit code', async () => {
+  const cap = captureConsole();
+  try {
+    const opts: CliOptions = { json: true, quiet: [true] };
+    const code = await runAction(opts, 'missing.jpg');
+    assertEquals(code, 1);
+    assertEquals(cap.err.length, 0);
+  } finally {
+    cap.restore();
+  }
+});
+
+Deno.test('runAction --xml emits an XML document', async () => {
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ xml: true }, 'assets/01.jpg');
+    assertEquals(code, 0);
+    const text = cap.out.join('\n');
+    assertEquals(text.startsWith('<?xml'), true);
+    assertEquals(text.includes('<tag name="Make">Canon</tag>'), true);
+  } finally {
+    cap.restore();
+  }
+});
+
+Deno.test('runAction -o writes formatter output to a file instead of stdout', async () => {
+  const out = await Deno.makeTempFile({ suffix: '.txt' });
+  try {
+    const cap = captureConsole();
+    try {
+      const code = await runAction({ output: out }, 'assets/01.jpg');
+      assertEquals(code, 0);
+      assertEquals(cap.out.join('\n').length, 0);
+    } finally {
+      cap.restore();
+    }
+    const written = await Deno.readTextFile(out);
+    assertEquals(written.includes('Canon EOS 700D'), true);
+  } finally {
+    await Deno.remove(out);
+  }
+});
+
+Deno.test('runAction -o failure is reported and returns 1', async () => {
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { output: '/no-such-dir/out.txt' },
+      'assets/01.jpg',
+    );
+    assertEquals(code, 1);
+    assertEquals(cap.out.length, 0);
+    assertEquals(
+      cap.err.some((l) => l.startsWith('Error writing /no-such-dir/out.txt:')),
+      true,
+    );
+  } finally {
+    cap.restore();
+  }
+});
+
+Deno.test('runAction -ee appends embedded MPF images as documents', async () => {
+  const tmp = await Deno.makeTempFile({ suffix: '.jpg' });
+  try {
+    await Deno.writeFile(tmp, buildMpfFixture());
+    const cap = captureConsole();
+    try {
+      const code = await runAction({ json: true, extractEmbedded: true }, tmp);
+      assertEquals(code, 0);
+      const parsed = JSON.parse(cap.out.join('\n'));
+      // Container + two embedded MPF individual images.
+      assertEquals(parsed.length, 3);
+      assertEquals(parsed[0].SourceFile, tmp);
+      assertEquals(parsed[1].SourceFile, tmp);
+      assertEquals(parsed[2].FileType, 'JPEG');
+    } finally {
+      cap.restore();
+    }
+  } finally {
+    await Deno.remove(tmp);
+  }
+});
+
+Deno.test('runAction -ee on a plain JPEG adds no documents', async () => {
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { json: true, extractEmbedded: true },
+      'assets/01.jpg',
+    );
+    assertEquals(code, 0);
+    assertEquals(JSON.parse(cap.out.join('\n')).length, 1);
   } finally {
     cap.restore();
   }

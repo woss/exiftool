@@ -1,15 +1,21 @@
 import { Command } from '@cliffy/command';
 import { ExifTool } from './src/exiftool.ts';
-import { formatJSON, formatCSV, formatTabular } from './src/cli/output.ts';
+import { formatJSON, formatCSV, formatTabular, formatXML } from './src/cli/output.ts';
 import type { FormatOptions } from './src/cli/output.ts';
 import { evalCondition } from './src/cli/filter.ts';
 import { verboseLines } from './src/cli/verbosity.ts';
+import { expandInputs } from './src/cli/glob.ts';
+import { extractEmbeddedJpegs, jpegParser } from './src/format/jpeg.ts';
 
 export function normalizeArgs(args: string[]): string[] {
   return args.flatMap((a) => {
+    if (a === '--ee') return ['--extract-embedded'];
     if (a.startsWith('-') && !a.startsWith('--') && a.length > 2) {
       if (a === '-ver') return ['--version'];
-      // -g1 → -g 1, -G2 → -G 2 (short form with attached value)
+      // -ext maps to the long-only --extension option
+      if (a === '-ext') return ['--extension'];
+      // -ee/--ee form maps to the long-only --extract-embedded option
+      if (a === '-ee' || a === '--ee') return ['--extract-embedded'];
       if (/^-[gG]\d$/.test(a)) return [a.slice(0, 2), a.slice(2)];
       return ['--' + a.slice(1)];
     }
@@ -24,6 +30,7 @@ const tool = new ExifTool();
 export interface CliOptions {
   json?: boolean;
   csv?: boolean;
+  xml?: boolean;
   binary?: boolean;
   dateFormat?: string;
   groupHeadings?: string | boolean;
@@ -32,20 +39,40 @@ export interface CliOptions {
   if?: string[];
   verbose?: unknown[];
   quiet?: unknown[];
+  recurse?: boolean;
+  extension?: string[];
+  ignore?: string[];
+  output?: string;
+  extractEmbedded?: boolean;
 }
 
 export async function runAction(options: CliOptions, ...files: string[]): Promise<number> {
   const quietCount: number = options.quiet?.length ?? 0;
   const verboseCount: number = options.verbose?.length ?? 0;
   const coordFormat: string | undefined = options.coordFormat;
+  const failures: string[] = [];
+
+  const expanded = await expandInputs(files, {
+    recurse: options.recurse === true,
+    extensions: options.extension ?? [],
+    ignoreDirs: options.ignore ?? [],
+  });
+
   const results = [];
-  for (const file of files) {
+  for (const file of expanded) {
     try {
       const info = await tool.read(file, coordFormat ? { coordFormat } : undefined);
       results.push(info);
+      if (options.extractEmbedded === true && info.format === 'JPEG') {
+        // The file was just read successfully; a re-read failure here is
+        // handled by the same per-file catch below.
+        const bytes = await Deno.readFile(file);
+        for (const doc of extractEmbeddedJpegs(bytes)) {
+          results.push(await jpegParser.parse(doc, file, tool.tagDb));
+        }
+      }
     } catch (e) {
-      console.error(`Error reading ${file}: ${(e as Error).message}`);
-      return 1;
+      failures.push(`Error reading ${file}: ${(e as Error).message}`);
     }
   }
 
@@ -58,6 +85,12 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
       console.error(`${failed} files failed condition`);
     }
   }
+
+  const reportFailures = () => {
+    if (quietCount < 1) {
+      for (const line of failures) console.error(line);
+    }
+  };
 
   if (verboseCount >= 1 && quietCount < 1) {
     for (const info of kept) {
@@ -96,20 +129,36 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
       }
     }
     if (!foundBinary) {
+      reportFailures();
       console.error('No binary tags found.');
       return 1;
     }
+    reportFailures();
     return 0;
   }
 
+  let text: string;
   if (options.json) {
-    console.log(formatJSON(kept, fmtOpts));
+    text = formatJSON(kept, fmtOpts);
+  } else if (options.xml) {
+    text = formatXML(kept, fmtOpts);
   } else if (options.csv) {
-    console.log(formatCSV(kept, fmtOpts));
+    text = formatCSV(kept, fmtOpts);
   } else {
-    console.log(formatTabular(kept, fmtOpts));
+    text = formatTabular(kept, fmtOpts);
   }
-  return 0;
+  if (options.output !== undefined) {
+    try {
+      await Deno.writeTextFile(options.output, text);
+    } catch (e) {
+      console.error(`Error writing ${options.output}: ${(e as Error).message}`);
+      return 1;
+    }
+  } else {
+    console.log(text);
+  }
+  reportFailures();
+  return failures.length > 0 ? 1 : 0;
 }
 
 export const cmd = new Command()
@@ -126,6 +175,12 @@ export const cmd = new Command()
   .option('-if, --if <expr:string>', 'Filter files by condition ($Tag eq/ne/>/</>=/<= value)', { collect: true })
   .option('-v, --verbose', 'Verbose output', { collect: true })
   .option('-q, --quiet', 'Quiet output', { collect: true })
+  .option('-X, --xml', 'Output in XML format')
+  .option('-o, --output <file:string>', 'Write output to file instead of stdout')
+  .option('-r, --recurse', 'Recurse into subdirectories')
+  .option('--extension <ext:string>', 'Extension filter for directory scans (use -ext EXT)', { collect: true })
+  .option('-i, --ignore <dirname:string>', 'Ignore a directory name during scans', { collect: true })
+  .option('--extract-embedded', 'Extract embedded documents from supported formats (Multi-Picture JPEG); use -ee')
   .arguments('<files...:string>')
   .action(async (options, ...files: string[]) => {
     const code = await runAction(options as CliOptions, ...files);

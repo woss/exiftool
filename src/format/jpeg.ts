@@ -269,3 +269,85 @@ function addFileMetadata(result: Record<string, TagValue>, filePath: string): vo
 }
 
 registerParser(jpegParser);
+const MP_ENTRY_SIZE = 16;
+
+/**
+ * Locates the MPF (Multi-Picture Format) APP2 segment's TIFF header start
+ * (right after the 'MPF\0' signature), or -1 when absent/unreachable.
+ */
+function findMpfTiffStart(bytes: Uint8Array): number {
+  if (bytes.length < 4 || bytes[0] !== 0xFF || bytes[1] !== 0xD8) return -1;
+  let pos = 2;
+  while (pos + 4 <= bytes.length) {
+    if (bytes[pos] !== 0xFF) return -1;
+    const marker = bytes[pos + 1];
+    if (marker === 0xDA || marker === 0xD9) return -1; // SOS/EOI: headers done
+    // RSTn and TEM markers carry no length field
+    if ((marker >= 0xD0 && marker <= 0xD7) || marker === 0x01) {
+      pos += 2;
+      continue;
+    }
+    if (pos + 4 > bytes.length) return -1;
+    const segLen = (bytes[pos + 2] << 8) | bytes[pos + 3];
+    if (segLen < 2) return -1;
+    const dataStart = pos + 4;
+    const dataEnd = dataStart + segLen - 2;
+    if (dataEnd > bytes.length) return -1;
+    if (
+      marker === 0xE2 && segLen >= 8 &&
+      bytes[dataStart] === 0x4D && bytes[dataStart + 1] === 0x50 &&
+      bytes[dataStart + 2] === 0x46 && bytes[dataStart + 3] === 0x00
+    ) {
+      return dataStart + 4;
+    }
+    pos += 2 + segLen;
+  }
+  return -1;
+}
+
+/**
+ * Extracts the Individual Images advertised by a JPEG MPF APP2 segment
+ * (CIPA DC-007). Returns standalone copies in MP-entry order, skipping
+ * zero-size entries and entries that do not begin with a JPEG SOI marker.
+ * Returns [] when no usable MPF segment exists. Never throws.
+ */
+export function extractEmbeddedJpegs(bytes: Uint8Array): Uint8Array[] {
+  const tiffStart = findMpfTiffStart(bytes);
+  if (tiffStart < 0 || tiffStart + 8 > bytes.length) return [];
+  const little = bytes[tiffStart] === 0x49 && bytes[tiffStart + 1] === 0x49;
+  const big = !little && bytes[tiffStart] === 0x4D &&
+    bytes[tiffStart + 1] === 0x4D;
+  if (!little && !big) return [];
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const ifdOffset = view.getUint32(tiffStart + 4, little);
+  if (ifdOffset < 2 || tiffStart + ifdOffset + 2 > bytes.length) return [];
+  const numEntries = view.getUint16(tiffStart + ifdOffset, little);
+  let entriesPos = -1;
+  let count = 0;
+  let p = tiffStart + ifdOffset + 2;
+  for (let i = 0; i < numEntries; i++) {
+    if (p + 12 > bytes.length) return [];
+    if (view.getUint16(p, little) === 0xB002) { // MPEntry
+      count = view.getUint32(p + 4, little);
+      entriesPos = tiffStart + view.getUint32(p + 8, little);
+    }
+    p += 12;
+  }
+  if (entriesPos < 0 || count === 0) return [];
+  // Writers disagree on B002's count field: some store 16 x N (the byte
+  // size of the entry table), others store N directly. Normalize to entries.
+  if (count % MP_ENTRY_SIZE === 0) count = count / MP_ENTRY_SIZE;
+  if (entriesPos + count * MP_ENTRY_SIZE > bytes.length) return [];
+  const docs: Uint8Array[] = [];
+  for (let i = 0; i < count; i++) {
+    const base = entriesPos + i * MP_ENTRY_SIZE;
+    const size = view.getUint32(base + 4, little);
+    const off = view.getUint32(base + 8, little);
+    if (size === 0 || off === 0) continue;
+    const abs = tiffStart + off;
+    if (abs + size > bytes.length) continue;
+    if (bytes[abs] !== 0xFF || bytes[abs + 1] !== 0xD8 || bytes[abs + 2] !== 0xFF) continue;
+    docs.push(bytes.slice(abs, abs + size));
+  }
+  return docs;
+}
