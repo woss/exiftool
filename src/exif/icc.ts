@@ -16,10 +16,6 @@ function readASCII(view: DataView, offset: number, length: number): string {
   return textDecoder.decode(end >= 0 ? bytes.slice(0, end) : bytes);
 }
 
-function readFixed16BE(view: DataView, offset: number): number {
-  return readUint16BE(view, offset) / 256;
-}
-
 function readFixed32BE(view: DataView, offset: number): number {
   return readUint32BE(view, offset) / 65536;
 }
@@ -29,14 +25,6 @@ function readXYZ(view: DataView, offset: number): string {
   const y = readFixed32BE(view, offset + 4);
   const z = readFixed32BE(view, offset + 8);
   return `${x.toFixed(4)} ${y.toFixed(4)} ${z.toFixed(4)}`;
-}
-
-function readUint16Array(view: DataView, offset: number, count: number): number[] {
-  const result: number[] = [];
-  for (let i = 0; i < count; i++) {
-    result.push(readUint16BE(view, offset + i * 2));
-  }
-  return result;
 }
 
 function readUint8Array(view: DataView, offset: number, count: number): number[] {
@@ -108,14 +96,10 @@ export function parseICCProfile(data: Uint8Array): Record<string, TagValue> {
   result['ConnectionSpaceIlluminant'] = pcsIlluminant;
   result['ProfileCreator'] = profileCreator;
   result['ProfileID'] = profileID === '00000000000000000000000000000000' ? 0 : profileID;
-
-  let devMfg = ''; let devModel = ''; let attrLo = 0; let attrHi = 0;
-  try {
-    devMfg = readASCII(view, 48, 4);
-    devModel = readASCII(view, 52, 4);
-    attrLo = readUint32BE(view, 56);
-    attrHi = readUint32BE(view, 60);
-  } catch { /* out of bounds */ }
+  const devMfg = readASCII(view, 48, 4);
+  const devModel = readASCII(view, 52, 4);
+  const attrLo = readUint32BE(view, 56);
+  const attrHi = readUint32BE(view, 60);
   if (devMfg) result['DeviceManufacturer'] = ICC_MANUFACTURERS[devMfg] ?? devMfg.trim();
   if (devModel) result['DeviceModel'] = ICC_MODELS[devModel] ?? devModel.trim();
   const attrs: string[] = [];
@@ -140,12 +124,7 @@ export function parseICCProfile(data: Uint8Array): Record<string, TagValue> {
 
     if (tagDataOffset + tagSize > data.length) continue;
 
-    let tagView: DataView;
-    try {
-      tagView = new DataView(data.buffer, data.byteOffset + tagDataOffset, tagSize);
-    } catch {
-      continue;
-    }
+    const tagView = new DataView(data.buffer, data.byteOffset + tagDataOffset, tagSize);
     let tagType = '';
     try {
       tagType = readASCII(tagView, 0, 4);

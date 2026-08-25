@@ -192,9 +192,8 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     'stEvt:when': 'HistoryWhen',
   };
 
-  function lookupPrefix(attrName: string): { prefix: string; local: string } | null {
+  function lookupPrefix(attrName: string): { prefix: string; local: string } {
     const colonIdx = attrName.indexOf(':');
-    if (colonIdx < 0) return { prefix: '', local: attrName };
     return { prefix: attrName.slice(0, colonIdx), local: attrName.slice(colonIdx + 1) };
   }
 
@@ -217,7 +216,6 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
       if (fullName.startsWith('x:')) continue;
 
       const parsed = lookupPrefix(fullName);
-      if (!parsed) continue;
       const tagName = mapTagName(parsed.prefix, parsed.local);
       const cleanValue = value.replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>
         String.fromCodePoint(parseInt(hex, 16))
@@ -231,7 +229,7 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     while ((listMatch = listPattern.exec(childContent)) !== null) {
       const [childXml, childName] = listMatch;
       const parsed = lookupPrefix(childName);
-      if (!parsed || parsed.prefix === 'rdf') continue;
+      if (parsed.prefix === 'rdf') continue;
 
       const tagName = mapTagName(parsed.prefix, parsed.local);
 
@@ -265,7 +263,7 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
               const existingArr = Array.isArray(existing) ? existing : [existing];
               result[tagName] = [...existingArr, ...items];
             } else {
-              result[tagName] = items.length === 1 ? items[0] : items;
+              result[tagName] = items;
             }
           }
         }
@@ -283,7 +281,6 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
       if (fullName.startsWith('rdf:')) continue;
 
       const parsed = lookupPrefix(fullName);
-      if (!parsed) continue;
       const tagName = mapTagName(parsed.prefix, parsed.local);
 
       const existing = result[tagName];
@@ -312,7 +309,6 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
       if (fullName.startsWith('rdf:')) continue;
       if (fullName.startsWith('x:')) continue;
       const parsed = lookupPrefix(fullName);
-      if (!parsed) continue;
       const tagName = mapTagName(parsed.prefix, parsed.local);
       if (!tagName.startsWith('rdf:')) {
         result[tagName] = value;
@@ -329,7 +325,6 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
       const [_, fullName, value] = attrMatch3;
       if (fullName.startsWith('rdf:')) continue;
       const parsed = lookupPrefix(fullName);
-      if (!parsed) continue;
       const tagName = mapTagName(parsed.prefix, parsed.local);
 
       const existing = result[tagName];
@@ -349,7 +344,6 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     const [_, fullName, value] = childElMatch;
     if (fullName.startsWith('rdf:')) continue;
     const parsed = lookupPrefix(fullName);
-    if (!parsed) continue;
     const tagName = mapTagName(parsed.prefix, parsed.local);
     if (!tagName.startsWith('rdf:')) {
       const existing = result[tagName];
@@ -378,9 +372,6 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
   if ('ExifToolVersion' in result) result['ExifToolVersion'] = Number(result['ExifToolVersion']);
 
   for (const key of Object.keys(result)) {
-    if (key.startsWith('stEvt:') || key.startsWith('stRef:') || key.startsWith('crs:') || key.startsWith('xmpMM:')) {
-      delete result[key];
-    }
     if (key === 'XMP' || key === 'action' || key === 'changed' || key === 'instanceID' || key === 'parameters' || key === 'softwareAgent' || key === 'when' || key === 'lang' || key === 'pick' || key === 'Parameters' || key === 'Look') {
       delete result[key];
     }

@@ -23,7 +23,6 @@ export function parseAPP13(data: Uint8Array): Record<string, TagValue> {
     if (sig !== '8BIM') break;
     offset += 4;
 
-    if (offset + 2 > data.length) break;
     const resId = (data[offset] << 8) | data[offset + 1];
     offset += 2;
 
@@ -74,7 +73,6 @@ function parseIPTC(data: Uint8Array): Record<string, TagValue> {
     const dsNum = data[offset];
     offset++;
 
-    if (offset + 2 > data.length) break;
     const valLen = (data[offset] << 8) | data[offset + 1];
     offset += 2;
 
@@ -95,25 +93,8 @@ function parseIPTC(data: Uint8Array): Record<string, TagValue> {
     if (dsNum === 0x19) {
       if (!result[tagName]) result[tagName] = [];
       (result[tagName] as string[]).push(val);
-    } else if (dsNum === 0x2D) {
-      const parts = val.split(' ');
-      if (parts.length === 2) {
-        result['DateTimeCreated'] = val;
-      } else {
-        if (!result['DateCreated']) result['DateCreated'] = val;
-        result['DateTimeCreated'] = val;
-      }
     } else {
       result[tagName] = val;
-    }
-  }
-
-  if (result['DateTimeCreated']) {
-    const dt = result['DateTimeCreated'] as string;
-    const parts = dt.split(' ');
-    if (parts.length === 2) {
-      result['DateCreated'] = parts[0];
-      result['TimeCreated'] = parts[1];
     }
   }
 

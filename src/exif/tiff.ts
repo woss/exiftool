@@ -180,20 +180,15 @@ function renderCoordFormat(
     const d = Math.floor(absDd);
     const minutes = absDd * 60 - d * 60;
     const s = (minutes - Math.floor(minutes)) * 60;
-    return fmt.replace(TOKEN_RE, (_all, precStr?: string, token?: string) => {
+    return fmt.replace(TOKEN_RE, (_all, precStr?: string, token?: 'd' | 'f' | 's' | 'c') => {
       const n = precStr !== undefined ? parseInt(precStr, 10) : 6;
-      switch (token) {
-        case 'd':
-          return String(d);
-        case 'f':
-          return minutes.toFixed(n);
-        case 's':
-          return s.toFixed(n);
-        case 'c':
-          return refLetter;
-        default:
-          return _all;
-      }
+      const rendered: Record<string, string> = {
+        d: String(d),
+        f: minutes.toFixed(n),
+        s: s.toFixed(n),
+        c: refLetter,
+      };
+      return token !== undefined && token in rendered ? rendered[token] : _all;
     });
   }
 

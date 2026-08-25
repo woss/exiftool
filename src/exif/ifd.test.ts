@@ -92,3 +92,21 @@ Deno.test('offset beyond buffer: empty entries, no throw', () => {
   assertEquals(ifd.entries.length, 0);
   assertEquals(ifd.nextIfdOffset, 0);
 });
+
+Deno.test('maxRecursion 0 returns empty immediately', () => {
+  const view = viewOf([
+    0x00, 0x01, // entry count 1 (would parse if recursion allowed)
+    0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x41, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00,
+  ]);
+
+  let ifd;
+  try {
+    ifd = parseIFD(view, 0, true, 0);
+  } catch (error) {
+    throw new Error(`parseIFD threw at maxRecursion 0: ${error}`);
+  }
+
+  assertEquals(ifd.entries.length, 0);
+  assertEquals(ifd.nextIfdOffset, 0);
+});

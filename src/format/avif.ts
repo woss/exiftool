@@ -81,9 +81,6 @@ function parseBoxTree(
       continue;
     }
 
-    if (box.type.startsWith('moov') || box.type.startsWith('trak')) {
-      parseBoxTree(bytes, pos + box.headerSize, pos + box.size, result, depth + 1, tagDb, hints);
-    }
 
     if (box.type === 'colr' && boxData.length >= 4) {
       const colorType = new TextDecoder().decode(boxData.slice(0, 4));

@@ -152,3 +152,42 @@ Deno.test('parseAPP13 keeps fields parsed before a truncated IPTC dataset withou
   ]);
   assertEquals(parseAPP13(photoshopResource(0x0404, truncated)), { Keywords: ['sun'] });
 });
+
+Deno.test('parseAPP13 ignores IPTC payloads that do not start with a dataset marker', () => {
+  const data = photoshopResource(0x0404, b(0x00, 0x01, 0x02, 0x03, 0x04));
+  assertEquals(parseAPP13(data), {});
+});
+
+Deno.test('parseAPP13 maps non-inch display unit codes to centimetres', () => {
+  const data = concatBytes([
+    photoshopResource(0x0417, b(1)),
+    photoshopResource(0x0418, b(0)),
+  ]);
+  assertEquals(parseAPP13(data), { DisplayedUnitsX: 'cm', DisplayedUnitsY: 'cm' });
+});
+
+Deno.test('parseAPP13 maps inch codes for both display unit axes', () => {
+  const data = concatBytes([
+    photoshopResource(0x0417, b(2)),
+    photoshopResource(0x0418, b(2)),
+  ]);
+  assertEquals(parseAPP13(data), { DisplayedUnitsX: 'inches', DisplayedUnitsY: 'inches' });
+});
+
+Deno.test('parseAPP13 keeps earlier fields when an IPTC dataset length overruns the buffer', () => {
+  const truncated = concatBytes([b(0x1c, 2, 120), u16(5)]); // declares 5 bytes that never arrive
+  const data = photoshopResource(0x0404, concatBytes([iptcField(2, 120, 'Caption'), truncated]));
+  assertEquals(parseAPP13(data), { 'Caption-Abstract': 'Caption' });
+});
+
+Deno.test('parseAPP13 stops cleanly when the buffer ends right after an 8BIM signature', () => {
+  assertEquals(parseAPP13(concatBytes([enc.encode('8BIM'), b(0x04)])), {});
+});
+
+Deno.test('parseAPP13 skips Photoshop thumbnail resources and keeps walking', () => {
+  const data = concatBytes([
+    photoshopResource(0x040c, b(1, 2, 3, 4)),
+    photoshopResource(0x0417, b(2)),
+  ]);
+  assertEquals(parseAPP13(data), { DisplayedUnitsX: 'inches' });
+});

@@ -28,8 +28,6 @@ export function readIfdValue(entry: IfdEntry, view: DataView, littleEndian: bool
     result.push(readSingleValue(view, valOffset, type, littleEndian));
   }
 
-  if (result.length === 0) return null;
-  if (result.length === 1) return result[0];
 
   if (type === 5 || type === 10) {
     return result as TagValue;
@@ -512,9 +510,6 @@ function formatExposureTime(value: number): string {
   return `1/${denom}`;
 }
 
-function formatFNumber(value: number): string {
-  return `${value}`;
-}
 
 function formatShutterSpeedValue(value: number): string {
   const ap = Math.pow(2, -value);

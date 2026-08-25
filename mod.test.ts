@@ -62,3 +62,57 @@ Deno.test('TagDb getGroups', () => {
   const groups = db.getGroups();
   assertEquals(groups, ['EXIF', 'XMP']);
 });
+
+Deno.test('TagDb getById without a group and on a miss', () => {
+  const db = new TagDb();
+  const entry: TagEntry = {
+    id: 0x8827,
+    name: 'ISO',
+    writable: true,
+    groups: {},
+  };
+  db.register(entry);
+  assertEquals(db.getById(0x8827), entry);
+  assertEquals(db.getById(0x9999), undefined);
+  assertEquals(db.getById(0x8827, 'IFD0'), undefined);
+});
+
+Deno.test('TagDb getByGroup returns an empty array for unknown groups', () => {
+  const db = new TagDb();
+  db.register({ id: 1, name: 'T', writable: false, groups: { family1: 'EXIF' } });
+  assertEquals(db.getByGroup('NoSuchGroup'), []);
+});
+
+Deno.test('TagDb getAllTags returns every registered entry', () => {
+  const db = new TagDb();
+  db.register({ id: 1, name: 'A', writable: true, groups: {} });
+  db.register({ id: 2, name: 'B', writable: false, groups: {} });
+
+  const all = db.getAllTags().map((t) => t.name).sort();
+  assertEquals(all, ['A', 'B']);
+});
+
+Deno.test('TagDb registerBatch registers many entries at once', () => {
+  const db = new TagDb();
+  db.registerBatch([
+    { id: 1, name: 'One', writable: true, groups: { family1: 'EXIF' } },
+    { id: 2, name: 'Two', writable: false, groups: { family1: 'XMP' } },
+  ]);
+
+  assertEquals(db.size(), 2);
+  assertEquals(db.getByName('one')?.name, 'One');
+  assertEquals(db.getByName('two')?.name, 'Two');
+});
+
+Deno.test('TagDb last registration wins for duplicate names but keeps both ids', () => {
+  const db = new TagDb();
+  const first: TagEntry = { id: 1, name: 'Dup', writable: true, groups: { family1: 'EXIF' } };
+  const second: TagEntry = { id: 2, name: 'Dup', writable: false, groups: { family1: 'EXIF' } };
+  db.register(first);
+  db.register(second);
+
+  assertEquals(db.size(), 1); // byName is keyed on the lowercase name
+  assertEquals(db.getByName('dup'), second);
+  assertEquals(db.getById(1, 'EXIF'), first); // both id entries retained, first wins
+  assertEquals(db.getById(2, 'EXIF'), second);
+});

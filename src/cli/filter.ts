@@ -2,6 +2,8 @@ import type { TagValue } from '../types.ts';
 
 const CONDITION_RE = /^\$([A-Za-z0-9_]+)\s*(>=|<=|eq|ne|>|<)\s*(.+)$/;
 
+type ConditionOp = 'eq' | 'ne' | '>' | '<' | '>=' | '<=';
+
 function coerceNumber(s: string): number | undefined {
   const trimmed = s.trim();
   if (trimmed === '') return undefined;
@@ -16,7 +18,7 @@ function lookupTag(name: string, tags: Record<string, TagValue>): TagValue | und
   return key !== undefined ? tags[key] : undefined;
 }
 
-function compare(op: string, a: number | string, b: number | string): boolean {
+function compare(op: ConditionOp, a: number | string, b: number | string): boolean {
   switch (op) {
     case 'eq':
       return a === b;
@@ -30,8 +32,6 @@ function compare(op: string, a: number | string, b: number | string): boolean {
       return a >= b;
     case '<=':
       return a <= b;
-    default:
-      return false;
   }
 }
 
@@ -44,8 +44,8 @@ function compare(op: string, a: number | string, b: number | string): boolean {
 export function evalCondition(expr: string, tags: Record<string, TagValue>): boolean {
   const m = expr.trim().match(CONDITION_RE);
   if (!m) return false;
-  const [, tagName, op, rawValue] = m;
-
+  const [, tagName, rawOp, rawValue] = m;
+  const op = rawOp as ConditionOp;
   const quoted = rawValue.match(/^'(.*)'$/s);
   const value = quoted ? quoted[1] : rawValue.trim();
 

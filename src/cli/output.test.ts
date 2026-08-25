@@ -446,3 +446,62 @@ Deno.test('formatJSON — groupPrefix applies to binary placeholder keys', () =>
   const parsed = JSON.parse(result);
   assertEquals(parsed[0]['EXIF:Make'], '(Binary data 2 bytes, use -b option to extract)');
 });
+
+// --- getGroupName fallback arms (no tagDb / unknown tag) ---
+
+Deno.test('formatTabular — groupPrefix without tagDb degrades to unprefixed names', () => {
+  const opts: FormatOptions = { groupPrefix: '1' };
+  const result = formatTabular(mockFiles, opts);
+  assert(!result.includes('EXIF:Make'));
+  assert(result.includes('Make\tCanon'));
+});
+
+Deno.test('formatTabular — headings with tagDb missing the tag yields unknown group', () => {
+  const files: FileInfo[] = [{ path: 'x.jpg', format: 'JPEG', tags: { UnknownTag: 'v' } }];
+  const opts: FormatOptions = { groupHeadings: '0', tagDb: makeDb() };
+  const result = formatTabular(files, opts);
+  assert(result.includes('------ GROUP:(unknown) ----'));
+});
+
+// --- tagValueToString null/undefined and array arms ---
+
+Deno.test('formatTabular — null value renders as dash', () => {
+  const files: FileInfo[] = [{
+    path: 'n.jpg',
+    format: 'JPEG',
+    tags: { NullTag: null },
+  }];
+  const result = formatTabular(files);
+  const lines = result.split('\n');
+  assert(lines.includes('NullTag\t-'));
+});
+
+Deno.test('formatTabular — array values render comma-separated recursively', () => {
+  const files: FileInfo[] = [{
+    path: 'a.jpg',
+    format: 'JPEG',
+    tags: { Curve: ['0, 0', '255, 255'], Nested: [1, [2, 3]] },
+  }];
+  const result = formatTabular(files);
+  const lines = result.split('\n');
+  assert(lines.includes('Curve\t0, 0, 255, 255'));
+  assert(lines.includes('Nested\t1, 2, 3'));
+});
+
+Deno.test('formatTabular — group family absent on entry falls back to no prefix', () => {
+  const db = new TagDb();
+  db.registerBatch([
+    {
+      id: 0x010f,
+      name: 'Make',
+      description: 'Camera make',
+      writable: true,
+      groups: { family0: 'EXIF' }, // family1 intentionally missing
+    },
+  ]);
+  const files: FileInfo[] = [{ path: 'm.jpg', format: 'JPEG', tags: { Make: 'Canon' } }];
+  const opts: FormatOptions = { groupPrefix: '1', tagDb: db };
+  const result = formatTabular(files, opts);
+  assert(!result.includes('EXIF:'));
+  assert(result.includes('Make\tCanon'));
+});

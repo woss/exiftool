@@ -80,13 +80,9 @@ export const jpegParser: FormatParser = {
       if (marker === 0xe2 && data.length >= 14) {
         const id = new TextDecoder().decode(data.slice(0, 12));
         if (id === 'ICC_PROFILE\0') {
-          try {
-            const iccTags = parseICCProfile(data.slice(14));
-            for (const [k, v] of Object.entries(iccTags)) {
-              result[k] = v;
-            }
-          } catch (e) {
-            console.error(`ICC parse error: ${(e as Error).message}`);
+          const iccTags = parseICCProfile(data.slice(14));
+          for (const [k, v] of Object.entries(iccTags)) {
+            result[k] = v;
           }
         }
       }
@@ -133,7 +129,8 @@ export const jpegParser: FormatParser = {
           0xc2: 'Progressive DCT, Huffman coding',
           0xc3: 'Lossless (sequential), Huffman coding',
         };
-        result['EncodingProcess'] = encodingNames[marker] ?? `Unknown (${marker.toString(16)})`;
+        // Marker range is gated to 0xc0-0xc3 above, exactly the table's keys.
+        result['EncodingProcess'] = encodingNames[marker];
         result['BitsPerSample'] = data[0];
         result['ImageHeight'] = (data[1] << 8) | data[2];
         result['ImageWidth'] = (data[3] << 8) | data[4];

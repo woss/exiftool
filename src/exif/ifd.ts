@@ -35,9 +35,6 @@ export function parseIFD(
     let value: Uint8Array | number | number[];
 
     if (dataSize <= 4) {
-      if (valueOffset + dataSize > view.byteLength) {
-        return { entries, nextIfdOffset: 0 };
-      }
       const raw = new Uint8Array(view.buffer, view.byteOffset + valueOffset, dataSize);
       value = raw;
     } else {

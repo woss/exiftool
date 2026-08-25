@@ -60,3 +60,19 @@ Deno.test('leading/trailing whitespace tolerated', () => {
 Deno.test('malformed expression returns false', () => {
   assertEquals(evalCondition('no dollar sign eq x', tags), false);
 });
+
+Deno.test('ge operator', () => {
+  assertEquals(evalCondition('$ISO >= 200', tags), true);
+  assertEquals(evalCondition('$ISO >= 201', tags), false);
+});
+
+Deno.test('empty value coerces to undefined and falls back to string compare', () => {
+  assertEquals(evalCondition("$Make eq ''", tags), false);
+  assertEquals(evalCondition("$Make ne ''", tags), true);
+});
+
+Deno.test('Uint8Array tag values compare as empty string', () => {
+  const withBinary: Record<string, TagValue> = { ...tags, Thumb: new Uint8Array([1, 2, 3]) };
+  assertEquals(evalCondition('$Thumb eq x', withBinary), false);
+  assertEquals(evalCondition('$Thumb ne x', withBinary), true);
+});

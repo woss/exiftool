@@ -34,16 +34,15 @@ export const webpParser: FormatParser = {
       const chunkData = bytes.slice(offset, offset + chunkSize);
 
       if (chunkId === 'EXIF') {
-        if (chunkData.length >= 6) {
-          const tiff = parseTiff(chunkData.slice(6), tagDb, hints?.coordFormat);
-          for (const [k, v] of Object.entries(tiff)) {
-            result[k] = v;
-          }
-        } else {
-          const tiff = parseTiff(chunkData, tagDb, hints?.coordFormat);
-          for (const [k, v] of Object.entries(tiff)) {
-            result[k] = v;
-          }
+        // A sub-6-byte payload can never carry the 8-byte TIFF header, so
+        // parseTiff yields no entries either way; slice only when prefixed.
+        const tiff = parseTiff(
+          chunkData.length >= 6 ? chunkData.slice(6) : chunkData,
+          tagDb,
+          hints?.coordFormat,
+        );
+        for (const [k, v] of Object.entries(tiff)) {
+          result[k] = v;
         }
       }
 
