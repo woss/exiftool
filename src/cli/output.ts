@@ -11,6 +11,8 @@ export interface FormatOptions {
   tagDb?: TagDb;
   /** Date format string (strftime-style tokens, set by -d FMT) */
   dateFormat?: string;
+  /** Emit binary tags as base64 instead of the placeholder string (set by -b) */
+  binary?: boolean;
 }
 
 function resolveFamily(opts: string | boolean | undefined, defaultFamily: string): string {
@@ -50,7 +52,13 @@ export function formatJSON(files: FileInfo[], options?: FormatOptions): string {
   for (const file of files) {
     const entry: Record<string, TagValue> = {};
     for (const [tag, value] of Object.entries(file.tags)) {
-      const v = options?.dateFormat ? formatDateValue(value, options.dateFormat) : value;
+      if (value instanceof Uint8Array && value.length === 0) continue;
+      let v: TagValue;
+      if (value instanceof Uint8Array) {
+        v = options?.binary ? toBase64(value) : binaryPlaceholder(value);
+      } else {
+        v = options?.dateFormat ? formatDateValue(value, options.dateFormat) : value;
+      }
       if (options?.groupPrefix) {
         const group = getGroupName(tag, prefixFamily, options.tagDb);
         entry[group ? `${group}:${tag}` : tag] = v;
@@ -69,8 +77,8 @@ export function formatXML(files: FileInfo[], options?: FormatOptions): string {
   for (const file of files) {
     xml += `  <file name="${escapeXML(file.path)}">\n`;
     for (const [tag, value] of Object.entries(file.tags)) {
-      const raw = tagValueToString(value);
-      const str = options?.dateFormat ? tagValueToString(formatDateValue(value, options.dateFormat)) : raw;
+      const raw = binaryTagToString(value, options);
+      const str = options?.dateFormat ? binaryTagToString(formatDateValue(value, options.dateFormat), options) : raw;
       let tagName = tag;
       if (options?.groupPrefix) {
         const group = getGroupName(tag, prefixFamily, options.tagDb);
@@ -110,7 +118,9 @@ export function formatCSV(files: FileInfo[], options?: FormatOptions): string {
       const resolvedTag = options?.groupPrefix
         ? ((group) => group ? `${group}:${tag}` : tag)(getGroupName(tag, prefixFamily, options.tagDb))
         : tag;
-      const val = options?.dateFormat ? formatDateValue(value, options.dateFormat) : value;
+      const val = value instanceof Uint8Array
+        ? (options?.binary ? toBase64(value) : binaryPlaceholder(value))
+        : (options?.dateFormat ? formatDateValue(value, options.dateFormat) : value);
       valueMap.set(resolvedTag, val);
     }
     for (const tag of sortedTags) {
@@ -169,7 +179,27 @@ export function formatTabular(files: FileInfo[], options?: FormatOptions): strin
 
 function tagValueToString(value: TagValue): string {
   if (value === null || value === undefined) return '-';
-  if (value instanceof Uint8Array) return `(Binary data ${value.length} bytes, use -b option to extract)`;
+  if (value instanceof Uint8Array) return binaryPlaceholder(value);
   if (Array.isArray(value)) return value.map(tagValueToString).join(', ');
   return String(value);
+}
+
+function binaryTagToString(value: TagValue, options?: FormatOptions): string {
+  if (value instanceof Uint8Array) {
+    return options?.binary ? toBase64(value) : binaryPlaceholder(value);
+  }
+  return tagValueToString(value);
+}
+
+function binaryPlaceholder(value: Uint8Array): string {
+  return `(Binary data ${value.length} bytes, use -b option to extract)`;
+}
+
+function toBase64(value: Uint8Array): string {
+  let str = '';
+  const chunkSize = 0x8000; // avoid arg-limit blowup on large arrays
+  for (let i = 0; i < value.length; i += chunkSize) {
+    str += String.fromCharCode(...value.subarray(i, i + chunkSize));
+  }
+  return btoa(str);
 }

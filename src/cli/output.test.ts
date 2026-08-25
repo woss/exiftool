@@ -255,11 +255,9 @@ Deno.test('formatJSON — Uint8Array value serialized without mutating value', (
   }];
   const result = formatJSON(files);
   const parsed = JSON.parse(result);
-  // Current behavior: the JSON renderer passes the raw Uint8Array through to
-  // JSON.stringify, which expands typed arrays as index-keyed objects. The
-  // "(Binary data N bytes...)" placeholder is produced by tagValueToString and
-  // therefore only appears in text renderers (tabular/XML).
-  assertEquals(parsed[0]['ThumbnailImage'], { '0': 222, '1': 173, '2': 190, '3': 239 });
+  // The JSON renderer renders binary tags as the same "(Binary data N bytes,
+  // use -b option to extract)" placeholder used by text renderers (tabular/XML).
+  assertEquals(parsed[0]['ThumbnailImage'], '(Binary data 4 bytes, use -b option to extract)');
   // The renderer must not mutate the value object it was handed.
   assertEquals(original, snapshot);
 });
@@ -356,3 +354,95 @@ Deno.test('JPEG parse — EXIF IFD1 thumbnail extracted as exact bytes (Thumbnai
 function assert(condition: boolean, msg?: string): asserts condition {
   if (!condition) throw new Error(msg || 'Assertion failed');
 }
+
+// --- Binary representation parity (-b / binary tags across formats) ---
+
+Deno.test('formatJSON — Uint8Array without binary flag uses placeholder, no object leakage', () => {
+  const files: FileInfo[] = [{
+    path: 'thumb.jpg',
+    format: 'JPEG',
+    tags: { ThumbnailImage: new Uint8Array([104, 105]) },
+  }];
+  const result = formatJSON(files);
+  assert(result.includes('"ThumbnailImage": "(Binary data 2 bytes, use -b option to extract)"'));
+  assert(!result.includes('"0"'));
+});
+
+Deno.test('formatJSON — binary:true emits base64 for known vector', () => {
+  const files: FileInfo[] = [{
+    path: 'thumb.jpg',
+    format: 'JPEG',
+    tags: { ThumbnailImage: new Uint8Array([104, 105]) },
+  }];
+  const result = formatJSON(files, { binary: true });
+  const parsed = JSON.parse(result);
+  assertEquals(parsed[0]['ThumbnailImage'], 'aGk=');
+});
+
+Deno.test('formatJSON — binary:true base64 correct for chunked large buffer', () => {
+  // >32KB forces multiple String.fromCharCode chunks in toBase64
+  const bytes = new Uint8Array(100_000);
+  for (let i = 0; i < bytes.length; i++) bytes[i] = i & 0xff;
+  const files: FileInfo[] = [{
+    path: 'big.bin',
+    format: 'JPEG',
+    tags: { ExifImageData: bytes },
+  }];
+  const expected = btoa(String.fromCharCode(...bytes));
+  const result = formatJSON(files, { binary: true });
+  const parsed = JSON.parse(result);
+  assertEquals(parsed[0]['ExifImageData'], expected);
+});
+
+Deno.test('formatJSON — zero-length Uint8Array key omitted', () => {
+  const files: FileInfo[] = [{
+    path: 'empty.jpg',
+    format: 'JPEG',
+    tags: { ThumbnailImage: new Uint8Array(0), Make: 'TestCam' },
+  }];
+  const result = formatJSON(files);
+  const parsed = JSON.parse(result);
+  assert(!('ThumbnailImage' in parsed[0]));
+  assertEquals(parsed[0]['Make'], 'TestCam');
+});
+
+Deno.test('formatXML — Uint8Array placeholder matches tabular wording; binary:true gives base64', () => {
+  const value = new Uint8Array([104, 105]);
+  const files: FileInfo[] = [{
+    path: 'thumb.jpg',
+    format: 'JPEG',
+    tags: { ThumbnailImage: value },
+  }];
+  const xml = formatXML(files);
+  const tabular = formatTabular(files);
+  const placeholder = '(Binary data 2 bytes, use -b option to extract)';
+  assert(tabular.includes(`ThumbnailImage\t${placeholder}`));
+  assert(xml.includes(`>${placeholder}</tag>`));
+  const xmlB64 = formatXML(files, { binary: true });
+  assert(xmlB64.includes('>aGk=</tag>'));
+});
+
+Deno.test('formatCSV — Uint8Array placeholder matches shared wording; binary:true gives base64', () => {
+  const value = new Uint8Array([104, 105]);
+  const files: FileInfo[] = [{
+    path: 'thumb.jpg',
+    format: 'JPEG',
+    tags: { ThumbnailImage: value },
+  }];
+  const csv = formatCSV(files);
+  assert(csv.includes('"(Binary data 2 bytes, use -b option to extract)"'));
+  const csvB64 = formatCSV(files, { binary: true });
+  assert(csvB64.includes('"aGk="'));
+});
+
+Deno.test('formatJSON — groupPrefix applies to binary placeholder keys', () => {
+  const files: FileInfo[] = [{
+    path: 'thumb.jpg',
+    format: 'JPEG',
+    // Make is registered in makeDb(); value kind is irrelevant to key handling.
+    tags: { Make: new Uint8Array([104, 105]) },
+  }];
+  const result = formatJSON(files, { groupPrefix: true, tagDb: makeDb() });
+  const parsed = JSON.parse(result);
+  assertEquals(parsed[0]['EXIF:Make'], '(Binary data 2 bytes, use -b option to extract)');
+});
