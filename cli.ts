@@ -2,6 +2,8 @@ import { Command } from '@cliffy/command';
 import { ExifTool } from './src/exiftool.ts';
 import { formatJSON, formatCSV, formatTabular } from './src/cli/output.ts';
 import type { FormatOptions } from './src/cli/output.ts';
+import { evalCondition } from './src/cli/filter.ts';
+import { verboseLines } from './src/cli/verbosity.ts';
 
 function normalizeArgs(args: string[]): string[] {
   return args.flatMap((a) => {
@@ -29,18 +31,41 @@ const cmd = new Command()
   .option('-d, --date-format <format:string>', 'Date format string (%Y %m %d %H %M %S %f)')
   .option('-g, --group-headings <family:string>', 'Show group headings (tabular only, -g[NUM])')
   .option('-G, --group-prefix <family:string>', 'Show group name prefix (-G[NUM])')
+  .option('-c, --coord-format <format:string>', 'GPS coordinate format (%+.6f or template with %d %.Nf %.Ns %c)')
+  .option('-if, --if <expr:string>', 'Filter files by condition ($Tag eq/ne/>/</>=/<= value)', { collect: true })
   .option('-v, --verbose', 'Verbose output', { collect: true })
   .option('-q, --quiet', 'Quiet output', { collect: true })
   .arguments('<files...:string>')
   .action(async (options, ...files: string[]) => {
+    const quietCount: number = options.quiet?.length ?? 0;
+    const verboseCount: number = options.verbose?.length ?? 0;
+    const coordFormat: string | undefined = options.coordFormat;
     const results = [];
     for (const file of files) {
       try {
-        const info = await tool.read(file);
+        const info = await tool.read(file, coordFormat ? { coordFormat } : undefined);
         results.push(info);
       } catch (e) {
         console.error(`Error reading ${file}: ${(e as Error).message}`);
         Deno.exit(1);
+      }
+    }
+
+    let kept = results;
+    if (options.if !== undefined) {
+      const exprs: string[] = options.if;
+      kept = results.filter((info) => exprs.every((expr) => evalCondition(expr, info.tags)));
+      const failed = results.length - kept.length;
+      if (failed > 0 && quietCount < 1) {
+        console.error(`${failed} files failed condition`);
+      }
+    }
+
+    if (verboseCount >= 1 && quietCount < 1) {
+      for (const info of kept) {
+        for (const line of verboseLines(info, verboseCount)) {
+          console.error(line);
+        }
       }
     }
 
@@ -57,11 +82,14 @@ const cmd = new Command()
       fmtOpts.dateFormat = options.dateFormat as string;
     }
 
-    if (options.binary) {
+    if (options.binary && options.json) {
+      // JSON output with binary data: hand Uint8Array values to the JSON formatter.
+      fmtOpts.binary = true;
+    } else if (options.binary) {
       // Known limitation: with multiple files/tags, all Uint8Array values are
       // concatenated to stdout without separators and without per-tag selection.
       let foundBinary = false;
-      for (const file of results) {
+      for (const file of kept) {
         for (const value of Object.values(file.tags)) {
           if (value instanceof Uint8Array && value.length > 0) {
             await Deno.stdout.write(value);
@@ -77,11 +105,11 @@ const cmd = new Command()
     }
 
     if (options.json) {
-      console.log(formatJSON(results, fmtOpts));
+      console.log(formatJSON(kept, fmtOpts));
     } else if (options.csv) {
-      console.log(formatCSV(results, fmtOpts));
+      console.log(formatCSV(kept, fmtOpts));
     } else {
-      console.log(formatTabular(results, fmtOpts));
+      console.log(formatTabular(kept, fmtOpts));
     }
   });
 

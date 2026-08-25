@@ -1,11 +1,16 @@
 import type { FileInfo } from '../types.ts';
 import type { TagDb } from '../tag-db.ts';
 
+/** Optional per-read hints threaded from the CLI down into parsers. */
+export interface ParseHints {
+  coordFormat?: string;
+}
+
 export interface FormatParser {
   format: string;
   extensions: string[];
   canParse(bytes: Uint8Array): boolean;
-  parse(bytes: Uint8Array, filePath: string, tagDb?: TagDb): Promise<FileInfo>;
+  parse(bytes: Uint8Array, filePath: string, tagDb?: TagDb, hints?: ParseHints): Promise<FileInfo>;
 }
 
 const parsers: Map<string, FormatParser> = new Map();

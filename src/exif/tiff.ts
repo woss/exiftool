@@ -33,7 +33,7 @@ function resolveTagName(
   return getTagName(tag, group);
 }
 
-export function parseTiff(bytes: Uint8Array, tagDb?: TagDb): Record<string, TagValue> {
+export function parseTiff(bytes: Uint8Array, tagDb?: TagDb, coordFormat?: string): Record<string, TagValue> {
   const result: Record<string, TagValue> = {};
 
   if (!isTiffHeader(bytes)) return result;
@@ -114,10 +114,10 @@ export function parseTiff(bytes: Uint8Array, tagDb?: TagDb): Record<string, TagV
     for (const [k, v] of Object.entries(gpsRaw)) {
       if (k === 'GPSLatitude') {
         const ref = gpsRaw['GPSLatitudeRef'];
-        result[k] = formatGPSWithRef(v, typeof ref === 'string' ? ref : '');
+        result[k] = formatGPSWithRef(v, typeof ref === 'string' ? ref : '', coordFormat);
       } else if (k === 'GPSLongitude') {
         const ref = gpsRaw['GPSLongitudeRef'];
-        result[k] = formatGPSWithRef(v, typeof ref === 'string' ? ref : '');
+        result[k] = formatGPSWithRef(v, typeof ref === 'string' ? ref : '', coordFormat);
       } else {
         result[k] = formatExifValue(v, k);
       }
@@ -140,7 +140,71 @@ export function parseTiff(bytes: Uint8Array, tagDb?: TagDb): Record<string, TagV
   return result;
 }
 
-function formatGPSWithRef(value: TagValue, ref: string): string {
+const PURE_DECIMAL_RE = /^%([+]?)[.]?(\d*)f$/;
+const TOKEN_RE = /%(?:\.(\d+))?([dfsc])/g;
+
+function decimalDegrees(value: TagValue): number | undefined {
+  if (!Array.isArray(value) || value.length < 2) return undefined;
+  const deg = Number(value[0]);
+  const min = Number(value[1]);
+  const sec = value.length > 2 ? Number(value[2]) : 0;
+  if (!Number.isFinite(deg) || !Number.isFinite(min) || !Number.isFinite(sec)) return undefined;
+  return deg + min / 60 + sec / 3600;
+}
+
+function renderCoordFormat(
+  fmt: string,
+  value: TagValue,
+  ref: string,
+): string | undefined {
+  const refLetter = ref ? ref.charAt(0).toUpperCase() : '';
+  const southOrWest = refLetter === 'S' || refLetter === 'W';
+
+  // Pure decimal format: %f, %+f, %.Nf, %+.Nf
+  const decimal = fmt.match(PURE_DECIMAL_RE);
+  if (decimal) {
+    const dd = decimalDegrees(value);
+    if (dd === undefined) return String(value);
+    const signed = southOrWest ? -dd : dd;
+    const precision = decimal[2] !== '' ? parseInt(decimal[2], 10) : 6;
+    const text = Math.abs(signed).toFixed(precision);
+    return (signed < 0 ? '-' : decimal[1]) + text;
+  }
+
+  // Template format containing %d / %.Nf / %.Ns / %c tokens
+  TOKEN_RE.lastIndex = 0;
+  if (TOKEN_RE.test(fmt)) {
+    const dd = decimalDegrees(value);
+    if (dd === undefined) return String(value);
+    const absDd = Math.abs(southOrWest ? -dd : dd);
+    const d = Math.floor(absDd);
+    const minutes = absDd * 60 - d * 60;
+    const s = (minutes - Math.floor(minutes)) * 60;
+    return fmt.replace(TOKEN_RE, (_all, precStr?: string, token?: string) => {
+      const n = precStr !== undefined ? parseInt(precStr, 10) : 6;
+      switch (token) {
+        case 'd':
+          return String(d);
+        case 'f':
+          return minutes.toFixed(n);
+        case 's':
+          return s.toFixed(n);
+        case 'c':
+          return refLetter;
+        default:
+          return _all;
+      }
+    });
+  }
+
+  return undefined; // unrecognized format → caller falls back to DMS
+}
+
+export function formatGPSWithRef(value: TagValue, ref: string, coordFormat?: string): string {
+  if (coordFormat) {
+    const rendered = renderCoordFormat(coordFormat, value, ref);
+    if (rendered !== undefined) return rendered;
+  }
   if (!Array.isArray(value) || value.length < 2) return String(value);
   const deg = Number(value[0]);
   const min = Number(value[1]);

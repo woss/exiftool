@@ -1,4 +1,4 @@
-import type { FormatParser } from './mod.ts';
+import type { FormatParser, ParseHints } from './mod.ts';
 import type { FileInfo, TagValue } from '../types.ts';
 import type { TagDb } from '../tag-db.ts';
 import { registerParser } from './mod.ts';
@@ -39,6 +39,7 @@ function parseBoxTree(
   result: Record<string, TagValue>,
   depth = 0,
   tagDb?: TagDb,
+  hints?: ParseHints,
 ): void {
   if (depth > 20) return;
   let pos = offset;
@@ -54,7 +55,7 @@ function parseBoxTree(
       if (boxData.length > 4) {
         const tiffOffset = new DataView(boxData.buffer, boxData.byteOffset, 4).getUint32(0, false);
         if (tiffOffset < boxData.length) {
-          const tiff = parseTiff(boxData.slice(tiffOffset), tagDb);
+          const tiff = parseTiff(boxData.slice(tiffOffset), tagDb, hints?.coordFormat);
           for (const [k, v] of Object.entries(tiff)) {
             result[k] = v;
           }
@@ -75,13 +76,13 @@ function parseBoxTree(
       box.type === 'iprp' || box.type === 'ipco' || box.type === 'infe'
     ) {
       const subLimit = Math.min(pos + box.size, limit);
-      parseBoxTree(bytes, pos + box.headerSize, subLimit, result, depth + 1, tagDb);
+      parseBoxTree(bytes, pos + box.headerSize, subLimit, result, depth + 1, tagDb, hints);
       pos += box.headerSize;
       continue;
     }
 
     if (box.type.startsWith('moov') || box.type.startsWith('trak')) {
-      parseBoxTree(bytes, pos + box.headerSize, pos + box.size, result, depth + 1, tagDb);
+      parseBoxTree(bytes, pos + box.headerSize, pos + box.size, result, depth + 1, tagDb, hints);
     }
 
     if (box.type === 'colr' && boxData.length >= 4) {
@@ -126,7 +127,7 @@ export const avifParser: FormatParser = {
     const validBrands = ['avif', 'avis', 'heic', 'heix', 'hevc', 'hevx', 'mif1', 'msf1'];
     return validBrands.includes(majorBrand);
   },
-  parse(bytes: Uint8Array, filePath: string, tagDb?: TagDb): Promise<FileInfo> {
+  parse(bytes: Uint8Array, filePath: string, tagDb?: TagDb, hints?: ParseHints): Promise<FileInfo> {
     const result: Record<string, TagValue> = {};
 
     const ftypBox = readBoxHeader(bytes, 0);
@@ -141,7 +142,7 @@ export const avifParser: FormatParser = {
       if (compatBrands.length > 0) result['CompatibleBrands'] = compatBrands;
     }
 
-    parseBoxTree(bytes, 0, bytes.length, result, 0, tagDb);
+    parseBoxTree(bytes, 0, bytes.length, result, 0, tagDb, hints);
 
     computeCompositeTags(result);
     return Promise.resolve({ path: filePath, format: 'AVIF', tags: result });

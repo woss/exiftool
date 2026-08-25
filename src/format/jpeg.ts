@@ -1,4 +1,4 @@
-import type { FormatParser } from './mod.ts';
+import type { FormatParser, ParseHints } from './mod.ts';
 import type { FileInfo, TagValue } from '../types.ts';
 import type { TagDb } from '../tag-db.ts';
 import { registerParser } from './mod.ts';
@@ -14,7 +14,7 @@ export const jpegParser: FormatParser = {
   canParse(bytes: Uint8Array): boolean {
     return bytes[0] === 0xff && bytes[1] === 0xd8;
   },
-  parse(bytes: Uint8Array, filePath: string, tagDb?: TagDb): Promise<FileInfo> {
+  parse(bytes: Uint8Array, filePath: string, tagDb?: TagDb, hints?: ParseHints): Promise<FileInfo> {
     const result: Record<string, TagValue> = {};
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     let offset = 2;
@@ -46,7 +46,7 @@ export const jpegParser: FormatParser = {
           // TIFF data starts at file position: offset (payload) + 6 (skip "Exif\0\0")
           const tiffFileOffset = offset + 6;
           result['ExifByteOrder'] = tiffData[0] === 0x49 ? 'Little-endian (Intel, II)' : 'Big-endian (Motorola, MM)';
-          const tiff = parseTiff(tiffData, tagDb);
+          const tiff = parseTiff(tiffData, tagDb, hints?.coordFormat);
           for (const [k, v] of Object.entries(tiff)) {
             result[k] = v;
           }

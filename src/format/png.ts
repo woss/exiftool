@@ -1,4 +1,4 @@
-import type { FormatParser } from './mod.ts';
+import type { FormatParser, ParseHints } from './mod.ts';
 import type { FileInfo, TagValue } from '../types.ts';
 import type { TagDb } from '../tag-db.ts';
 import { registerParser } from './mod.ts';
@@ -30,7 +30,7 @@ export const pngParser: FormatParser = {
     return bytes[0] === PNG_HEADER[0] && bytes[1] === PNG_HEADER[1] &&
       bytes[2] === PNG_HEADER[2] && bytes[3] === PNG_HEADER[3];
   },
-  parse(bytes: Uint8Array, filePath: string, tagDb?: TagDb): Promise<FileInfo> {
+  parse(bytes: Uint8Array, filePath: string, tagDb?: TagDb, hints?: ParseHints): Promise<FileInfo> {
     const result: Record<string, TagValue> = {};
     let offset = 8;
 
@@ -51,7 +51,7 @@ export const pngParser: FormatParser = {
       }
 
       if (chunk.type === 'eXIf') {
-        const tiff = parseTiff(chunk.data, tagDb);
+        const tiff = parseTiff(chunk.data, tagDb, hints?.coordFormat);
         for (const [k, v] of Object.entries(tiff)) {
           result[k] = v;
         }

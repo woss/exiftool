@@ -1,4 +1,4 @@
-import type { FormatParser } from './mod.ts';
+import type { FormatParser, ParseHints } from './mod.ts';
 import type { FileInfo, TagValue } from '../types.ts';
 import type { TagDb } from '../tag-db.ts';
 import { registerParser } from './mod.ts';
@@ -16,7 +16,7 @@ export const webpParser: FormatParser = {
     return bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
       bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50;
   },
-  parse(bytes: Uint8Array, filePath: string, tagDb?: TagDb): Promise<FileInfo> {
+  parse(bytes: Uint8Array, filePath: string, tagDb?: TagDb, hints?: ParseHints): Promise<FileInfo> {
     const result: Record<string, TagValue> = {};
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     let offset = 12;
@@ -35,12 +35,12 @@ export const webpParser: FormatParser = {
 
       if (chunkId === 'EXIF') {
         if (chunkData.length >= 6) {
-          const tiff = parseTiff(chunkData.slice(6), tagDb);
+          const tiff = parseTiff(chunkData.slice(6), tagDb, hints?.coordFormat);
           for (const [k, v] of Object.entries(tiff)) {
             result[k] = v;
           }
         } else {
-          const tiff = parseTiff(chunkData, tagDb);
+          const tiff = parseTiff(chunkData, tagDb, hints?.coordFormat);
           for (const [k, v] of Object.entries(tiff)) {
             result[k] = v;
           }

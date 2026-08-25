@@ -4,6 +4,7 @@ import { DEFAULT_OPTIONS } from './types.ts';
 import tagData from './tags/generated/tags.json' with { type: 'json' };
 import type { TableDef } from './tags.ts';
 import { detectParser } from './format/mod.ts';
+import type { ParseHints } from './format/mod.ts';
 import './format/jpeg.ts';
 import './format/png.ts';
 import './format/webp.ts';
@@ -57,12 +58,12 @@ export class ExifTool {
     return 1;
   }
 
-  async read(filePath: string): Promise<FileInfo> {
+  async read(filePath: string, hints?: ParseHints): Promise<FileInfo> {
     const bytes = await Deno.readFile(filePath);
     const parser = detectParser(bytes);
 
     if (parser) {
-      return parser.parse(bytes, filePath, this.tagDb);
+      return parser.parse(bytes, filePath, this.tagDb, hints);
     }
 
     return { path: filePath, format: 'Unknown', tags: {} };
