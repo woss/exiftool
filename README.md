@@ -1,66 +1,153 @@
 # exiftool-ts
 
-TypeScript rewrite of ExifTool for Deno. Read/write metadata across 140+ file formats.
+TypeScript rewrite of [ExifTool](https://exiftool.org) for Deno. Read and write
+metadata from JPEG, PNG, WebP, AVIF/HEIF, and TIFF-family images — with a fully
+typed library API and a drop-in CLI.
 
-## Status
+## Why
 
-Early development. Tag database and format parsers are being built.
+ExifTool is the gold standard for metadata — but it's a 30k-line Perl program.
+Every invocation pays a Perl startup cost, embedding it in a JS/TS service means
+shelling out or managing sidecars, and there are no types.
+
+exiftool-ts exists to bring that capability natively into the Deno/TypeScript
+ecosystem:
+
+- **Typed end to end** — `read()` returns an inferred `FileInfo`; no parsing strings.
+- **Embeddable** — one `deno compile` produces a dependency-free binary; or import
+  the library directly with zero child processes.
+- **Trust ExifTool as ground truth** — our parity suite diffs our output against
+  the real `exiftool` binary on every run; formatting bugs get caught, not shipped.
+- **Auto-generated tag database** — tag definitions are parsed from the ExifTool
+  Perl source at build time (~thousands of tags), not hand-maintained.
+
+## Status & parity
+
+Early development, moving fast. Full detail lives in
+[`docs/PARITY_MATRIX.md`](./docs/PARITY_MATRIX.md). Summary:
+
+| Area | State |
+|---|---|
+| Read JPEG / PNG / WebP / AVIF-HEIF | ✅ verified against reference exiftool |
+| EXIF (IFD0 + sub-IFDs + GPS + IFD1) | ✅ both endians |
+| XMP / IPTC-IIM / ICC / Photoshop IRB / JFIF | 🟨 core coverage |
+| MPF embedded-image extraction (`-ee`) | 🟨 |
+| Write JPEG / PNG / WebP / AVIF | ✅ IFD0 tag subset, `_original` backups |
+| `-stay_open` daemon protocol | ✅ stdin command loop |
+| CLI: `-j -csv -X -b -d -c -g -G -v -q -if -o -r -ext -i` | ✅ |
+| MakerNotes, RAW containers (CR2/DNG/…), PDF/video | ❌ not started |
+
+Value-level parity is enforced by `src/cli/exiftool-parity.test.ts`, which runs
+the real `exiftool` binary on shared fixtures and fails on any undocumented
+divergence. Remaining gaps are registered in `KNOWN_DIVERGENCES` inside that
+file with reasons (file-date timezone offsets, makernote lens lookups, …).
+
+## Library usage
+
+The package ships TypeScript source, so consumers get full types and
+autocomplete out of the box:
+
+```ts
+import { ExifTool } from 'exiftool-ts';
+
+const tool = new ExifTool();
+
+const info = await tool.read('photo.jpg');
+info.tags.Make;                        // "Canon"        — typed as TagValue
+info.tags.ExposureTime;                // "1/200"        — formatted like exiftool
+Object.keys(info.tags);                // browse everything
+
+// In-memory buffers work too:
+const meta = await tool.readBytes(imageBuffer);
+
+// Writing (creates photo.jpg_original unless suppressed):
+await tool.write('photo.jpg', { Artist: 'me', Copyright: '(c)' });
+```
+
+Exported surface: `ExifTool`, `TagDb`, `writeTags`, `UnsupportedFormatError`,
+and the types `FileInfo`, `TagValue`, `WriteResult`, `ParseHints`, `ReadOptions`,
+`TagEntry`, `TagGroups`. Your editor resolves all of it — no `.d.ts` stubs needed,
+since the package is published as source.
+
+## CLI usage
+
+```bash
+deno run -A cli.ts photo.jpg                    # default tabular dump
+deno run -A cli.ts -j photo.jpg                 # JSON
+deno run -A cli.ts -X photo.jpg > out.xml       # XML
+deno run -A cli.ts -csv *.jpg > out.csv         # CSV
+deno run -A cli.ts -r -ext jpg .                # recurse a directory tree
+deno run -A cli.ts -if '$Make eq Canon' *.jpg   # condition filter
+deno run -A cli.ts -ee -j multi-picture.jpg     # embedded images as extra docs
+deno run -A cli.ts '-Artist=me' photo.jpg       # write a tag (_original backup)
+deno run -A cli.ts --overwrite-original '-Software=x' photo.jpg
+printf -- '-j\nphoto.jpg\n-execute\n-stay_open\nFalse\n' \
+  | deno run -A cli.ts -stay_open True          # persistent daemon
+```
 
 ## Architecture
 
 ```
-cli.ts             → CLI entry point
-mod.ts             → Library exports
+cli.ts               → CLI entry point (arg normalization → main())
+mod.ts               → Library barrel (public API + types)
 src/
-  exiftool.ts      → Main ExifTool class
-  tag-db.ts        → Tag database (name/id/group lookups)
-  types.ts         → Core types (TagEntry, ExifToolOptions, etc.)
+  exiftool.ts        → ExifTool class (read / readBytes / write)
+  tag-db.ts          → Tag database (name/id/group lookups)
+  types.ts           → Core types (FileInfo, TagEntry, TagValue, …)
   cli/
-    args.ts        → CLI argument parser
-    output.ts      → Output formatters (JSON, XML, CSV, tabular)
+    args.ts          → CLI argument parser scaffold
+    filter.ts        → -if condition evaluation
+    glob.ts          → directory recursion / extension filters
+    output.ts        → JSON / XML / CSV / tabular formatters
+    stay-open.ts     → -stay_open daemon command loop
+    verbosity.ts     → -v/-q rendering helpers
   format/
-    mod.ts         → Format parser registry
-    jpeg.ts        → JPEG parser
+    mod.ts           → Format parser registry + ParseHints
+    jpeg.ts          → JPEG segment walk (EXIF/XMP/IPTC/ICC/MPF/Adobe)
+    png.ts           → PNG chunk walk (eXIf/iTXt/zTXt/tEXt/iCCP…)
+    webp.ts          → RIFF/VP8X chunk walk
+    avif.ts          → ISOBMFF box walk (meta items, colr, pixi)
   exif/
-    types.ts       → EXIF IFD type definitions
-    ifd.ts         → IFD structure parser
+    ifd.ts           → Bounds-checked IFD structure parser
+    tiff.ts          → Shared TIFF engine (both endians, GPS/sub-IFDs)
+    tiff-builder.ts  → TIFF serializer for the write path
+    values.ts        → PrintConv value formatting
+    composite.ts     → Composite tag derivation (35mm equiv, LightValue…)
+    xmp.ts           → XMP/RDF extraction
+    app13.ts         → Photoshop IRB + IPTC IIM extraction
+    icc.ts           → ICC profile header/tag parsing
+  write/
+    pipeline.ts      → Safe-overwrite pipeline (temp swap + _original backup)
+    writers.ts       → Per-container writers (JPEG APP1 / PNG eXIf / WebP / AVIF)
   utils/
-    binary.ts      → Binary read helpers
-    encoding.ts    → String encoding/escaping
+    crc32.ts         → CRC-32 (PNG chunks)
+    encoding.ts      → String encoding/escaping helpers
 scripts/
-  generate-tags.ts → Generate tag DB from ExifTool Perl source
-  test-harness.ts  → Compare output against real exiftool
+  generate-tags.ts   → Generate tag DB from ExifTool Perl source
+  test-harness.ts    → Compare output against real exiftool
+  coverage-audit.ts  → Enforce 100% line/function coverage gate
+.github/workflows/
+  release.yml        → deno compile matrix builds (linux/mac/win) on tags
 ```
 
-## Design Principles
-
-- **Trust ExifTool** — real exiftool output is the ground truth. Test harness compares results.
-- **Auto-generated tag database** — tag definitions are parsed from ExifTool Perl source at build
-  time, not hand-coded.
-- **Modular format parsers** — each file format is a separate module registered with the format
-  registry.
-- **Single codebase** — targets Deno CLI, with WASM compilation via `deno compile`.
-
-## Usage
+## Development
 
 ```bash
-# Run CLI
-deno run -A cli.ts --help
+deno task test              # run the full test suite
+deno task check             # typecheck
+deno task coverage-audit    # tests + enforce 100% line/function coverage
+deno task generate-tags     # regenerate tag DB (requires exiftool source)
 
-# Run tests
-deno test -A
-
-# Generate tag definitions (requires exiftool source)
-deno run -A scripts/generate-tags.ts
-
-# Compare against real exiftool
-deno run -A scripts/test-harness.ts image.jpg
+# Parity vs real exiftool (needs `exiftool` on PATH):
+deno test -A src/cli/exiftool-parity.test.ts
 ```
 
-## Project Scope
+## Project scope
 
-Parsing metadata for 140+ formats across EXIF, IPTC, XMP, GPS, ICC, and format-specific tags. Output
-formats include JSON, XML, CSV, HTML, and structured tag dumps.
+Near term: deepen EXIF/XMP/IPTC writing, add maker-note decoding, extend the
+container list toward the formats exiftool covers. The long-term target remains
+parity with ExifTool's reading surface across its supported formats — tracked in
+the parity matrix above.
 
 ## License
 

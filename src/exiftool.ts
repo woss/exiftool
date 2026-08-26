@@ -82,6 +82,18 @@ export class ExifTool {
     return writeTags(filePath, tags, opts);
   }
 
+  /**
+   * Parses metadata from an in-memory buffer instead of a file path.
+   * File-system-derived tags (FileName, FileSize, …) are absent here.
+   */
+  async readBytes(bytes: Uint8Array): Promise<FileInfo> {
+    const parser = detectParser(bytes);
+    if (parser) {
+      return parser.parse(bytes, '(buffer)', this.tagDb);
+    }
+    return { path: '(buffer)', format: 'Unknown', tags: {} };
+  }
+
   private printHelp(): void {
     console.log(`
 exiftool-ts 0.1.0 — metadata read/write tool

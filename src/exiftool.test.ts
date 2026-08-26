@@ -109,3 +109,17 @@ Deno.test('ExifTool constructor merges custom options over defaults', () => {
   assertEquals(tool.options.verbosity, 3);
   assertEquals(tool.options.composite, true); // untouched default
 });
+
+Deno.test('readBytes parses an in-memory buffer', async () => {
+  const tool = new ExifTool();
+  const bytes = await Deno.readFile('assets/01.jpg');
+  const info = await tool.readBytes(bytes);
+  assertEquals(info.format, 'JPEG');
+  assertEquals(info.tags.Make, 'Canon');
+});
+
+Deno.test('readBytes returns unknown format for garbage', async () => {
+  const tool = new ExifTool();
+  const info = await tool.readBytes(new TextEncoder().encode('not metadata'));
+  assertEquals(info.format, 'Unknown');
+});
