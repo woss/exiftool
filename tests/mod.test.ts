@@ -1,13 +1,18 @@
 import { assertEquals } from '../deps.ts';
 // Importing the barrel pulls in src/exiftool.ts, whose side-effect imports
 // register every format parser — detectParser below depends on that.
-import { ExifTool, TagDb } from '../mod.ts';
+import { ExifTool, TagDb, UnsupportedFormatError, writeTags } from '../mod.ts';
+import type { WriteResult } from '../mod.ts';
 import { DEFAULT_OPTIONS } from '../src/types.ts';
 import { detectParser, getParser } from '../src/format/mod.ts';
 
 Deno.test('barrel exports the public API surface', () => {
   assertEquals(typeof ExifTool, 'function');
   assertEquals(typeof TagDb, 'function');
+  assertEquals(typeof writeTags, 'function');
+  assertEquals(typeof UnsupportedFormatError, 'function');
+  const sample: WriteResult = { file: 'x', written: [], skipped: [] };
+  assertEquals(sample.file, 'x');
 });
 
 Deno.test('ExifTool constructor wires a populated tag db and default options', () => {

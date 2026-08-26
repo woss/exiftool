@@ -5,18 +5,20 @@ import type { FormatOptions } from './src/cli/output.ts';
 import { evalCondition } from './src/cli/filter.ts';
 import { verboseLines } from './src/cli/verbosity.ts';
 import { expandInputs } from './src/cli/glob.ts';
+import { readLines, stayOpenLoop } from './src/cli/stay-open.ts';
 import { extractEmbeddedJpegs, jpegParser } from './src/format/jpeg.ts';
 
 export function normalizeArgs(args: string[]): string[] {
   return args.flatMap((a) => {
     // TAG=VALUE write assignments pass through as operands
+    if (/^-?[A-Za-z][A-Za-z0-9_]*=/.test(a)) return [a];
     if (a === '-overwrite_original' || a === '--overwrite_original') {
       return ['--overwrite-original'];
     }
-    if (/^-?[A-Za-z][A-Za-z0-9_]*=/.test(a)) return [a];
     if (a === '--ee') return ['--extract-embedded'];
     if (a.startsWith('-') && !a.startsWith('--') && a.length > 2) {
       if (a === '-ver') return ['--version'];
+      if (a === '-stay_open' || a === '--stay_open') return ['--stay-open'];
       // -ext maps to the long-only --extension option
       if (a === '-ext') return ['--extension'];
       // -ee maps to the long-only --extract-embedded option
@@ -50,6 +52,7 @@ export interface CliOptions {
   output?: string;
   extractEmbedded?: boolean;
   overwriteOriginal?: boolean;
+  stayOpen?: string | boolean;
 }
 
 export async function runAction(options: CliOptions, ...files: string[]): Promise<number> {
@@ -88,7 +91,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
     return failures.length > 0 ? 1 : 0;
   }
 
-  const expanded = await expandInputs(files.filter((f) => !assignments.includes(f)), {
+  const expanded = await expandInputs(files, {
     recurse: options.recurse === true,
     extensions: options.extension ?? [],
     ignoreDirs: options.ignore ?? [],
@@ -149,10 +152,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
     fmtOpts.dateFormat = options.dateFormat as string;
   }
 
-  if (options.binary && options.json) {
-    // JSON output with binary data: hand Uint8Array values to the JSON formatter.
-    fmtOpts.binary = true;
-  } else if (options.binary) {
+  if (options.binary && !options.json) {
     // Known limitation: with multiple files/tags, all Uint8Array values are
     // concatenated to stdout without separators and without per-tag selection.
     let foundBinary = false;
@@ -164,13 +164,16 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
         }
       }
     }
+    reportFailures();
     if (!foundBinary) {
-      reportFailures();
       console.error('No binary tags found.');
       return 1;
     }
-    reportFailures();
-    return 0;
+    return failures.length > 0 ? 1 : 0;
+  }
+  if (options.binary && options.json) {
+    // JSON output with binary data: hand Uint8Array values to the JSON formatter.
+    fmtOpts.binary = true;
   }
 
   let text: string;
@@ -197,6 +200,32 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
   return failures.length > 0 ? 1 : 0;
 }
 
+/**
+ * Process entry: routes to the `-stay_open` daemon or a one-shot run and
+ * yields the process exit code. `input` is injectable for tests.
+ */
+export async function main(
+  options: CliOptions,
+  files: string[],
+  input: ReadableStream<Uint8Array> = Deno.stdin.readable,
+): Promise<number> {
+  const wantsDaemon = options.stayOpen !== undefined &&
+    options.stayOpen !== false &&
+    options.stayOpen !== 'False';
+  if (!wantsDaemon) return runAction(options, ...files);
+
+  let lastCode = 0;
+  const loop = await stayOpenLoop(
+    readLines(input),
+    async (args) => {
+      lastCode = await runAction(options, ...args);
+      return lastCode;
+    },
+    (text) => console.log(text),
+  );
+  return loop.shutdownRequested ? lastCode : 0;
+}
+
 export const cmd = new Command()
   .name('exiftool-ts')
   .version('0.1.0')
@@ -218,9 +247,10 @@ export const cmd = new Command()
   .option('-i, --ignore <dirname:string>', 'Ignore a directory name during scans', { collect: true })
   .option('--extract-embedded', 'Extract embedded documents from supported formats (Multi-Picture JPEG); use -ee')
   .option('--overwrite-original', 'Skip creating <file>_original backups when writing (use -overwrite_original)')
-  .arguments('<files...:string>')
+  .option('--stay-open [flag:string]', 'Run as persistent daemon reading commands from stdin (use -stay_open)')
+  .arguments('[files...:string]')
   .action(async (options, ...files: string[]) => {
-    const code = await runAction(options as CliOptions, ...files);
+    const code = await main(options as CliOptions, files);
     if (code !== 0) Deno.exit(code);
   });
 

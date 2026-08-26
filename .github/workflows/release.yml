@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+            artifact: exiftool-ts-linux-x64
+          - target: aarch64-apple-darwin
+            os: macos-latest
+            artifact: exiftool-ts-macos-arm64
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            artifact: exiftool-ts-windows-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Typecheck
+        run: deno check mod.ts cli.ts src/**/*.ts
+
+      - name: Test
+        run: deno test -A
+
+      - name: Compile binary
+        run: >
+          deno compile --allow-read --allow-write --allow-env
+          --target ${{ matrix.target }}
+          --output ${{ matrix.artifact }}
+          cli.ts
+
+      - name: Smoke test binary
+        run: ./${{ matrix.artifact }}${{ runner.os == 'Windows' && '.exe' || '' }} assets/01.jpg | head -3
+        if: runner.os != 'Windows'
+      - name: Smoke test binary (windows)
+        run: Get-Content -First 3 <(& .\${{ matrix.artifact }}.exe assets\01.jpg)
+        if: runner.os == 'Windows'
+        shell: pwsh
+
+      - name: Upload release artifacts
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.artifact }}*

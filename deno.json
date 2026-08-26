@@ -8,7 +8,8 @@
     "test": "deno test -A",
     "generate-tags": "deno run -A scripts/generate-tags.ts",
     "test-harness": "deno run -A scripts/test-harness.ts",
-    "check": "deno check mod.ts cli.ts src/**/*.ts"
+    "check": "deno check mod.ts cli.ts src/**/*.ts",
+    "coverage-audit": "deno run -A scripts/coverage-audit.ts"
   },
   "exports": {
     ".": "./mod.ts",
@@ -19,15 +20,27 @@
     "exiftool-ts/": "./"
   },
   "lint": {
-    "include": ["src/", "scripts/"],
-    "exclude": ["src/tags/generated/"],
+    "include": [
+      "src/",
+      "scripts/"
+    ],
+    "exclude": [
+      "src/tags/generated/"
+    ],
     "rules": {
-      "exclude": ["no-unused-vars"]
+      "exclude": [
+        "no-unused-vars"
+      ]
     }
   },
   "fmt": {
-    "include": ["src/", "scripts/"],
-    "exclude": ["src/tags/generated/"],
+    "include": [
+      "src/",
+      "scripts/"
+    ],
+    "exclude": [
+      "src/tags/generated/"
+    ],
     "lineWidth": 100,
     "semiColons": true,
     "singleQuote": true
