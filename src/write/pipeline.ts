@@ -74,11 +74,8 @@ export async function writeTagsWithTmp(
     }
     await Deno.rename(tmp, filePath);
   } catch (e) {
-    try {
-      await Deno.remove(tmp);
-    } catch {
-      // temp already gone (or blocked path could not be cleaned)
-    }
+    // Best-effort cleanup; a blocked temp path is left for inspection.
+    await Deno.remove(tmp).catch(() => {});
     throw e;
   }
 

@@ -236,7 +236,7 @@ Deno.test('jpegWriter skips RST markers while rebuilding', async () => {
 
 Deno.test('pngWriter stops at a truncated trailing chunk but keeps valid output', async () => {
   const base = buildPng(true);
-  const truncated = new Uint8Array([...base, 0, 0, 0, 10]);
+  const truncated = new Uint8Array([...base, ...u32be(999), 1, 2, 3, 4, 5, 6, 7, 8]);
   const out = pngWriter(truncated, { Make: 'TruncCo' });
   const info = await pngParser.parse(out.bytes, '(test)');
   assertEquals(info.tags.Make, 'TruncCo');
@@ -244,7 +244,11 @@ Deno.test('pngWriter stops at a truncated trailing chunk but keeps valid output'
 
 Deno.test('pngWriter rejects files without an IHDR chunk', () => {
   const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
-  const noIhdr = new Uint8Array([...sig, ...pngChunk('IDAT', new Uint8Array([1])), ...pngChunk('IEND', new Uint8Array([]))]);
+  const noIhdr = new Uint8Array([
+    ...sig,
+    ...pngChunk('IDAT', new Uint8Array([1])),
+    ...pngChunk('IEND', new Uint8Array([])),
+  ]);
   try {
     pngWriter(noIhdr, { Make: 'X' });
     throw new Error('should have thrown');
@@ -253,18 +257,30 @@ Deno.test('pngWriter rejects files without an IHDR chunk', () => {
   }
 });
 
+
 Deno.test('avifWriter handles a zero-terminated final box and malformed meta children', async () => {
   // size==0 on the last box means "extends to end of stream"; a meta child
   // declaring an impossible size terminates the child scan without throwing.
   const ftyp = box('ftyp', [...chars('avif'), 0, 0, 0, 0]);
-  const meta = [
-    ...u32be(127), ...chars('meta'),
-    ...box('hdlr', [0, 0, 0, 0, 0, 0, 0, 0, ...chars('pict'), 0]),
-    ...box('Exif', [0, 0, 0, 4, ...buildTiff({ Make: 'OldAv' }).bytes]),
-    ...u32be(4), ...chars('junk'), // csize < 8 -> scan breaks here
-  ];
-  const orig = new Uint8Array([...ftyp, ...meta]);
+  const exif = box('Exif', [0, 0, 0, 4, ...buildTiff({ Make: 'OldAv' }).bytes]);
+  const hdlr = box('hdlr', [0, 0, 0, 0, 0, 0, 0, 0, ...chars('pict'), 0]);
+  const junk = [...u32be(4), ...chars('junk')]; // csize < 8 -> scan breaks
+  const meta = [...u32be(8 + hdlr.length + exif.length + junk.length), ...chars('meta'),
+    ...hdlr, ...exif, ...junk];
+  const orig = new Uint8Array([...ftyp, ...meta, ...box('mdat', [9])]);
   const out = avifWriter(orig, { Make: 'ZeroAv' });
   const info = await avifParser.parse(out.bytes, '(test)');
   assertEquals(info.tags.Make, 'ZeroAv');
+});
+
+Deno.test('avifParser skips malformed meta children in the original input', async () => {
+  const ftyp = box('ftyp', [...chars('avif'), 0, 0, 0, 0]);
+  const exif = box('Exif', [0, 0, 0, 4, ...buildTiff({ Make: 'OldAv' }).bytes]);
+  const hdlr = box('hdlr', [0, 0, 0, 0, 0, 0, 0, 0, ...chars('pict'), 0]);
+  const junk = [...u32be(4), ...chars('junk')];
+  const meta = [...u32be(8 + hdlr.length + exif.length + junk.length), ...chars('meta'),
+    ...hdlr, ...exif, ...junk];
+  const orig = new Uint8Array([...ftyp, ...meta, ...box('mdat', [9])]);
+  const info = await avifParser.parse(orig, '(test)');
+  assertEquals(info.tags.Make, 'OldAv');
 });

@@ -227,3 +227,13 @@ Deno.test('normalized entry table overrunning the buffer yields nothing', () => 
   single[b002CountPos + 3] = big & 255;
   assertEquals(extractEmbeddedJpegs(single), []);
 });
+
+Deno.test('corrupted IFD offset yields no documents', () => {
+  const file = buildMpf();
+  const tiffStart = 24; // SOI(2) + APP0(18) + APP2 header(4)
+  file[tiffStart + 4] = 0xFF;
+  file[tiffStart + 5] = 0xFF;
+  file[tiffStart + 6] = 0xFF;
+  file[tiffStart + 7] = 0xFF;
+  assertEquals(extractEmbeddedJpegs(file), []);
+});

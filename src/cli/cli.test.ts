@@ -1,5 +1,5 @@
 import { assertEquals } from 'jsr:@std/assert';
-import { cmd, normalizeArgs, runAction } from '../../cli.ts';
+import { cmd, main, normalizeArgs, runAction } from '../../cli.ts';
 import type { CliOptions } from '../../cli.ts';
 import { ExifTool } from '../../src/exiftool.ts';
 
@@ -568,5 +568,57 @@ Deno.test('runAction write mode reports unsupported files and returns 1', async 
   } finally {
     cap.restore();
     await Deno.remove(txt);
+  }
+});
+
+Deno.test('main routes one-shot runs through runAction', async () => {
+  const cap = captureConsole();
+  try {
+    const code = await main({ json: true }, ['assets/01.jpg']);
+    assertEquals(code, 0);
+    assertEquals(JSON.parse(cap.out.join('\n')).length, 1);
+  } finally {
+    cap.restore();
+  }
+});
+
+Deno.test('main runs the -stay_open daemon over an injected stream', async () => {
+  const tmp = await Deno.makeTempFile({ suffix: '.jpg' });
+  await Deno.writeFile(tmp, await Deno.readFile('assets/01.jpg'));
+  const enc = new TextEncoder();
+  const input = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(enc.encode(`-Software=daemon\r\n${tmp}\r\n-execute\r\n-stay_open\r\nFalse\r\n`));
+      controller.close();
+    },
+  });
+  const cap = captureConsole();
+  try {
+    const code = await main({ overwriteOriginal: true, stayOpen: 'True' }, [], input);
+    assertEquals(code, 0);
+    const tool = new ExifTool();
+    assertEquals((await tool.read(tmp)).tags.Software, 'daemon');
+    // {ready} sentinel emitted per -execute batch.
+    assertEquals(cap.out.includes('{ready}'), true);
+  } finally {
+    cap.restore();
+    await Deno.remove(tmp);
+  }
+});
+
+Deno.test('main propagates a failing batch exit code on shutdown', async () => {
+  const enc = new TextEncoder();
+  const input = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(enc.encode('missing.jpg\n-execute\n-stay_open\nFalse\n'));
+      controller.close();
+    },
+  });
+  const cap = captureConsole();
+  try {
+    const code = await main({ stayOpen: true }, [], input);
+    assertEquals(code, 1);
+  } finally {
+    cap.restore();
   }
 });

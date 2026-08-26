@@ -283,11 +283,7 @@ function findMpfTiffStart(bytes: Uint8Array): number {
     const marker = bytes[pos + 1];
     if (marker === 0xDA || marker === 0xD9) return -1; // SOS/EOI: headers done
     // RSTn and TEM markers carry no length field
-    if ((marker >= 0xD0 && marker <= 0xD7) || marker === 0x01) {
-      pos += 2;
-      continue;
-    }
-    if (pos + 4 > bytes.length) return -1;
+    if ((marker >= 0xD0 && marker <= 0xD7) || marker === 0x01) { pos += 2; continue; }
     const segLen = (bytes[pos + 2] << 8) | bytes[pos + 3];
     if (segLen < 2) return -1;
     const dataStart = pos + 4;
@@ -343,11 +339,10 @@ export function extractEmbeddedJpegs(bytes: Uint8Array): Uint8Array[] {
     const base = entriesPos + i * MP_ENTRY_SIZE;
     const size = view.getUint32(base + 4, little);
     const off = view.getUint32(base + 8, little);
-    if (size === 0 || off === 0) continue;
     const abs = tiffStart + off;
-    if (abs + size > bytes.length) continue;
-    if (bytes[abs] !== 0xFF || bytes[abs + 1] !== 0xD8 || bytes[abs + 2] !== 0xFF) continue;
-    docs.push(bytes.slice(abs, abs + size));
+    const isJpeg = size > 0 && off !== 0 && abs + size <= bytes.length &&
+      bytes[abs] === 0xFF && bytes[abs + 1] === 0xD8 && bytes[abs + 2] === 0xFF;
+    if (isJpeg) docs.push(bytes.slice(abs, abs + size));
   }
   return docs;
 }

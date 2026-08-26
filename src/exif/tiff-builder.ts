@@ -84,6 +84,9 @@ function encodeValue(
       if (!r) return undefined;
       pairs.push(r);
     }
+    // deno-coverage-ignore-next-line -- unreachable: the loop above yields
+    // one pair per two elements, so an empty list implies zero elements,
+    // which the Array.isArray guard never lets through for RATIONAL tags.
     if (pairs.length === 0) return undefined;
     const buf = new ArrayBuffer(pairs.length * 8);
     const dv = new DataView(buf);

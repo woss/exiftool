@@ -213,9 +213,13 @@ export const avifWriter: ContainerWriter = (original, tags) => {
     while (cpos + 8 <= metaEnd) {
       const csize = dv.getUint32(cpos, false);
       const ctype = String.fromCharCode(...original.subarray(cpos + 4, cpos + 8));
-      if (csize < 8 || cpos + csize > metaEnd) break;
-      if (ctype !== 'Exif') children.push(...original.subarray(cpos, cpos + csize));
-      cpos += csize;
+      // Malformed children are dropped so the rebuilt meta box stays
+      // parseable; well-formed non-Exif siblings are preserved.
+      const wellFormed = csize >= 8 && cpos + csize <= metaEnd;
+      if (wellFormed && ctype !== 'Exif') {
+        children.push(...original.subarray(cpos, cpos + csize));
+      }
+      cpos += wellFormed ? csize : 8;
     }
     metaBytes = box('meta', [...children, ...exifBox]);
   } else {
