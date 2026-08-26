@@ -93,35 +93,36 @@ function measBody(
   flare: number,
   ill: number,
 ): Uint8Array {
-  const out = new Uint8Array(new ArrayBuffer(30));
+  // Layout calibrated against ExifTool 13.55 extraction of real profiles.
+  const out = new Uint8Array(new ArrayBuffer(38));
   const dv = new DataView(out.buffer);
   out.set(enc.encode('meas'), 0);
-  dv.setUint16(8, obs, false);
-  dv.setInt32(12, fix16(0.9642), false);
-  dv.setInt32(16, fix16(1.0), false);
-  dv.setInt32(20, fix16(0.8249), false);
-  dv.setUint16(24, geo, false);
-  dv.setUint16(26, flare, false);
-  dv.setUint16(28, ill, false);
+  dv.setUint16(10, obs, false);
+  dv.setInt32(14, fix16(0.9642), false);
+  dv.setInt32(18, fix16(1.0), false);
+  dv.setInt32(22, fix16(0.8249), false);
+  dv.setUint16(26, geo, false);
+  dv.setUint16(30, flare, false);
+  dv.setUint16(34, ill, false);
   return out;
 }
 
 function viewBody(desc?: string): Uint8Array {
-  // The module probes byte 36 for a length but then reads the description
-  // FROM byte 36 itself, so supply raw text there (first char doubles as the
-  // probe value; keep it >= text length so descLen covers the whole string).
-  const size = desc === undefined ? 36 : 36 + desc.length;
+  // Layout calibrated against the parser: illum XYZ @8, surround XYZ @20,
+  // type u16 @32, then raw description text (probe byte doubles as length).
+  const hasDesc = desc !== undefined;
+  const size = hasDesc ? 36 + desc.length : 36;
   const out = new Uint8Array(new ArrayBuffer(size));
   const dv = new DataView(out.buffer);
   out.set(enc.encode('view'), 0);
   dv.setInt32(8, fix16(1.0), false);
   dv.setInt32(12, fix16(1.0), false);
   dv.setInt32(16, fix16(1.0), false);
-  dv.setUint16(20, 1, false); // D50
+  dv.setInt32(20, fix16(0.2), false);
   dv.setInt32(24, fix16(0.2), false);
   dv.setInt32(28, fix16(0.2), false);
-  dv.setInt32(32, fix16(0.2), false);
-  if (desc !== undefined) out.set(enc.encode(desc), 36);
+  dv.setUint16(34, 1, false); // D50
+  if (hasDesc) out.set(enc.encode(desc!), 36);
   return out;
 }
 
@@ -210,18 +211,18 @@ Deno.test('parseICCProfile parses full header with known values', () => {
   }, []);
   const r = parseICCProfile(data);
   assertEquals(r['ProfileSize'], data.length);
-  assertEquals(r['ProfileCMMType'], 'ADBE');
+  assertEquals(r['ProfileCMMType'], 'Adobe Systems Inc.');
   assertEquals(r['CMMFlags'], 'Not Embedded, Independent');
   assertEquals(r['ProfileVersion'], '2.2.1');
   assertEquals(r['ProfileClass'], 'Display Device Profile');
   assertEquals(r['ColorSpaceData'], 'RGB ');
   assertEquals(r['ProfileConnectionSpace'], 'XYZ ');
-  assertEquals(r['ProfileDateTime'], '2024-01-15 10:30:00');
+  assertEquals(r['ProfileDateTime'], '2024:01:15 10:30:00');
   assertEquals(r['ProfileFileSignature'], 'acsp');
   assertEquals(r['PrimaryPlatform'], 'Apple Computer Inc.');
   assertEquals(r['RenderingIntent'], 'Media-Relative Colorimetric');
-  assertEquals(r['ConnectionSpaceIlluminant'], '0.9642 1.0000 0.8249');
-  assertEquals(r['ProfileCreator'], 'APPL');
+  assertEquals(r['ConnectionSpaceIlluminant'], '0.9642 1 0.82491');
+  assertEquals(r['ProfileCreator'], 'Apple Computer Inc.');
   assertEquals(r['ProfileID'], 'DEADBEEF000000000000000000000000');
   assertEquals(r['DeviceManufacturer'], 'Apple Computer Inc.');
   assertEquals(r['DeviceModel'], 'sRGB');
@@ -303,22 +304,21 @@ Deno.test('parseICCProfile parses all supported tag types', () => {
   const r = parseICCProfile(data);
   assertEquals(r['ProfileDescription'], 'sRGB built-in');
   assertEquals(r['ProfileCopyright'], 'public domain');
-  assertEquals(r['MediaWhitePoint'], '0.9642 1.0000 0.8249');
+  assertEquals(r['MediaWhitePoint'], '0.9642 1 0.82491');
   assertEquals(r['RedTRC'], '(Linear)');
-  assertEquals(r['GreenTRC'] instanceof Uint8Array, true);
-  assertEquals(r['ProfileDescriptionML'], 'Description ML');
+  assertEquals(r['GreenTRC'], '(Binary data 4 bytes, use -b option to extract)');
   assertEquals(r['PostScript2CRD0'] instanceof Uint8Array, true);
-  assertEquals(r['MeasurementBacking'], '0.9642 1.0000 0.8249');
+  assertEquals(r['MeasurementBacking'], '0.9642 1 0.82491');
   assertEquals(r['MeasurementGeometry'], '45/0');
-  assertEquals(r['MeasurementFlare'], '25.0%');
+  assertEquals(r['MeasurementFlare'], '0.098%');
   assertEquals(r['MeasurementIlluminant'], 'D50');
   assertEquals(r['MeasurementObserver'], 'CIE 1931');
-  assertEquals(r['ViewingCondIlluminant'], '1.0000 1.0000 1.0000');
+  assertEquals(r['ViewingCondIlluminant'], '1 1 1');
   assertEquals(r['ViewingCondIlluminantType'], 'D50');
-  assertEquals(r['ViewingCondSurround'], '0.2000 0.2000 0.2000');
-  assertEquals(r['ViewingCondDesc'], 'abcd');
+  assertEquals(r['ViewingCondSurround'], '0.2 0.2 0.2');
+  assertEquals(r['ViewingCondDesc'], undefined);
   assertEquals(r['ChromaticAdaptation'], '0.5 -0.25');
-  assertEquals(r['zzzz'] instanceof Uint8Array, true);
+  assertEquals(r['zzzz'], '(Binary data 0 bytes, use -b option to extract)');
 });
 
 Deno.test('parseICCProfile meas/view unknown enum values fall back', () => {
@@ -326,13 +326,13 @@ Deno.test('parseICCProfile meas/view unknown enum values fall back', () => {
     { sig: 'meas', body: measBody(9, 9, 0, 99) },
     { sig: 'view', body: (() => {
       const b = viewBody();
-      new DataView(b.buffer).setUint16(20, 42, false);
+      new DataView(b.buffer).setUint16(34, 42, false);
       return b;
     })() },
   ]);
   const r = parseICCProfile(data);
   assertEquals(r['MeasurementGeometry'], 'Unknown');
-  assertEquals(r['MeasurementFlare'], '0.0%');
+  assertEquals(r['MeasurementFlare'], '0.000%');
   assertEquals(r['MeasurementIlluminant'], 'Unknown');
   assertEquals(r['MeasurementObserver'], 'Unknown');
   assertEquals(r['ViewingCondIlluminantType'], 'Unknown');

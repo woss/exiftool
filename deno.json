@@ -1,5 +1,5 @@
 {
-  "name": "exiftool-ts",
+  "name": "@woss/exiftool-ts",
   "version": "0.1.0",
   "description": "ExifTool rewrite in TypeScript — read/write metadata across 140+ file formats",
   "license": "MIT",
@@ -9,11 +9,13 @@
     "generate-tags": "deno run -A scripts/generate-tags.ts",
     "test-harness": "deno run -A scripts/test-harness.ts",
     "check": "deno check mod.ts cli.ts src/**/*.ts",
-    "coverage-audit": "deno run -A scripts/coverage-audit.ts"
+    "coverage-audit": "deno run -A scripts/coverage-audit.ts",
+    "build-npm": "deno run -A scripts/build-npm.mjs"
   },
   "exports": {
     ".": "./mod.ts",
-    "./cli": "./cli.ts"
+    "./cli": "./cli.ts",
+    "./bin": "./cli.ts"
   },
   "imports": {
     "@cliffy/command": "jsr:@cliffy/command@1.2.1",

@@ -160,14 +160,14 @@ Deno.test('jpeg SOF variants expose encoding and sampling', async () => {
     's1.jpg',
   );
   assertEquals(c1.tags['EncodingProcess'], 'Extended sequential DCT, Huffman coding');
-  assertEquals(c1.tags['YCbCrSubSampling'], 'YCbCr4:2:2 (1 1)');
+  assertEquals(c1.tags['YCbCrSubSampling'], 'YCbCr4:2:2 (2 1)');
 
   const c2 = await jpegParser.parse(
     concat(base, sof(0xc2, 8, 100, 100, [[1, 0x22, 0], [2, 0x11, 1], [3, 0x11, 2]])),
     's2.jpg',
   );
   assertEquals(c2.tags['EncodingProcess'], 'Progressive DCT, Huffman coding');
-  assertEquals(c2.tags['YCbCrSubSampling'], 'YCbCr4:2:0 (1 1)');
+  assertEquals(c2.tags['YCbCrSubSampling'], 'YCbCr4:2:0 (2 2)');
 
   const c3 = await jpegParser.parse(
     concat(base, sof(0xc3, 8, 100, 100, [[1, 0x41, 0], [2, 0x11, 1], [3, 0x11, 2]])),
@@ -403,14 +403,14 @@ Deno.test('jpeg file metadata reflects real temp files', async () => {
     await fh.truncate(2048);
     fh.close();
     const bigResult = await jpegParser.parse(await Deno.readFile(big), big);
-    assertEquals(bigResult.tags['FileSize'], '2.0 KiB');
+    assertEquals(bigResult.tags['FileSize'], '2 kB');
 
     const huge = `${dir}/huge.jpg`;
     const fh2 = await Deno.create(huge);
     await fh2.truncate(1048576 * 1.5 | 0);
     fh2.close();
     const hugeResult = await jpegParser.parse(await Deno.readFile(huge), huge);
-    assertEquals(hugeResult.tags['FileSize'], '1.5 MB');
+    assertEquals(hugeResult.tags['FileSize'], '1.6 MB');
   } finally {
     await Deno.remove(dir, { recursive: true });
   }

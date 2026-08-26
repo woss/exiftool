@@ -297,7 +297,7 @@ function formatExifVersion(value: TagValue): string {
 function formatFlash(value: number): string {
   const parts: string[] = [];
   if (value & 0x01) parts.push('Fired');
-  else parts.push('No Flash');
+  else parts.push('Off, Did not fire');
 
   if ((value & 0x06) === 0x02) parts.push('Return not detected');
   else if ((value & 0x06) === 0x04) parts.push('Return detected');
@@ -519,8 +519,44 @@ function formatShutterSpeedValue(value: number): string {
 }
 
 export function formatExifValue(value: TagValue, tagName: string): TagValue {
+  if (
+    tagName === 'FocalPlaneXResolution' ||
+    tagName === 'FocalPlaneYResolution'
+  ) {
+    if (typeof value === 'number') {
+      return String(Number(value.toFixed(6)));
+    }
+  }
+
   if (tagName === 'ExifVersion' || tagName === 'FlashpixVersion') {
     return formatExifVersion(value);
+  }
+
+  if (
+    tagName === 'FocalLength' ||
+    tagName === 'FocalLengthIn35mmFormat'
+  ) {
+    if (typeof value === 'number') {
+      return `${value.toFixed(1)} mm`;
+    }
+    if (
+      Array.isArray(value) &&
+      value.length === 2 &&
+      typeof value[0] === 'number' &&
+      typeof value[1] === 'number'
+    ) {
+      const mm = value[0] / value[1];
+      return `${mm.toFixed(1)} mm`;
+    }
+  }
+
+  if (
+    (tagName === 'ApertureValue' || tagName === 'MaxApertureValue') &&
+    typeof value === 'number'
+  ) {
+    // APEX value -> f-number; exiftool trims the trailing .0 for integers.
+    const fnumber = Math.round(2 ** (value / 2) * 10) / 10;
+    return Number.isInteger(fnumber) ? String(fnumber) : fnumber.toFixed(1);
   }
 
   if (tagName === 'ComponentsConfiguration') {

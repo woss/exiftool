@@ -377,5 +377,24 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     }
   }
 
+  // ExifTool prints XMP booleans lowercase, trims numeric tails and
+  // renders ISO dates in EXIF style; normalize to match.
+  for (const [k, v] of Object.entries(result)) {
+    if (typeof v === 'string') {
+      if (v === 'True' || v === 'False') {
+        result[k] = v.toLowerCase();
+      } else if (/^-?\d+\.\d+$/.test(v)) {
+        result[k] = String(Number(v));
+      } else if (/^\d{4}-\d{2}-\d{2}T[0-9:+.-]+$/.test(v)) {
+        result[k] = v.replace(/^([\d-]+)T/, (_, d) => d.replaceAll('-', ':') + ' ');
+      }
+    } else if (Array.isArray(v)) {
+      result[k] = v.map((item) =>
+        typeof item === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(item)
+          ? item.replace(/^([\d-]+)T/, (_, d) => d.replaceAll('-', ':') + ' ')
+          : item,
+      );
+    }
+  }
   return result;
 }

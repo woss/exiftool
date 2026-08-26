@@ -103,7 +103,7 @@ Deno.test('parseXMP derives copyright fields from rights tags', () => {
     `<rdf:Description xmpRights:Marked="True" xmpRights:WebStatement="https://example.com/license" xmpRights:UsageTerms="CC BY 4.0"/>`,
   );
   assertEquals(parseXMP(xml), {
-    Marked: 'True',
+    Marked: 'true',
     WebStatement: 'https://example.com/license',
     UsageTerms: 'CC BY 4.0',
     CopyrightFlag: true,
@@ -174,16 +174,16 @@ Deno.test('parseXMP renames crs:Look and crs:CorrectionMasks context properties'
   </crs:CorrectionMasks>
 </rdf:Description>`);
   assertEquals(parseXMP(xml), {
-    LookParametersVersion: '15.0',
-    LookParametersProcessVersion: '11.0',
-    LookParametersConvertToGrayscale: 'False',
+    LookParametersVersion: '15',
+    LookParametersProcessVersion: '11',
+    LookParametersConvertToGrayscale: 'false',
     LookParametersCameraProfile: 'Adobe Standard',
     LookParametersLookTable: 'A0123',
     LookParametersToneCurvePV2012: '0, 0',
     LookParametersToneCurvePV2012Blue: '0, 255',
     LookParametersToneCurvePV2012Green: '0, 128',
     LookParametersToneCurvePV2012Red: '0, 64',
-    MaskGroupBasedCorrMaskVersion: '15.0',
+    MaskGroupBasedCorrMaskVersion: '15',
     MaskGroupBasedCorrMaskWhat: 'Exposure',
   });
 });

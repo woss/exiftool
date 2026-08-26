@@ -56,6 +56,12 @@ export function parseAPP13(data: Uint8Array): Record<string, TagValue> {
     if (resSize % 2 !== 0) offset += 1;
   }
 
+  // IPTC times carry compact offsets (+0100); exiftool prints +01:00.
+  for (const [k, v] of Object.entries(result)) {
+    if (typeof v === 'string') {
+      result[k] = v.replace(/([+-]\d{2})(\d{2})$/, '$1:$2');
+    }
+  }
   return result;
 }
 

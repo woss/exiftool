@@ -149,9 +149,9 @@ export const jpegParser: FormatParser = {
           if (yH === 1 && yV === 1 && cbH === 1 && cbV === 1 && crH === 1 && crV === 1) {
             result['YCbCrSubSampling'] = 'YCbCr4:4:4 (1 1)';
           } else if (yH === 2 && yV === 1 && cbH === 1 && cbV === 1) {
-            result['YCbCrSubSampling'] = 'YCbCr4:2:2 (1 1)';
+            result['YCbCrSubSampling'] = 'YCbCr4:2:2 (2 1)';
           } else if (yH === 2 && yV === 2 && cbH === 1 && cbV === 1) {
-            result['YCbCrSubSampling'] = 'YCbCr4:2:0 (1 1)';
+            result['YCbCrSubSampling'] = 'YCbCr4:2:0 (2 2)';
           } else {
             result['YCbCrSubSampling'] = `YCbCr4:${yH}:${yV} (${cbH} ${cbV})`;
           }
@@ -233,9 +233,9 @@ function addFileMetadata(result: Record<string, TagValue>, filePath: string): vo
     const stat = Deno.statSync(filePath);
     const size = stat.size;
     if (size >= 1048576) {
-      result['FileSize'] = `${(size / 1048576).toFixed(1)} MB`;
+      result['FileSize'] = `${Number((size / 1000000).toPrecision(2))} MB`;
     } else if (size >= 1024) {
-      result['FileSize'] = `${(size / 1024).toFixed(1)} KiB`;
+      result['FileSize'] = `${Math.round(size / 1000)} kB`;
     } else {
       result['FileSize'] = `${size} B`;
     }

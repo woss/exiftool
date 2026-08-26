@@ -198,7 +198,7 @@ Deno.test('formatExifValue formats ResolutionUnit family', () => {
 
 Deno.test('formatExifValue formats all Flash bit combinations', () => {
   const cases: [number, string][] = [
-    [0x00, 'No Flash'],
+    [0x00, 'Off, Did not fire'],
     [0x01, 'Fired'],
     [0x03, 'Fired, Return not detected'],
     [0x05, 'Fired, Return detected'],
@@ -423,4 +423,18 @@ Deno.test('formatExifValue summarizes unknown large values by shape', () => {
   assertEquals(formatExifValue(Array.from({ length: 51 }, (_, i) => i), 'SubjectArea'), '[51 entries]');
   assertEquals(formatExifValue('x'.repeat(1025), 'UserComment'), '[string: 1025 chars]');
   assertEquals(formatExifValue(42, 'PixelXDimension'), 42);
+});
+
+Deno.test('formatExifValue renders focal length with unit and one decimal', () => {
+  assertEquals(formatExifValue(100, 'FocalLength'), '100.0 mm');
+  assertEquals(formatExifValue(4.5, 'FocalLength'), '4.5 mm');
+  assertEquals(formatExifValue([171, 1], 'FocalLength'), '171.0 mm');
+  assertEquals(formatExifValue(171, 'FocalLengthIn35mmFormat'), '171.0 mm');
+});
+
+Deno.test('formatExifValue converts APEX aperture values to f-numbers', () => {
+  assertEquals(formatExifValue(2, 'ApertureValue'), '2');
+  assertEquals(formatExifValue(3, 'MaxApertureValue'), '2.8');
+  assertEquals(formatExifValue(4, 'ApertureValue'), '4');
+  assertEquals(formatExifValue(5, 'MaxApertureValue'), '5.7');
 });

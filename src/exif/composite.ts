@@ -40,7 +40,7 @@ export function computeCompositeTags(tags: Record<string, TagValue>): void {
       ? `${focalLength.toFixed(1)} mm`
       : `${focalLength.toFixed(1).replace(/\.0$/, '')} mm`;
     if (focalLength35) {
-      const fl35Str = `${focalLength35.toFixed(0).replace(/\.0$/, '')} mm`;
+      const fl35Str = `${focalLength35.toFixed(1)} mm`;
       if (!('FocalLength35efl' in tags)) {
         tags['FocalLength35efl'] = `${flStr} (35 mm equivalent: ${fl35Str})`;
       }

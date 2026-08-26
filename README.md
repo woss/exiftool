@@ -26,21 +26,46 @@ ecosystem:
 Early development, moving fast. Full detail lives in
 [`docs/PARITY_MATRIX.md`](./docs/PARITY_MATRIX.md). Summary:
 
-| Area | State |
-|---|---|
-| Read JPEG / PNG / WebP / AVIF-HEIF | ✅ verified against reference exiftool |
-| EXIF (IFD0 + sub-IFDs + GPS + IFD1) | ✅ both endians |
-| XMP / IPTC-IIM / ICC / Photoshop IRB / JFIF | 🟨 core coverage |
-| MPF embedded-image extraction (`-ee`) | 🟨 |
-| Write JPEG / PNG / WebP / AVIF | ✅ IFD0 tag subset, `_original` backups |
-| `-stay_open` daemon protocol | ✅ stdin command loop |
-| CLI: `-j -csv -X -b -d -c -g -G -v -q -if -o -r -ext -i` | ✅ |
-| MakerNotes, RAW containers (CR2/DNG/…), PDF/video | ❌ not started |
+| Area                                                     | State                                   |
+| -------------------------------------------------------- | --------------------------------------- |
+| Read JPEG / PNG / WebP / AVIF-HEIF                       | ✅ verified against reference exiftool  |
+| EXIF (IFD0 + sub-IFDs + GPS + IFD1)                      | ✅ both endians                         |
+| XMP / IPTC-IIM / ICC / Photoshop IRB / JFIF              | 🟨 core coverage                        |
+| MPF embedded-image extraction (`-ee`)                    | 🟨                                      |
+| Write JPEG / PNG / WebP / AVIF                           | ✅ IFD0 tag subset, `_original` backups |
+| `-stay_open` daemon protocol                             | ✅ stdin command loop                   |
+| CLI: `-j -csv -X -b -d -c -g -G -v -q -if -o -r -ext -i` | ✅                                      |
+| MakerNotes, RAW containers (CR2/DNG/…), PDF/video        | ❌ not started                          |
 
 Value-level parity is enforced by `src/cli/exiftool-parity.test.ts`, which runs
 the real `exiftool` binary on shared fixtures and fails on any undocumented
 divergence. Remaining gaps are registered in `KNOWN_DIVERGENCES` inside that
 file with reasons (file-date timezone offsets, makernote lens lookups, …).
+
+## Install
+
+**Deno / JSR** (library + CLI, runs from source):
+
+```bash
+deno install -A -n exiftool-ts jsr:@woss/exiftool-ts
+exiftool-ts photo.jpg
+```
+
+**npm** (CLI as a native binary — no Node at runtime):
+
+```bash
+npm i -g exiftool-ts
+exiftool-ts photo.jpg
+```
+
+The npm package resolves the compiled binary for your platform via optional
+dependencies; nothing executes through Node.
+
+**GitHub Releases**: standalone binaries for linux-x64, macOS-arm64 and
+windows-x64 on the [releases page](../../releases).
+
+Library consumers on npm get the same typed API through JSR's npm bridge:
+`npm i @jsr/woss__exiftool-ts`.
 
 ## Library usage
 
@@ -48,20 +73,20 @@ The package ships TypeScript source, so consumers get full types and
 autocomplete out of the box:
 
 ```ts
-import { ExifTool } from 'exiftool-ts';
+import { ExifTool } from "exiftool-ts";
 
 const tool = new ExifTool();
 
-const info = await tool.read('photo.jpg');
-info.tags.Make;                        // "Canon"        — typed as TagValue
-info.tags.ExposureTime;                // "1/200"        — formatted like exiftool
-Object.keys(info.tags);                // browse everything
+const info = await tool.read("photo.jpg");
+info.tags.Make; // "Canon"        — typed as TagValue
+info.tags.ExposureTime; // "1/200"        — formatted like exiftool
+Object.keys(info.tags); // browse everything
 
 // In-memory buffers work too:
 const meta = await tool.readBytes(imageBuffer);
 
 // Writing (creates photo.jpg_original unless suppressed):
-await tool.write('photo.jpg', { Artist: 'me', Copyright: '(c)' });
+await tool.write("photo.jpg", { Artist: "me", Copyright: "(c)" });
 ```
 
 Exported surface: `ExifTool`, `TagDb`, `writeTags`, `UnsupportedFormatError`,

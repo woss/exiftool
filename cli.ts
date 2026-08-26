@@ -226,7 +226,7 @@ export async function main(
   return loop.shutdownRequested ? lastCode : 0;
 }
 
-export const cmd = new Command()
+const cmd = new Command()
   .name('exiftool-ts')
   .version('0.1.0')
   .description('Read/write metadata across 140+ file formats')

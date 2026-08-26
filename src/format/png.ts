@@ -44,8 +44,16 @@ export const pngParser: FormatParser = {
         result['ImageWidth'] = view.getUint32(0, false);
         result['ImageLength'] = view.getUint32(4, false);
         result['BitDepth'] = view.getUint8(8);
-        result['ColorType'] = view.getUint8(9);
-        result['Compression'] = view.getUint8(10);
+        const colorTypes: Record<number, string> = {
+          0: 'Grayscale',
+          2: 'RGB',
+          3: 'Palette',
+          4: 'Grayscale with Alpha',
+          6: 'RGB with Alpha',
+        };
+        const ct = view.getUint8(9);
+        result['ColorType'] = colorTypes[ct] ?? String(ct);
+        result['Compression'] = view.getUint8(10) === 0 ? 'Deflate/Inflate' : 'Unknown';
         result['FilterMethod'] = view.getUint8(11);
         result['InterlaceMethod'] = view.getUint8(12);
       }

@@ -9,7 +9,7 @@ Deno.test('FocalLength35efl renders fractional focal length without trailing zer
   computeCompositeTags(tags as never);
   const value = tags['FocalLength35efl'] as string;
   assertEquals(
-    value.startsWith('4.5 mm (35 mm equivalent: 28 mm)'),
+    value.startsWith('4.5 mm (35 mm equivalent: 28.0 mm)'),
     true,
     `got: ${value}`,
   );
@@ -23,7 +23,7 @@ Deno.test('FocalLength35efl keeps integer focal length as N.0 mm', () => {
   computeCompositeTags(tags as never);
   const value = tags['FocalLength35efl'] as string;
   assertEquals(
-    value.startsWith('50.0 mm (35 mm equivalent: 75 mm)'),
+    value.startsWith('50.0 mm (35 mm equivalent: 75.0 mm)'),
     true,
     `got: ${value}`,
   );

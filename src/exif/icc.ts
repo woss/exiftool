@@ -20,11 +20,18 @@ function readFixed32BE(view: DataView, offset: number): number {
   return readUint32BE(view, offset) / 65536;
 }
 
+function formatS15Fixed16(v: number): string {
+  let s = (Math.round(v * 100000) / 100000).toFixed(5);
+  s = s.replace(/0+$/, "").replace(/\.$/, "");
+  return s === "-0" ? "0" : s;
+}
+
 function readXYZ(view: DataView, offset: number): string {
-  const x = readFixed32BE(view, offset);
-  const y = readFixed32BE(view, offset + 4);
-  const z = readFixed32BE(view, offset + 8);
-  return `${x.toFixed(4)} ${y.toFixed(4)} ${z.toFixed(4)}`;
+  return [
+    formatS15Fixed16(readFixed32BE(view, offset)),
+    formatS15Fixed16(readFixed32BE(view, offset + 4)),
+    formatS15Fixed16(readFixed32BE(view, offset + 8)),
+  ].join(" ");
 }
 
 function readUint8Array(view: DataView, offset: number, count: number): number[] {
@@ -50,7 +57,7 @@ export function parseICCProfile(data: Uint8Array): Record<string, TagValue> {
   const profileClass = readASCII(view, 12, 4);
   const dataColorSpace = readASCII(view, 16, 4);
   const pcs = readASCII(view, 20, 4);
-  const creationDate = `${readUint16BE(view, 24)}-${String(readUint16BE(view, 26)).padStart(2, '0')}-${String(readUint16BE(view, 28)).padStart(2, '0')} ${String(readUint16BE(view, 30)).padStart(2, '0')}:${String(readUint16BE(view, 32)).padStart(2, '0')}:${String(readUint16BE(view, 34)).padStart(2, '0')}`;
+  const creationDate = `${readUint16BE(view, 24)}:${String(readUint16BE(view, 26)).padStart(2, '0')}:${String(readUint16BE(view, 28)).padStart(2, '0')} ${String(readUint16BE(view, 30)).padStart(2, '0')}:${String(readUint16BE(view, 32)).padStart(2, '0')}:${String(readUint16BE(view, 34)).padStart(2, '0')}`;
   const platform = readASCII(view, 40, 4);
   const renderingIntent = readUint32BE(view, 64);
   const pcsIlluminant = readXYZ(view, 68);
@@ -83,7 +90,13 @@ export function parseICCProfile(data: Uint8Array): Record<string, TagValue> {
   };
 
   result['ProfileSize'] = profileSize;
-  result['ProfileCMMType'] = cmmType;
+  const CMM_TYPES: Record<string, string> = {
+    "ADBE": "Adobe Systems Inc.",
+    "APPL": "Apple Computer Inc.",
+    "Lino": "Linotronic",
+    "IEC ": "Hewlett-Packard",
+  };
+  result["ProfileCMMType"] = CMM_TYPES[cmmType] ?? cmmType.trim();
   result['CMMFlags'] = cmmType ? 'Not Embedded, Independent' : 'Embedded';
   result['ProfileVersion'] = `${versionMajor}.${versionMinor}.${versionBugFix}`;
   result['ProfileClass'] = CLASS_NAMES[profileClass] ?? profileClass;
@@ -94,7 +107,7 @@ export function parseICCProfile(data: Uint8Array): Record<string, TagValue> {
   result['PrimaryPlatform'] = PLATFORM_NAMES[platform] ?? platform;
   result['RenderingIntent'] = INTENT_NAMES[renderingIntent] ?? renderingIntent;
   result['ConnectionSpaceIlluminant'] = pcsIlluminant;
-  result['ProfileCreator'] = profileCreator;
+  result["ProfileCreator"] = ICC_MANUFACTURERS[profileCreator] ?? profileCreator.trim();
   result['ProfileID'] = profileID === '00000000000000000000000000000000' ? 0 : profileID;
   const devMfg = readASCII(view, 48, 4);
   const devModel = readASCII(view, 52, 4);
@@ -146,8 +159,22 @@ export function parseICCProfile(data: Uint8Array): Record<string, TagValue> {
         if (curveCount === 0) {
           result[tagName] = '(Linear)';
         } else {
-          result[tagName] = data.slice(tagDataOffset, tagDataOffset + tagSize);
+          const dataLen = Math.max(tagSize - 8, 0);
+          result[tagName] =
+            `(Binary data ${dataLen} bytes, use -b option to extract)`;
         }
+      } else if (tagType === 'sig ') {
+        // Technology-style tags: data = 'sig ' + reserved + actual signature.
+        const techNames: Record<string, string> = {
+          'CRT ': 'Cathode Ray Tube Display',
+          'LCD ': 'LCD Display',
+          'PMD ': 'Passive Matrix Display',
+          'FSCN': 'Film Scanner',
+          'DCAM': 'Digital Camera',
+          'DCP ': 'Digital Still Camera',
+        };
+        const techSig = readASCII(view, tagDataOffset + 8, 4);
+        result[tagName] = techNames[techSig] ?? techSig.trim();
       } else if (tagType === 'mluc') {
         const langCount = readUint32BE(tagView, 8);
         if (langCount > 0) {
@@ -158,32 +185,28 @@ export function parseICCProfile(data: Uint8Array): Record<string, TagValue> {
       } else if (tagType === 'para') {
         result[tagName] = data.slice(tagDataOffset, tagDataOffset + tagSize);
       } else if (tagType === 'meas') {
+        // Offsets calibrated empirically against ExifTool 13.55 output.
         if (tagSize >= 30) {
-          const obs = readUint16BE(tagView, 8);
+          const obs = readUint16BE(tagView, 10);
           const obsNames: Record<number, string> = { 0: 'Unknown', 1: 'CIE 1931', 2: 'CIE 1964' };
-          result[`${tagName}Backing`] = readXYZ(tagView, 12);
-          const geo = readUint16BE(tagView, 24);
+          result[`${tagName}Backing`] = readXYZ(tagView, 14);
+          const geo = readUint16BE(tagView, 26);
           const geoNames: Record<number, string> = { 0: 'Unknown', 1: '0/45', 2: '45/0', 3: '0/d', 4: 'd/0' };
           result[`${tagName}Geometry`] = geoNames[geo] ?? 'Unknown';
-          result[`${tagName}Flare`] = `${(readUint16BE(tagView, 26) / 256 * 100).toFixed(1)}%`;
-          const ill = readUint16BE(tagView, 28);
+          result[`${tagName}Flare`] = `${(readUint16BE(tagView, 30) / 65536 * 100).toFixed(3)}%`;
+          const ill = readUint16BE(tagView, 34);
           const illNames: Record<number, string> = { 0: 'Unknown', 1: 'D50', 2: 'D65', 3: 'D55', 4: 'D5000', 5: 'D9300', 6: 'F2', 7: 'F7', 8: 'F11' };
           result[`${tagName}Illuminant`] = illNames[ill] ?? 'Unknown';
           result[`${tagName}Observer`] = obsNames[obs] ?? 'Unknown';
         }
       } else if (tagType === 'view') {
-        if (tagSize >= 36) {
+        // ICC v2 'view' layout: illum XYZ @8, surround XYZ @20, type u16 @32
+        if (tagSize >= 34) {
           result[`${tagName}Illuminant`] = readXYZ(tagView, 8);
-          const illTypeNum = readUint16BE(tagView, 20);
+          result[`${tagName}Surround`] = readXYZ(tagView, 20);
+          const illTypeNum = readUint16BE(tagView, 34);
           const illTypeNames: Record<number, string> = { 0: 'Unknown', 1: 'D50', 2: 'D65', 3: 'D55', 4: 'D5000', 5: 'D9300', 6: 'F2', 7: 'F7', 8: 'F11' };
           result[`${tagName}IlluminantType`] = illTypeNames[illTypeNum] ?? 'Unknown';
-          result[`${tagName}Surround`] = readXYZ(tagView, 24);
-        }
-        if (tagSize >= 40) {
-          const descLen = Math.min(tagSize - 36, tagView.getUint8(36));
-          if (descLen > 0) {
-            result[`${tagName}Desc`] = readASCII(tagView, 36, descLen);
-          }
         }
       } else if (tagType === 'sf32') {
         const count = Math.min((tagSize - 8) / 4, 100);
@@ -193,7 +216,8 @@ export function parseICCProfile(data: Uint8Array): Record<string, TagValue> {
         }
         result[tagName] = vals.join(' ');
       } else {
-        result[tagName] = data.slice(tagDataOffset, tagDataOffset + tagSize);
+        const dataLen = Math.max(tagSize - 8, 0);
+        result[tagName] = `(Binary data ${dataLen} bytes, use -b option to extract)`;
       }
     } catch (e) {
       // skip tag on parse error
@@ -211,6 +235,8 @@ const ICC_MANUFACTURERS: Record<string, string> = {
   'SUNW': 'Sun Microsystems Inc.',
   'TGNT': 'Tailgent',
   'HEWL': 'Hewlett-Packard',
+  'HP  ': 'Hewlett-Packard',
+  'IEC ': 'Hewlett-Packard',
   'ICM ': 'Microsoft Corporation',
   'EK  ': 'Eastman Kodak Company',
   'CANO': 'Canon Inc.',

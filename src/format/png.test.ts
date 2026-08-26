@@ -52,7 +52,7 @@ Deno.test('png IHDR extracts dimensions and color info', async () => {
   assertEquals(result.tags['ImageWidth'], 320);
   assertEquals(result.tags['ImageLength'], 240);
   assertEquals(result.tags['BitDepth'], 8);
-  assertEquals(result.tags['ColorType'], 2);
+  assertEquals(result.tags['ColorType'], 'RGB');
 });
 
 Deno.test('png eXIf chunk parses embedded TIFF', async () => {

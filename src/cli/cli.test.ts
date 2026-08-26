@@ -1,5 +1,5 @@
 import { assertEquals } from 'jsr:@std/assert';
-import { cmd, main, normalizeArgs, runAction } from '../../cli.ts';
+import { main, normalizeArgs, runAction } from '../../cli.ts';
 import type { CliOptions } from '../../cli.ts';
 import { ExifTool } from '../../src/exiftool.ts';
 
@@ -465,17 +465,6 @@ Deno.test('normalizeArgs — generic single-dash flag converts to long form', ()
   assertEquals(normalizeArgs(['-csv', '-b']), ['--csv', '-b']);
 });
 
-
-Deno.test('cmd.parse drives the registered action end to end', async () => {
-  const cap = captureConsole();
-  try {
-    // Real cliffy parse: invokes the action callback, which delegates to runAction.
-    await cmd.parse(['assets/01.jpg']);
-    assertEquals(cap.out.join('\n').includes('Make'), true);
-  } finally {
-    cap.restore();
-  }
-});
 
 // Runs cli.ts as a real entrypoint so the import.meta.main block, cmd.parse,
 // and the non-zero exit branch execute; coverage reaches these lines through
