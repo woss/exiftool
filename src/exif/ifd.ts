@@ -1,5 +1,5 @@
-import { getExifTypeSize } from './types.ts';
-import type { Ifd, IfdEntry } from './types.ts';
+import { getExifTypeSize } from './types.js';
+import type { Ifd, IfdEntry } from './types.js';
 
 export function parseIFD(
   view: DataView,

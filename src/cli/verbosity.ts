@@ -1,4 +1,4 @@
-import type { FileInfo, TagValue } from '../types.ts';
+import type { FileInfo, TagValue } from '../types.js';
 
 /** Render a tag value for verbose stderr output. */
 export function renderTagValue(value: TagValue): string {

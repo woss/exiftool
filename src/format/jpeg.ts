@@ -1,12 +1,13 @@
-import type { FormatParser, ParseHints } from './mod.ts';
-import type { FileInfo, TagValue } from '../types.ts';
-import type { TagDb } from '../tag-db.ts';
-import { registerParser } from './mod.ts';
-import { parseTiff } from '../exif/tiff.ts';
-import { parseICCProfile } from '../exif/icc.ts';
-import { parseXMP } from '../exif/xmp.ts';
-import { computeCompositeTags } from '../exif/composite.ts';
-import { parseAPP13 } from '../exif/app13.ts';
+import { statSync } from 'node:fs';
+import type { FormatParser, ParseHints } from './mod.js';
+import type { FileInfo, TagValue } from '../types.js';
+import type { TagDb } from '../tag-db.js';
+import { registerParser } from './mod.js';
+import { parseTiff } from '../exif/tiff.js';
+import { parseICCProfile } from '../exif/icc.js';
+import { parseXMP } from '../exif/xmp.js';
+import { computeCompositeTags } from '../exif/composite.js';
+import { parseAPP13 } from '../exif/app13.js';
 
 export const jpegParser: FormatParser = {
   format: 'JPEG',
@@ -230,7 +231,7 @@ function addFileMetadata(result: Record<string, TagValue>, filePath: string): vo
   result['MIMEType'] = 'image/jpeg';
 
   try {
-    const stat = Deno.statSync(filePath);
+    const stat = statSync(filePath);
     const size = stat.size;
     if (size >= 1048576) {
       result['FileSize'] = `${Number((size / 1000000).toPrecision(2))} MB`;

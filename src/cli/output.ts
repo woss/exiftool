@@ -1,6 +1,6 @@
-import type { FileInfo, TagGroups, TagValue } from '../types.ts';
-import type { TagDb } from '../tag-db.ts';
-import { escapeXML } from '../utils/encoding.ts';
+import type { FileInfo, TagGroups, TagValue } from '../types.js';
+import type { TagDb } from '../tag-db.js';
+import { escapeXML } from '../utils/encoding.js';
 
 export interface FormatOptions {
   /** Family number for group headings in tabular output (set by -g[NUM]) */

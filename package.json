@@ -1,0 +1,39 @@
+{
+  "name": "exiftool-ts",
+  "version": "0.1.0",
+  "description": "ExifTool rewrite in TypeScript",
+  "license": "MIT",
+  "type": "module",
+  "bin": "dist/cli.js",
+  "main": "dist/mod.js",
+  "types": "dist/mod.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/mod.d.ts",
+      "import": "dist/mod.js"
+    },
+    "./cli": "dist/cli.js"
+  },
+  "files": [
+    "dist/",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@10.5.2",
+  "scripts": {
+    "check": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "coverage-audit": "vitest run --coverage && tsx scripts/coverage-audit.ts",
+    "build": "tsc -p tsconfig.build.json && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\"",
+    "generate-tags": "tsx scripts/generate-tags.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "@vitest/coverage-v8": "^4.1.11",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}

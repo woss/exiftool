@@ -1,5 +1,6 @@
-import { assertEquals } from 'jsr:@std/assert@1/equals';
-import { parseICCProfile } from './icc.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../../src/test/asserts.js';
+import { parseICCProfile } from './icc.js';
 
 // ---------- synthetic profile builder ----------
 
@@ -189,11 +190,11 @@ function buildProfile(hdr: HeaderOpts, tags: TagSpec[]): Uint8Array {
 
 // ---------- header parsing ----------
 
-Deno.test('parseICCProfile returns empty object for truncated data', () => {
+test('parseICCProfile returns empty object for truncated data', () => {
   assertEquals(parseICCProfile(new Uint8Array(64)), {});
 });
 
-Deno.test('parseICCProfile parses full header with known values', () => {
+test('parseICCProfile parses full header with known values', () => {
   const data = buildProfile({
     cmm: 'ADBE',
     major: 2,
@@ -229,7 +230,7 @@ Deno.test('parseICCProfile parses full header with known values', () => {
   assertEquals(r['DeviceAttributes'], 'Transparency, Matte, Negative, Monochrome');
 });
 
-Deno.test('parseICCProfile handles zeroed/unknown header fields', () => {
+test('parseICCProfile handles zeroed/unknown header fields', () => {
   const data = buildProfile({
     cmm: null,
     pclass: 'wxyz',
@@ -250,7 +251,7 @@ Deno.test('parseICCProfile handles zeroed/unknown header fields', () => {
   assertEquals(r['ProfileID'], 0);
 });
 
-Deno.test('parseICCProfile maps remaining rendering intents and classes', () => {
+test('parseICCProfile maps remaining rendering intents and classes', () => {
   for (const [intent, expected] of [
     [0, 'Perceptual'],
     [2, 'Saturation'],
@@ -273,7 +274,7 @@ Deno.test('parseICCProfile maps remaining rendering intents and classes', () => 
   assertEquals(prtr['ProfileClass'], 'Output Device Profile');
 });
 
-Deno.test('parseICCProfile maps other platforms and reflective attribute defaults', () => {
+test('parseICCProfile maps other platforms and reflective attribute defaults', () => {
   const r = parseICCProfile(buildProfile({ platform: 'MSFT', attrLo: 0, attrHi: 0 }, []));
   assertEquals(r['PrimaryPlatform'], 'Microsoft Corporation');
   assertEquals(r['DeviceAttributes'], 'Reflective, Glossy, Positive, Color');
@@ -287,7 +288,7 @@ Deno.test('parseICCProfile maps other platforms and reflective attribute default
 
 // ---------- tag parsing ----------
 
-Deno.test('parseICCProfile parses all supported tag types', () => {
+test('parseICCProfile parses all supported tag types', () => {
   const data = buildProfile({}, [
     { sig: 'desc', body: descBody('sRGB built-in') },
     { sig: 'cprt', body: textBody('public domain') },
@@ -321,7 +322,7 @@ Deno.test('parseICCProfile parses all supported tag types', () => {
   assertEquals(r['zzzz'], '(Binary data 0 bytes, use -b option to extract)');
 });
 
-Deno.test('parseICCProfile meas/view unknown enum values fall back', () => {
+test('parseICCProfile meas/view unknown enum values fall back', () => {
   const data = buildProfile({}, [
     { sig: 'meas', body: measBody(9, 9, 0, 99) },
     { sig: 'view', body: (() => {
@@ -342,13 +343,13 @@ Deno.test('parseICCProfile meas/view unknown enum values fall back', () => {
   assertEquals('MeasurementGeometry' in rs, false);
 });
 
-Deno.test('parseICCProfile view tag without description tail', () => {
+test('parseICCProfile view tag without description tail', () => {
   const data = buildProfile({}, [{ sig: 'view', body: viewBody() }]);
   const r = parseICCProfile(data);
   assertEquals(r['ViewingCondDesc'], undefined);
 });
 
-Deno.test('parseICCProfile skips tag whose data lies outside the profile', () => {
+test('parseICCProfile skips tag whose data lies outside the profile', () => {
   const data = buildProfile({}, [{ sig: 'desc', body: descBody('ok') }]);
   const broken = new Uint8Array(data.length);
   broken.set(data, 0);
@@ -359,7 +360,7 @@ Deno.test('parseICCProfile skips tag whose data lies outside the profile', () =>
   assertEquals('ProfileDescription' in r, false);
 });
 
-Deno.test('parseICCProfile skips tag shorter than its 4-byte type signature near end of data', () => {
+test('parseICCProfile skips tag shorter than its 4-byte type signature near end of data', () => {
   // tag data = last 2 bytes of the profile, size 2: reading the 4-byte
   // type signature runs past the buffer and the tag is skipped silently.
   const data = buildProfile({}, [{ sig: 'desc', body: descBody('ok') }]);
@@ -374,7 +375,7 @@ Deno.test('parseICCProfile skips tag shorter than its 4-byte type signature near
   assertEquals('ProfileDescription' in r, false);
 });
 
-Deno.test('parseICCProfile skips tag when declared desc length overruns the buffer', () => {
+test('parseICCProfile skips tag when declared desc length overruns the buffer', () => {
   const body = new Uint8Array(new ArrayBuffer(16));
   body.set(enc.encode('desc'), 0);
   new DataView(body.buffer).setUint32(8, 0x7fffffff, false); // absurd length
@@ -383,7 +384,7 @@ Deno.test('parseICCProfile skips tag when declared desc length overruns the buff
   assertEquals('ProfileDescription' in r, false);
 });
 
-Deno.test('parseICCProfile stops at tag table even when tag count is overstated', () => {
+test('parseICCProfile stops at tag table even when tag count is overstated', () => {
   const data = buildProfile({ numTagsOverride: 50 }, [
     { sig: 'desc', body: descBody('only one') },
   ]);

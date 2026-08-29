@@ -1,6 +1,7 @@
-import { assertEquals } from 'jsr:@std/assert@1/equals';
-import { readIfdValue, formatExifValue, getTagName, EXIF_POINTER_TAGS } from './values.ts';
-import { getExifTypeSize, getExifTypeName, type IfdEntry } from './types.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../../src/test/asserts.js';
+import { readIfdValue, formatExifValue, getTagName, EXIF_POINTER_TAGS } from './values.js';
+import { getExifTypeSize, getExifTypeName, type IfdEntry } from './types.js';
 
 // ---------- helpers ----------
 
@@ -65,7 +66,7 @@ function buildTypeBuffer(): DataView {
 
 // ---------- readIfdValue / readSingleValue ----------
 
-Deno.test('readIfdValue reads every single-value exif type', () => {
+test('readIfdValue reads every single-value exif type', () => {
   const view = buildTypeBuffer();
   const cases: [number, number, unknown][] = [
     [1, OFF.byte, 200],
@@ -89,37 +90,37 @@ Deno.test('readIfdValue reads every single-value exif type', () => {
   }
 });
 
-Deno.test('readSingleValue rational with zero denominator yields 0', () => {
+test('readSingleValue rational with zero denominator yields 0', () => {
   const view = buildTypeBuffer();
   assertEquals(readIfdValue(entry(5, 1, OFF.rationalZeroDen), view, true), 0);
   assertEquals(readIfdValue(entry(10, 1, OFF.srationalZeroDen), view, true), 0);
 });
 
-Deno.test('readIfdValue returns null for zero count and 0 for unknown type', () => {
+test('readIfdValue returns null for zero count and 0 for unknown type', () => {
   const view = buildTypeBuffer();
   assertEquals(readIfdValue(entry(3, 0, 0), view, true), null);
   assertEquals(readIfdValue(entry(99, 1, 0), view, true), 0);
 });
 
-Deno.test('readIfdValue reads ASCII arrays stopping at NUL', () => {
+test('readIfdValue reads ASCII arrays stopping at NUL', () => {
   const view = dv([0x68, 0x69, 0x00, 0x78]); // "hi\0x"
   assertEquals(readIfdValue(entry(2, 4, 0), view, true), 'hi');
 });
 
-Deno.test('readIfdValue reads UNDEFINED arrays as raw bytes', () => {
+test('readIfdValue reads UNDEFINED arrays as raw bytes', () => {
   const view = dv([1, 2, 3, 4]);
   const out = readIfdValue(entry(7, 4, 0), view, true) as Uint8Array;
   assertEquals(Array.from(out), [1, 2, 3, 4]);
 });
 
-Deno.test('readIfdValue reads numeric arrays in both endiannesses', () => {
+test('readIfdValue reads numeric arrays in both endiannesses', () => {
   const be = dv([0x12, 0x34, 0x56, 0x78]);
   assertEquals(readIfdValue(entry(3, 2, 0), be, false), [0x1234, 0x5678]);
   const le = dv([0x34, 0x12, 0x78, 0x56]);
   assertEquals(readIfdValue(entry(3, 2, 0), le, true), [0x1234, 0x5678]);
 });
 
-Deno.test('readIfdValue reads rational arrays including zero denominators', () => {
+test('readIfdValue reads rational arrays including zero denominators', () => {
   const view = buildTypeBuffer();
   assertEquals(readIfdValue(entry(5, 2, OFF.rational), view, true), [0.5, 0]);
   assertEquals(readIfdValue(entry(10, 2, OFF.srational), view, true), [-1.5, 0]);
@@ -127,7 +128,7 @@ Deno.test('readIfdValue reads rational arrays including zero denominators', () =
 
 // ---------- getTagName / EXIF_POINTER_TAGS ----------
 
-Deno.test('getTagName resolves each table and misses cleanly', () => {
+test('getTagName resolves each table and misses cleanly', () => {
   assertEquals(getTagName(0x0100, 'ifd0'), 'ImageWidth');
   assertEquals(getTagName(0x829a, 'exif'), 'ExposureTime');
   assertEquals(getTagName(0x02, 'gps'), 'GPSLatitude');
@@ -137,13 +138,13 @@ Deno.test('getTagName resolves each table and misses cleanly', () => {
   assertEquals(getTagName(1, 'bogus' as never), undefined);
 });
 
-Deno.test('EXIF_POINTER_TAGS contains sub-IFD pointer names', () => {
+test('EXIF_POINTER_TAGS contains sub-IFD pointer names', () => {
   assertEquals([...EXIF_POINTER_TAGS].sort(), ['ExifIFD', 'GPSInfo', 'InteropIFD']);
 });
 
 // ---------- types.ts ----------
 
-Deno.test('getExifTypeName resolves known types and falls back for unknown', () => {
+test('getExifTypeName resolves known types and falls back for unknown', () => {
   assertEquals(getExifTypeName(3), 'SHORT');
   assertEquals(getExifTypeName(10), 'SRATIONAL');
   assertEquals(getExifTypeName(18), 'IFD8');
@@ -154,20 +155,20 @@ Deno.test('getExifTypeName resolves known types and falls back for unknown', () 
 
 // ---------- formatExifVersion paths ----------
 
-Deno.test('formatExifValue formats ExifVersion from bytes, array, and string', () => {
+test('formatExifValue formats ExifVersion from bytes, array, and string', () => {
   assertEquals(formatExifValue(new TextEncoder().encode('0232'), 'ExifVersion'), '0232');
   assertEquals(formatExifValue([48, 50, 51, 49], 'ExifVersion'), '0231');
   assertEquals(formatExifValue(new TextEncoder().encode('0230\0\0'), 'ExifVersion'), '0230');
   assertEquals(formatExifValue('0230', 'FlashpixVersion'), '0230');
 });
 
-Deno.test('formatExifValue formats ComponentsConfiguration from bytes, array, other', () => {
+test('formatExifValue formats ComponentsConfiguration from bytes, array, other', () => {
   assertEquals(formatExifValue(new Uint8Array([1, 2, 3, 0]), 'ComponentsConfiguration'), 'YCbCr-');
   assertEquals(formatExifValue([4, 5, 6, 9], 'ComponentsConfiguration'), 'RGB?');
   assertEquals(formatExifValue('weird', 'ComponentsConfiguration'), 'weird');
 });
 
-Deno.test('formatExifValue formats Orientation values', () => {
+test('formatExifValue formats Orientation values', () => {
   const cases: [number, string | number][] = [
     [1, 'Horizontal (normal)'],
     [2, 'Mirror horizontal'],
@@ -185,7 +186,7 @@ Deno.test('formatExifValue formats Orientation values', () => {
   assertEquals(formatExifValue('notanumber', 'Orientation'), 'notanumber');
 });
 
-Deno.test('formatExifValue formats ResolutionUnit family', () => {
+test('formatExifValue formats ResolutionUnit family', () => {
   for (const tag of ['ResolutionUnit', 'FocalPlaneResolutionUnit', 'Thumbnail_ResolutionUnit']) {
     assertEquals(formatExifValue(2, tag), 'inches');
     assertEquals(formatExifValue(3, tag), 'cm');
@@ -196,7 +197,7 @@ Deno.test('formatExifValue formats ResolutionUnit family', () => {
 
 // ---------- Flash ----------
 
-Deno.test('formatExifValue formats all Flash bit combinations', () => {
+test('formatExifValue formats all Flash bit combinations', () => {
   const cases: [number, string][] = [
     [0x00, 'Off, Did not fire'],
     [0x01, 'Fired'],
@@ -217,14 +218,14 @@ Deno.test('formatExifValue formats all Flash bit combinations', () => {
 
 // ---------- exposure helpers ----------
 
-Deno.test('formatExifValue formats ExposureTime above and below one second', () => {
+test('formatExifValue formats ExposureTime above and below one second', () => {
   assertEquals(formatExifValue(2, 'ExposureTime'), '2');
   assertEquals(formatExifValue(1, 'ExposureTime'), '1');
   assertEquals(formatExifValue(0.004, 'ExposureTime'), '1/250');
   assertEquals(formatExifValue(0.5, 'ExposureTime'), '1/2');
 });
 
-Deno.test('formatExifValue formats ShutterSpeedValue above and below one second', () => {
+test('formatExifValue formats ShutterSpeedValue above and below one second', () => {
   assertEquals(formatExifValue(-2, 'ShutterSpeedValue'), '4'); // 2^2
   assertEquals(formatExifValue(0, 'ShutterSpeedValue'), '1');
   assertEquals(formatExifValue(8, 'ShutterSpeedValue'), '1/256'); // 2^-8
@@ -232,20 +233,20 @@ Deno.test('formatExifValue formats ShutterSpeedValue above and below one second'
 
 // ---------- GPS formatters ----------
 
-Deno.test('formatExifValue formats GPSVersionID from array, bytes, scalar', () => {
+test('formatExifValue formats GPSVersionID from array, bytes, scalar', () => {
   assertEquals(formatExifValue([2, 3, 0, 0], 'GPSVersionID'), '2.3.0.0');
   assertEquals(formatExifValue(new Uint8Array([2, 2, 0, 1]), 'GPSVersionID'), '2.2.0.1');
   assertEquals(formatExifValue(5, 'GPSVersionID'), '5');
 });
 
-Deno.test('formatExifValue formats GPSLatitude/GPSLongitude rationals', () => {
+test('formatExifValue formats GPSLatitude/GPSLongitude rationals', () => {
   assertEquals(formatExifValue([40, 26, 46.299999999997], 'GPSLatitude'), '40 deg 26\' 46.30"');
   assertEquals(formatExifValue([40, 26.5], 'GPSLongitude'), '40 deg 26.5000\'');
   assertEquals(formatExifValue([10], 'GPSLatitude'), '10');
   assertEquals(formatExifValue('flat', 'GPSLongitude'), 'flat');
 });
 
-Deno.test('formatExifValue formats GPSTimeStamp', () => {
+test('formatExifValue formats GPSTimeStamp', () => {
   assertEquals(formatExifValue([14, 58, 24.75], 'GPSTimeStamp'), '14:58:25');
   assertEquals(formatExifValue([6, 7], 'GPSTimeStamp'), '06:07:00');
   assertEquals(formatExifValue([3], 'GPSTimeStamp'), '3');
@@ -253,7 +254,7 @@ Deno.test('formatExifValue formats GPSTimeStamp', () => {
 
 // ---------- enum arms ----------
 
-Deno.test('formatExifValue maps every GPSStatus/GPSMeasureMode/GPSDifferential value', () => {
+test('formatExifValue maps every GPSStatus/GPSMeasureMode/GPSDifferential value', () => {
   assertEquals(formatExifValue('A', 'GPSStatus'), 'Measurement Active');
   assertEquals(formatExifValue('V', 'GPSStatus'), 'Measurement Void');
   assertEquals(formatExifValue('X', 'GPSStatus'), 'X');
@@ -265,7 +266,7 @@ Deno.test('formatExifValue maps every GPSStatus/GPSMeasureMode/GPSDifferential v
   assertEquals(formatExifValue(7, 'GPSDifferential'), 7);
 });
 
-Deno.test('formatExifValue maps every numeric ENUM arm', () => {
+test('formatExifValue maps every numeric ENUM arm', () => {
   const cases: [string, number, string | number][] = [
     // ExposureProgram
     ['ExposureProgram', 0, 'Not Defined'],
@@ -398,7 +399,7 @@ Deno.test('formatExifValue maps every numeric ENUM arm', () => {
   }
 });
 
-Deno.test('formatExifValue leaves non-matching types untouched for typed tags', () => {
+test('formatExifValue leaves non-matching types untouched for typed tags', () => {
   assertEquals(formatExifValue('str', 'ExposureProgram'), 'str');
   assertEquals(formatExifValue(2, 'GPSMeasureMode'), 2);
   assertEquals(formatExifValue('A', 'GPSDifferential'), 'A');
@@ -406,7 +407,7 @@ Deno.test('formatExifValue leaves non-matching types untouched for typed tags', 
 
 // ---------- bulky summarization fallback ----------
 
-Deno.test('formatExifValue summarizes known bulky tags', () => {
+test('formatExifValue summarizes known bulky tags', () => {
   assertEquals(formatExifValue(new Uint8Array(768), 'TransferFunction'), '[768-entry LUT]');
   assertEquals(formatExifValue(new Uint8Array(120), 'MakerNote'), '[MakerNote: 120 bytes]');
   assertEquals(formatExifValue([1, 2, 3], 'MakerNote'), '[MakerNote: 3 bytes]');
@@ -415,7 +416,7 @@ Deno.test('formatExifValue summarizes known bulky tags', () => {
   assertEquals(formatExifValue('<x/>'.repeat(600), 'XMP'), '[XML document: 2400 chars]');
 });
 
-Deno.test('formatExifValue summarizes unknown large values by shape', () => {
+test('formatExifValue summarizes unknown large values by shape', () => {
   const big = new Uint8Array(65);
   assertEquals(formatExifValue(big, 'CFAPattern'), `[${big.length} bytes]`);
   const small = new Uint8Array([1, 2, 3]);
@@ -425,14 +426,14 @@ Deno.test('formatExifValue summarizes unknown large values by shape', () => {
   assertEquals(formatExifValue(42, 'PixelXDimension'), 42);
 });
 
-Deno.test('formatExifValue renders focal length with unit and one decimal', () => {
+test('formatExifValue renders focal length with unit and one decimal', () => {
   assertEquals(formatExifValue(100, 'FocalLength'), '100.0 mm');
   assertEquals(formatExifValue(4.5, 'FocalLength'), '4.5 mm');
   assertEquals(formatExifValue([171, 1], 'FocalLength'), '171.0 mm');
   assertEquals(formatExifValue(171, 'FocalLengthIn35mmFormat'), '171.0 mm');
 });
 
-Deno.test('formatExifValue converts APEX aperture values to f-numbers', () => {
+test('formatExifValue converts APEX aperture values to f-numbers', () => {
   assertEquals(formatExifValue(2, 'ApertureValue'), '2');
   assertEquals(formatExifValue(3, 'MaxApertureValue'), '2.8');
   assertEquals(formatExifValue(4, 'ApertureValue'), '4');

@@ -13,128 +13,71 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-      - name: Version sync (tag vs deno.json)
-        run: |
-          TAG="${GITHUB_REF_NAME#v}"
-          CFG=$(deno eval 'console.log(JSON.parse(Deno.readTextFile("deno.json")).version)')
-          if [ "$TAG" != "$CFG" ]; then
-            echo "tag v$TAG does not match deno.json version $CFG"; exit 1
-          fi
-      - name: Typecheck
-        run: deno task check
-      - name: Full test suite
-        run: deno task test
-      - name: Coverage audit (100% line/function)
-        run: deno task coverage-audit
-
-  # ---------- native binaries ----------
-  compile:
-    needs: gates
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-            platform: linux-x64
-            exe: ''
-          - target: aarch64-apple-darwin
-            os: macos-latest
-            platform: darwin-arm64
-            exe: ''
-          - target: x86_64-pc-windows-msvc
-            os: windows-latest
-            platform: win32-x64
-            exe: '.exe'
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-
-      - name: Compile standalone binary
-        run: >
-          deno compile --allow-read --allow-write --allow-env
-          --target ${{ matrix.target }}
-          --output exiftool-ts${{ matrix.exe }}
-          cli.ts
-
-      - name: Smoke test binary
-        run: ./exiftool-ts${{ matrix.exe }} assets/01.jpg | head -3
-        if: runner.os != 'Windows'
-      - name: Smoke test binary (windows)
-        run: ./exiftool-ts${{ matrix.exe }} assets/01.jpg | Select-Object -First 3
-        if: runner.os == 'Windows'
-        shell: pwsh
-
-      - name: Assemble npm platform package
-        run: deno run -A scripts/pack-platform.mjs "${{ matrix.platform }}" exiftool-ts${{ matrix.exe }}
-
-      - name: Upload binary (for GitHub release)
-        uses: actions/upload-artifact@v4
-        with:
-          name: bin-${{ matrix.platform }}
-          path: exiftool-ts${{ matrix.exe }}
-      - name: Upload npm platform package
-        uses: actions/upload-artifact@v4
-        with:
-          name: npm-${{ matrix.platform }}
-          path: npm-pkg/
+          registry-url: https://registry.npmjs.org/
+      - run: pnpm install --frozen-lockfile
+      - name: Version sync (tag vs package.json / jsr.json)
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          for f in package.json jsr.json; do
+            CFG=$(node -p "require('./$f').version")
+            if [ "$TAG" != "$CFG" ]; then
+              echo "tag v$TAG does not match $f version $CFG"; exit 1
+            fi
+          done
+      - name: Typecheck
+        run: pnpm check
+      - name: Full test suite
+        run: pnpm test
+      - name: Coverage audit (100% line/function)
+        run: pnpm coverage-audit
 
   # ---------- publishing ----------
+  publish-npm:
+    needs: gates
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org/
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Publish core package
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
   publish-jsr:
     needs: gates
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: denoland/setup-deno@v2
-        with:
-          deno-version: v2.x
-      - run: deno publish --token ${{ secrets.JSR_TOKEN }}
-
-  publish-npm:
-    needs: [gates, compile]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: https://registry.npmjs.org/
-      - uses: actions/download-artifact@v4
-        with:
-          pattern: npm-*
-          path: artifacts
-      - name: Publish platform packages
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          for d in artifacts/npm-*/; do
-            (cd "$d" && npm publish --access public)
-          done
-      - name: Build and publish core package
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          deno run -A scripts/build-npm.mjs npm-core
-          cd npm-core && npm publish --access public
+      - name: Publish to JSR
+        run: npx jsr@latest publish --token ${{ secrets.JSR_TOKEN }}
 
   github-release:
-    needs: compile
+    needs: gates
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          pattern: bin-*
-          path: bins
-      - name: Attach binaries to release
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Package dist tarball
+        run: tar czf "exiftool-ts-${GITHUB_REF_NAME}.tar.gz" dist package.json README.md
+      - name: Attach to release
         uses: softprops/action-gh-release@v2
         with:
-          files: bins/bin-*/*
+          files: exiftool-ts-*.tar.gz

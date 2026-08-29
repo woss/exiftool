@@ -1,6 +1,6 @@
 # exiftool-ts
 
-TypeScript rewrite of [ExifTool](https://exiftool.org) for Deno. Read and write
+TypeScript rewrite of [ExifTool](https://exiftool.org) for Node.js. Read and write
 metadata from JPEG, PNG, WebP, AVIF/HEIF, and TIFF-family images — with a fully
 typed library API and a drop-in CLI.
 
@@ -10,12 +10,12 @@ ExifTool is the gold standard for metadata — but it's a 30k-line Perl program.
 Every invocation pays a Perl startup cost, embedding it in a JS/TS service means
 shelling out or managing sidecars, and there are no types.
 
-exiftool-ts exists to bring that capability natively into the Deno/TypeScript
+exiftool-ts exists to bring that capability natively into the TypeScript
 ecosystem:
 
 - **Typed end to end** — `read()` returns an inferred `FileInfo`; no parsing strings.
-- **Embeddable** — one `deno compile` produces a dependency-free binary; or import
-  the library directly with zero child processes.
+- **Embeddable** — zero runtime dependencies; import the library directly or
+  ship the CLI alongside your service. No child processes.
 - **Trust ExifTool as ground truth** — our parity suite diffs our output against
   the real `exiftool` binary on every run; formatting bugs get caught, not shipped.
 - **Auto-generated tag database** — tag definitions are parsed from the ExifTool
@@ -44,32 +44,25 @@ file with reasons (file-date timezone offsets, makernote lens lookups, …).
 
 ## Install
 
-**Deno / JSR** (library + CLI, runs from source):
-
-```bash
-deno install -A -n exiftool-ts jsr:@woss/exiftool-ts
-exiftool-ts photo.jpg
-```
-
-**npm** (CLI as a native binary — no Node at runtime):
+**npm** (CLI + library, Node ≥ 18):
 
 ```bash
 npm i -g exiftool-ts
 exiftool-ts photo.jpg
 ```
 
-The npm package resolves the compiled binary for your platform via optional
-dependencies; nothing executes through Node.
+The package ships compiled JS with full `.d.ts` types and has **zero runtime
+dependencies**.
 
-**GitHub Releases**: standalone binaries for linux-x64, macOS-arm64 and
-windows-x64 on the [releases page](../../releases).
+**JSR** (for Deno consumers, runs from TypeScript source):
 
-Library consumers on npm get the same typed API through JSR's npm bridge:
-`npm i @jsr/woss__exiftool-ts`.
+```bash
+deno install -A -n exiftool-ts jsr:@woss/exiftool-ts
+```
 
 ## Library usage
 
-The package ships TypeScript source, so consumers get full types and
+The package ships `.d.ts` declarations, so consumers get full types and
 autocomplete out of the box:
 
 ```ts
@@ -97,17 +90,17 @@ since the package is published as source.
 ## CLI usage
 
 ```bash
-deno run -A cli.ts photo.jpg                    # default tabular dump
-deno run -A cli.ts -j photo.jpg                 # JSON
-deno run -A cli.ts -X photo.jpg > out.xml       # XML
-deno run -A cli.ts -csv *.jpg > out.csv         # CSV
-deno run -A cli.ts -r -ext jpg .                # recurse a directory tree
-deno run -A cli.ts -if '$Make eq Canon' *.jpg   # condition filter
-deno run -A cli.ts -ee -j multi-picture.jpg     # embedded images as extra docs
-deno run -A cli.ts '-Artist=me' photo.jpg       # write a tag (_original backup)
-deno run -A cli.ts --overwrite-original '-Software=x' photo.jpg
+exiftool-ts photo.jpg                           # default tabular dump
+exiftool-ts -j photo.jpg                        # JSON
+exiftool-ts -X photo.jpg > out.xml              # XML
+exiftool-ts -csv *.jpg > out.csv                # CSV
+exiftool-ts -r -ext jpg .                       # recurse a directory tree
+exiftool-ts -if '$Make eq Canon' *.jpg          # condition filter
+exiftool-ts -ee -j multi-picture.jpg            # embedded images as extra docs
+exiftool-ts '-Artist=me' photo.jpg              # write a tag (_original backup)
+exiftool-ts --overwrite-original '-Software=x' photo.jpg
 printf -- '-j\nphoto.jpg\n-execute\n-stay_open\nFalse\n' \
-  | deno run -A cli.ts -stay_open True          # persistent daemon
+  | exiftool-ts -stay_open True                 # persistent daemon
 ```
 
 ## Architecture
@@ -120,7 +113,7 @@ src/
   tag-db.ts          → Tag database (name/id/group lookups)
   types.ts           → Core types (FileInfo, TagEntry, TagValue, …)
   cli/
-    args.ts          → CLI argument parser scaffold
+    args.ts          → ExifTool-style argument parser (normalizeArgs + parseCliArgs)
     filter.ts        → -if condition evaluation
     glob.ts          → directory recursion / extension filters
     output.ts        → JSON / XML / CSV / tabular formatters
@@ -152,19 +145,19 @@ scripts/
   test-harness.ts    → Compare output against real exiftool
   coverage-audit.ts  → Enforce 100% line/function coverage gate
 .github/workflows/
-  release.yml        → deno compile matrix builds (linux/mac/win) on tags
+  release.yml        → npm + JSR publish, dist tarball on tags
 ```
 
 ## Development
 
 ```bash
-deno task test              # run the full test suite
-deno task check             # typecheck
-deno task coverage-audit    # tests + enforce 100% line/function coverage
-deno task generate-tags     # regenerate tag DB (requires exiftool source)
+pnpm test                  # run the full test suite
+pnpm check                 # typecheck
+pnpm coverage-audit        # tests + enforce 100% line/function coverage
+pnpm generate-tags         # regenerate tag DB (requires exiftool source)
 
 # Parity vs real exiftool (needs `exiftool` on PATH):
-deno test -A src/cli/exiftool-parity.test.ts
+npx vitest run src/cli/exiftool-parity.test.ts
 ```
 
 ## Project scope

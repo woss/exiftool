@@ -1,3 +1,4 @@
+import { test } from 'vitest';
 /**
  * Parity tests against the reference ExifTool implementation.
  *
@@ -10,8 +11,14 @@
  * skipped placeholder so CI stays green; on a normal dev machine the full
  * comparisons run.
  */
-import { assertEquals } from '../../deps.ts';
-import { ExifTool } from '../exiftool.ts';
+import { assertEquals } from '../../src/test/asserts.js';
+import { ExifTool } from '../exiftool.js';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { tempFile } from '../test/tmp.js';
+
+const execFileP = promisify(execFile);
 
 const ASSETS = ['assets/01.jpg', 'assets/03.jpg', 'assets/04-ai.png', 'assets/05-ai.jpeg'];
 
@@ -59,18 +66,15 @@ let argvHealthy = false;
 
 async function detectEnvironment(): Promise<void> {
   try {
-    const probe = await new Deno.Command('/bin/echo', {
-      args: ['PARITY_ARGV_PROBE'],
-    }).output();
-    argvHealthy =
-      new TextDecoder().decode(probe.stdout).trim() === 'PARITY_ARGV_PROBE';
+    const probe = await execFileP('/bin/echo', ['PARITY_ARGV_PROBE']);
+    argvHealthy = probe.stdout.trim() === 'PARITY_ARGV_PROBE';
   } catch {
     argvHealthy = false;
   }
   if (!argvHealthy) return;
   try {
-    const r = await new Deno.Command('exiftool', { args: ['-ver'] }).output();
-    const ver = new TextDecoder().decode(r.stdout).trim();
+    const r = await execFileP('exiftool', ['-ver']);
+    const ver = r.stdout.trim();
     if (/^\d+\.\d+/.test(ver)) exiftoolPath = 'exiftool';
   } catch {
     exiftoolPath = null;
@@ -84,18 +88,19 @@ interface RunResult {
 }
 
 function spawnExifTool(args: string[]): Promise<RunResult> {
-  const r = new Deno.Command(exiftoolPath!, { args }).output();
-  return r.then(({ stdout, stderr }) => ({
-    code: 0,
-    stdout: new TextDecoder().decode(stdout),
-    stderr: new TextDecoder().decode(stderr),
-  }));
+  return execFileP(exiftoolPath!, args)
+    .then(({ stdout, stderr }) => ({ code: 0, stdout, stderr }))
+    .catch((err: { stdout?: string; stderr?: string }) => ({
+      code: 1,
+      stdout: err.stdout ?? '',
+      stderr: err.stderr ?? '',
+    }));
 }
 
 await detectEnvironment();
 
 if (!exiftoolPath || !argvHealthy) {
-  Deno.test('parity: skipped — ' + (argvHealthy ? 'exiftool not installed' : 'sandboxed argv'), () => {
+  test('parity: skipped — ' + (argvHealthy ? 'exiftool not installed' : 'sandboxed argv'), () => {
     console.log(
       `parity tests skipped (exiftool=${exiftoolPath ? 'found' : 'missing'}, argv=${argvHealthy ? 'healthy' : 'stripped'})`,
     );
@@ -103,7 +108,7 @@ if (!exiftoolPath || !argvHealthy) {
 } else {
   const tool = new ExifTool();
 
-  Deno.test('parity: declared ExifTool version matches reference major.minor', async () => {
+  test('parity: declared ExifTool version matches reference major.minor', async () => {
     const { stdout } = await spawnExifTool(['-ver']);
     const refVer = stdout.trim();
     const info = await tool.read('assets/01.jpg');
@@ -114,7 +119,7 @@ if (!exiftoolPath || !argvHealthy) {
     );
   });
 
-  Deno.test('parity: JSON values match reference for every shared tag', async () => {
+  test('parity: JSON values match reference for every shared tag', async () => {
     const mismatches: string[] = [];
     let compared = 0;
     for (const file of ASSETS) {
@@ -140,7 +145,7 @@ if (!exiftoolPath || !argvHealthy) {
     assertEquals(mismatches, []);
   });
 
-  Deno.test('parity: thumbnail bytes match reference exactly', async () => {
+  test('parity: thumbnail bytes match reference exactly', async () => {
     for (const file of ASSETS) {
       const real = await spawnExifTool(['-b', '-ThumbnailImage', file]);
       if (!real.stdout.startsWith('\xff\xd8')) continue; // asset without JPEG thumbnail
@@ -159,10 +164,10 @@ if (!exiftoolPath || !argvHealthy) {
     }
   });
 
-  Deno.test('parity: files written by our writer read identically via reference exiftool', async () => {
+  test('parity: files written by our writer read identically via reference exiftool', async () => {
     for (const file of ASSETS.slice(0, 2)) {
-      const tmp = await Deno.makeTempFile({ suffix: '.jpg' });
-      await Deno.writeFile(tmp, await Deno.readFile(file));
+      const tmp = await tempFile('.jpg');
+      await writeFile(tmp, await readFile(file));
       try {
         const result = await tool.write(tmp, {
           Artist: 'Parity Suite',
@@ -176,15 +181,15 @@ if (!exiftoolPath || !argvHealthy) {
         assertEquals(parsed.Copyright, '(c) parity');
         assertEquals(parsed.Software, 'exiftool-ts');
       } finally {
-        await Deno.remove(tmp);
+        await rm(tmp);
       }
     }
   });
 
-  Deno.test('parity: files written by reference exiftool read identically via our parser', async () => {
+  test('parity: files written by reference exiftool read identically via our parser', async () => {
     for (const file of ASSETS.slice(0, 2)) {
-      const tmp = await Deno.makeTempFile({ suffix: '.jpg' });
-      await Deno.writeFile(tmp, await Deno.readFile(file));
+      const tmp = await tempFile('.jpg');
+      await writeFile(tmp, await readFile(file));
       try {
         await spawnExifTool([
           '-Software=RefWritten',
@@ -196,27 +201,27 @@ if (!exiftoolPath || !argvHealthy) {
         assertEquals(info.tags.Software, 'RefWritten');
         assertEquals(info.tags.Artist, 'Ref Artist');
       } finally {
-        await Deno.remove(tmp);
+        await rm(tmp);
       }
     }
   });
 
-  Deno.test('parity: _original backup naming matches reference convention', async () => {
-    const tmp = await Deno.makeTempFile({ suffix: '.jpg' });
-    await Deno.writeFile(tmp, await Deno.readFile('assets/01.jpg'));
+  test('parity: _original backup naming matches reference convention', async () => {
+    const tmp = await tempFile('.jpg');
+    await writeFile(tmp, await readFile('assets/01.jpg'));
     try {
       await spawnExifTool(['-Software=RefBackup', tmp]);
       let realBackupExists = false;
       try {
-        await Deno.stat(`${tmp}_original`);
+        await stat(`${tmp}_original`);
         realBackupExists = true;
       } catch {
         // absent
       }
       assertEquals(realBackupExists, true);
     } finally {
-      try { await Deno.remove(`${tmp}_original`); } catch { /* already gone */ }
-      await Deno.remove(tmp);
+      try { await rm(`${tmp}_original`); } catch { /* already gone */ }
+      await rm(tmp);
     }
   });
 }

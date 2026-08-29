@@ -1,11 +1,12 @@
-import { assertEquals } from 'jsr:@std/assert';
-import { formatJSON, formatCSV, formatTabular, formatXML, formatDateValue } from './output.ts';
-import type { FormatOptions } from './output.ts';
-import { TagDb } from '../tag-db.ts';
-import type { FileInfo } from '../types.ts';
-import { detectParser } from '../format/mod.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../../src/test/asserts.js';
+import { formatJSON, formatCSV, formatTabular, formatXML, formatDateValue } from './output.js';
+import type { FormatOptions } from './output.js';
+import { TagDb } from '../tag-db.js';
+import type { FileInfo } from '../types.js';
+import { detectParser } from '../format/mod.js';
 // Side-effect import: registers the JPEG parser with the parser registry.
-import '../format/jpeg.ts';
+import '../format/jpeg.js';
 
 function makeDb(): TagDb {
   const db = new TagDb();
@@ -63,12 +64,12 @@ const mockFiles: FileInfo[] = [
   },
 ];
 
-Deno.test('formatTabular — no options (backward compat)', () => {
+test('formatTabular — no options (backward compat)', () => {
   const result = formatTabular(mockFiles);
   assertEquals(result, 'FileName\ttest.jpg\nFileSize\t12345\nMake\tCanon\nModel\tEOS R5\nImageWidth\t8192');
 });
 
-Deno.test('formatTabular — groupHeadings (family 0)', () => {
+test('formatTabular — groupHeadings (family 0)', () => {
   const opts: FormatOptions = { groupHeadings: '0', tagDb: makeDb() };
   const result = formatTabular(mockFiles, opts);
   const lines = result.split('\n');
@@ -83,7 +84,7 @@ Deno.test('formatTabular — groupHeadings (family 0)', () => {
   assert(lines.some((l) => l.includes('test.jpg')));
 });
 
-Deno.test('formatTabular — groupPrefix (family 1)', () => {
+test('formatTabular — groupPrefix (family 1)', () => {
   const opts: FormatOptions = { groupPrefix: '1', tagDb: makeDb() };
   const result = formatTabular(mockFiles, opts);
   const lines = result.split('\n');
@@ -94,7 +95,7 @@ Deno.test('formatTabular — groupPrefix (family 1)', () => {
   assert(lines.some((l) => l.includes('Canon')));
 });
 
-Deno.test('formatJSON — no options (backward compat)', () => {
+test('formatJSON — no options (backward compat)', () => {
   const result = formatJSON(mockFiles);
   const parsed = JSON.parse(result);
   assertEquals(Array.isArray(parsed), true);
@@ -103,7 +104,7 @@ Deno.test('formatJSON — no options (backward compat)', () => {
   assertEquals(parsed[0]['FileName'], 'test.jpg');
 });
 
-Deno.test('formatJSON — groupPrefix (family 1)', () => {
+test('formatJSON — groupPrefix (family 1)', () => {
   const opts: FormatOptions = { groupPrefix: '1', tagDb: makeDb() };
   const result = formatJSON(mockFiles, opts);
   const parsed = JSON.parse(result);
@@ -115,7 +116,7 @@ Deno.test('formatJSON — groupPrefix (family 1)', () => {
   assertEquals(parsed[0]['Make'], undefined);
 });
 
-Deno.test('formatJSON — multiple files produce array elements', () => {
+test('formatJSON — multiple files produce array elements', () => {
   const files: FileInfo[] = [
     { path: 'a.jpg', format: 'JPEG', tags: { Make: 'Canon' } },
     { path: 'b.jpg', format: 'JPEG', tags: { Make: 'Nikon' } },
@@ -127,13 +128,13 @@ Deno.test('formatJSON — multiple files produce array elements', () => {
   assertEquals(parsed[1]['Make'], 'Nikon');
 });
 
-Deno.test('formatCSV — no options (backward compat)', () => {
+test('formatCSV — no options (backward compat)', () => {
   const result = formatCSV(mockFiles);
   assert(result.startsWith('SourceFile'));
   assert(result.includes('Make'));
 });
 
-Deno.test('formatCSV — groupPrefix (family 1)', () => {
+test('formatCSV — groupPrefix (family 1)', () => {
   const opts: FormatOptions = { groupPrefix: '1', tagDb: makeDb() };
   const result = formatCSV(mockFiles, opts);
   // Header should have prefixed names
@@ -145,20 +146,20 @@ Deno.test('formatCSV — groupPrefix (family 1)', () => {
   assert(dataRow.includes('Canon'));
 });
 
-Deno.test('formatXML — no options (backward compat)', () => {
+test('formatXML — no options (backward compat)', () => {
   const result = formatXML(mockFiles);
   assert(result.includes('<tag name="Make">Canon</tag>'));
   assert(result.includes('<tag name="FileName">test.jpg</tag>'));
 });
 
-Deno.test('formatXML — groupPrefix (family 1)', () => {
+test('formatXML — groupPrefix (family 1)', () => {
   const opts: FormatOptions = { groupPrefix: '1', tagDb: makeDb() };
   const result = formatXML(mockFiles, opts);
   assert(result.includes('<tag name="EXIF:Make">Canon</tag>'));
   assert(result.includes('<tag name="File:FileName">test.jpg</tag>'));
 });
 
-Deno.test('formatTabular — empty tagDb (graceful degradation)', () => {
+test('formatTabular — empty tagDb (graceful degradation)', () => {
   const opts: FormatOptions = { groupHeadings: '0', tagDb: undefined };
   const result = formatTabular(mockFiles, opts);
   // Without tagDb, group headings gracefully degrade to flat output
@@ -168,7 +169,7 @@ Deno.test('formatTabular — empty tagDb (graceful degradation)', () => {
   assert(result.includes('Make\tCanon'));
 });
 
-Deno.test('formatTabular — both groupHeadings and groupPrefix', () => {
+test('formatTabular — both groupHeadings and groupPrefix', () => {
   const opts: FormatOptions = {
     groupHeadings: '0',
     groupPrefix: '1',
@@ -183,22 +184,22 @@ Deno.test('formatTabular — both groupHeadings and groupPrefix', () => {
   assert(exifLines.length > 0);
 });
 
-Deno.test('formatDateValue — matches EXIF date', () => {
+test('formatDateValue — matches EXIF date', () => {
   const v = formatDateValue('2025:06:26 10:30:45', '%Y-%m-%d');
   assertEquals(v, '2025-06-26');
 });
 
-Deno.test('formatDateValue — non-date string unchanged', () => {
+test('formatDateValue — non-date string unchanged', () => {
   const v = formatDateValue('Canon', '%Y-%m-%d');
   assertEquals(v, 'Canon');
 });
 
-Deno.test('formatDateValue — subseconds preserved', () => {
+test('formatDateValue — subseconds preserved', () => {
   const v = formatDateValue('2025:06:26 10:30:45.123', '%Y-%m-%d %H:%M:%S.%f');
   assertEquals(v, '2025-06-26 10:30:45.123');
 });
 
-Deno.test('formatTabular — with dateFormat formats dates', () => {
+test('formatTabular — with dateFormat formats dates', () => {
   const opts: FormatOptions = { dateFormat: '%Y-%m-%d' };
   const files: FileInfo[] = [{
     path: 'test.jpg',
@@ -213,7 +214,7 @@ Deno.test('formatTabular — with dateFormat formats dates', () => {
   assert(result.includes('Make\tCanon'));
 });
 
-Deno.test('formatJSON — with dateFormat formats dates', () => {
+test('formatJSON — with dateFormat formats dates', () => {
   const opts: FormatOptions = { dateFormat: '%Y-%m-%d' };
   const files: FileInfo[] = [{
     path: 'test.jpg',
@@ -231,7 +232,7 @@ Deno.test('formatJSON — with dateFormat formats dates', () => {
 
 // --- Binary extraction (-b) coverage ---
 
-Deno.test('formatTabular — Uint8Array value renders binary placeholder without mutating value', () => {
+test('formatTabular — Uint8Array value renders binary placeholder without mutating value', () => {
   const original = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
   const snapshot = new Uint8Array(original);
   const files: FileInfo[] = [{
@@ -245,7 +246,7 @@ Deno.test('formatTabular — Uint8Array value renders binary placeholder without
   assertEquals(original, snapshot);
 });
 
-Deno.test('formatJSON — Uint8Array value serialized without mutating value', () => {
+test('formatJSON — Uint8Array value serialized without mutating value', () => {
   const original = new Uint8Array([0xde, 0xad, 0xbe, 0xef]);
   const snapshot = new Uint8Array(original);
   const files: FileInfo[] = [{
@@ -328,7 +329,7 @@ function makeJpegWithExifThumbnail(thumb: Uint8Array): Uint8Array {
   return bytes;
 }
 
-Deno.test('JPEG parse — EXIF IFD1 thumbnail extracted as exact bytes (ThumbnailImage)', async () => {
+test('JPEG parse — EXIF IFD1 thumbnail extracted as exact bytes (ThumbnailImage)', async () => {
   const thumbBytes = new Uint8Array([
     0xff, 0xd8, 0xff, 0xdb, 0x00, 0x43, 0x00, 0x03,
     0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02,
@@ -357,7 +358,7 @@ function assert(condition: boolean, msg?: string): asserts condition {
 
 // --- Binary representation parity (-b / binary tags across formats) ---
 
-Deno.test('formatJSON — Uint8Array without binary flag uses placeholder, no object leakage', () => {
+test('formatJSON — Uint8Array without binary flag uses placeholder, no object leakage', () => {
   const files: FileInfo[] = [{
     path: 'thumb.jpg',
     format: 'JPEG',
@@ -368,7 +369,7 @@ Deno.test('formatJSON — Uint8Array without binary flag uses placeholder, no ob
   assert(!result.includes('"0"'));
 });
 
-Deno.test('formatJSON — binary:true emits base64 for known vector', () => {
+test('formatJSON — binary:true emits base64 for known vector', () => {
   const files: FileInfo[] = [{
     path: 'thumb.jpg',
     format: 'JPEG',
@@ -379,7 +380,7 @@ Deno.test('formatJSON — binary:true emits base64 for known vector', () => {
   assertEquals(parsed[0]['ThumbnailImage'], 'aGk=');
 });
 
-Deno.test('formatJSON — binary:true base64 correct for chunked large buffer', () => {
+test('formatJSON — binary:true base64 correct for chunked large buffer', () => {
   // >32KB forces multiple String.fromCharCode chunks in toBase64
   const bytes = new Uint8Array(100_000);
   for (let i = 0; i < bytes.length; i++) bytes[i] = i & 0xff;
@@ -394,7 +395,7 @@ Deno.test('formatJSON — binary:true base64 correct for chunked large buffer', 
   assertEquals(parsed[0]['ExifImageData'], expected);
 });
 
-Deno.test('formatJSON — zero-length Uint8Array key omitted', () => {
+test('formatJSON — zero-length Uint8Array key omitted', () => {
   const files: FileInfo[] = [{
     path: 'empty.jpg',
     format: 'JPEG',
@@ -406,7 +407,7 @@ Deno.test('formatJSON — zero-length Uint8Array key omitted', () => {
   assertEquals(parsed[0]['Make'], 'TestCam');
 });
 
-Deno.test('formatXML — Uint8Array placeholder matches tabular wording; binary:true gives base64', () => {
+test('formatXML — Uint8Array placeholder matches tabular wording; binary:true gives base64', () => {
   const value = new Uint8Array([104, 105]);
   const files: FileInfo[] = [{
     path: 'thumb.jpg',
@@ -422,7 +423,7 @@ Deno.test('formatXML — Uint8Array placeholder matches tabular wording; binary:
   assert(xmlB64.includes('>aGk=</tag>'));
 });
 
-Deno.test('formatCSV — Uint8Array placeholder matches shared wording; binary:true gives base64', () => {
+test('formatCSV — Uint8Array placeholder matches shared wording; binary:true gives base64', () => {
   const value = new Uint8Array([104, 105]);
   const files: FileInfo[] = [{
     path: 'thumb.jpg',
@@ -435,7 +436,7 @@ Deno.test('formatCSV — Uint8Array placeholder matches shared wording; binary:t
   assert(csvB64.includes('"aGk="'));
 });
 
-Deno.test('formatJSON — groupPrefix applies to binary placeholder keys', () => {
+test('formatJSON — groupPrefix applies to binary placeholder keys', () => {
   const files: FileInfo[] = [{
     path: 'thumb.jpg',
     format: 'JPEG',
@@ -449,14 +450,14 @@ Deno.test('formatJSON — groupPrefix applies to binary placeholder keys', () =>
 
 // --- getGroupName fallback arms (no tagDb / unknown tag) ---
 
-Deno.test('formatTabular — groupPrefix without tagDb degrades to unprefixed names', () => {
+test('formatTabular — groupPrefix without tagDb degrades to unprefixed names', () => {
   const opts: FormatOptions = { groupPrefix: '1' };
   const result = formatTabular(mockFiles, opts);
   assert(!result.includes('EXIF:Make'));
   assert(result.includes('Make\tCanon'));
 });
 
-Deno.test('formatTabular — headings with tagDb missing the tag yields unknown group', () => {
+test('formatTabular — headings with tagDb missing the tag yields unknown group', () => {
   const files: FileInfo[] = [{ path: 'x.jpg', format: 'JPEG', tags: { UnknownTag: 'v' } }];
   const opts: FormatOptions = { groupHeadings: '0', tagDb: makeDb() };
   const result = formatTabular(files, opts);
@@ -465,7 +466,7 @@ Deno.test('formatTabular — headings with tagDb missing the tag yields unknown 
 
 // --- tagValueToString null/undefined and array arms ---
 
-Deno.test('formatTabular — null value renders as dash', () => {
+test('formatTabular — null value renders as dash', () => {
   const files: FileInfo[] = [{
     path: 'n.jpg',
     format: 'JPEG',
@@ -476,7 +477,7 @@ Deno.test('formatTabular — null value renders as dash', () => {
   assert(lines.includes('NullTag\t-'));
 });
 
-Deno.test('formatTabular — array values render comma-separated recursively', () => {
+test('formatTabular — array values render comma-separated recursively', () => {
   const files: FileInfo[] = [{
     path: 'a.jpg',
     format: 'JPEG',
@@ -488,7 +489,7 @@ Deno.test('formatTabular — array values render comma-separated recursively', (
   assert(lines.includes('Nested\t1, 2, 3'));
 });
 
-Deno.test('formatTabular — group family absent on entry falls back to no prefix', () => {
+test('formatTabular — group family absent on entry falls back to no prefix', () => {
   const db = new TagDb();
   db.registerBatch([
     {

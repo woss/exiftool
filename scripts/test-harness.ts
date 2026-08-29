@@ -1,3 +1,9 @@
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { pathToFileURL } from 'node:url';
+
+const run = promisify(execFile);
+
 const EXIFTOOL_CMD = 'exiftool';
 
 interface CompareResult {
@@ -9,11 +15,10 @@ interface CompareResult {
 }
 
 async function runExifTool(filePath: string): Promise<Record<string, string>> {
-  const cmd = new Deno.Command(EXIFTOOL_CMD, {
-    args: ['-json', '-n', '--', filePath],
+  const { stdout } = await run(EXIFTOOL_CMD, ['-json', '-n', '--', filePath], {
+    encoding: 'utf8',
   });
-  const { stdout } = await cmd.output();
-  const parsed = JSON.parse(new TextDecoder().decode(stdout));
+  const parsed = JSON.parse(stdout);
   return parsed[0] ?? {};
 }
 
@@ -50,10 +55,10 @@ function compareResults(
 }
 
 async function main() {
-  const testFiles = Deno.args;
+  const testFiles = process.argv.slice(2);
   if (testFiles.length === 0) {
-    console.error('Usage: deno run scripts/test-harness.ts <files...>');
-    Deno.exit(1);
+    console.error('Usage: tsx scripts/test-harness.ts <files...>');
+    process.exit(1);
   }
 
   let passed = 0;
@@ -78,9 +83,9 @@ async function main() {
   }
 
   console.error(`\nResults: ${passed} passed, ${failed} failed`);
-  Deno.exit(failed > 0 ? 1 : 0);
+  process.exit(failed > 0 ? 1 : 0);
 }
 
-if (import.meta.main) {
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   main();
 }

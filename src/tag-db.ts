@@ -1,4 +1,4 @@
-import type { TagEntry, TagGroups, TagId } from './types.ts';
+import type { TagEntry, TagGroups, TagId } from './types.js';
 
 export class TagDb {
   private byName = new Map<string, TagEntry>();

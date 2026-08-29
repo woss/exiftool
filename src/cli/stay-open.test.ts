@@ -1,5 +1,6 @@
-import { assertEquals } from '../../deps.ts';
-import { readLines, stayOpenLoop } from './stay-open.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../../src/test/asserts.js';
+import { readLines, stayOpenLoop } from './stay-open.js';
 
 function feed(...lines: string[]): AsyncIterable<string> {
   return (async function* () {
@@ -7,7 +8,7 @@ function feed(...lines: string[]): AsyncIterable<string> {
   })();
 }
 
-Deno.test('stayOpenLoop executes each -execute batch and emits ready', async () => {
+test('stayOpenLoop executes each -execute batch and emits ready', async () => {
   const calls: string[][] = [];
   const emitted: string[] = [];
   const result = await stayOpenLoop(
@@ -24,7 +25,7 @@ Deno.test('stayOpenLoop executes each -execute batch and emits ready', async () 
   assertEquals(emitted, ['{ready}', '{ready}']);
 });
 
-Deno.test('stayOpenLoop shuts down on -stay_open False pair', async () => {
+test('stayOpenLoop shuts down on -stay_open False pair', async () => {
   const calls: string[][] = [];
   const result = await stayOpenLoop(
     feed('-stay_open', 'True', '-Make', 'A', '-execute', '-stay_open', 'False', '-Never', 'ran'),
@@ -38,7 +39,7 @@ Deno.test('stayOpenLoop shuts down on -stay_open False pair', async () => {
   assertEquals(calls.length, 1);
 });
 
-Deno.test('stayOpenLoop True decision line keeps the daemon running', async () => {
+test('stayOpenLoop True decision line keeps the daemon running', async () => {
   const result = await stayOpenLoop(
     feed('-stay_open', 'True', '-q', '-execute'),
     async () => 0,
@@ -48,13 +49,13 @@ Deno.test('stayOpenLoop True decision line keeps the daemon running', async () =
   assertEquals(result.shutdownRequested, false);
 });
 
-Deno.test('stayOpenLoop ends at end of input without shutdown request', async () => {
+test('stayOpenLoop ends at end of input without shutdown request', async () => {
   const result = await stayOpenLoop(feed('-j'), async () => 0, () => {});
   assertEquals(result.batches, 0);
   assertEquals(result.shutdownRequested, false);
 });
 
-Deno.test('readLines splits a chunked byte stream into lines', async () => {
+test('readLines splits a chunked byte stream into lines', async () => {
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       const enc = new TextEncoder();
@@ -68,7 +69,7 @@ Deno.test('readLines splits a chunked byte stream into lines', async () => {
   assertEquals(out, ['a', 'bb', 'ccc']);
 });
 
-Deno.test('readLines feeds CRLF-terminated commands through the loop trim', async () => {
+test('readLines feeds CRLF-terminated commands through the loop trim', async () => {
   const calls: string[][] = [];
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -85,7 +86,7 @@ Deno.test('readLines feeds CRLF-terminated commands through the loop trim', asyn
   assertEquals(calls, [['-Make=X']]);
 });
 
-Deno.test('readLines emits a final line without a trailing newline', async () => {
+test('readLines emits a final line without a trailing newline', async () => {
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
       controller.enqueue(new TextEncoder().encode('a\nb'));

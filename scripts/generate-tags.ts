@@ -1,3 +1,9 @@
+import { execFile } from 'node:child_process';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { promisify } from 'node:util';
+
 interface TagDef {
   id: string;
   name: string;
@@ -15,7 +21,7 @@ interface TableDef {
   tags: TagDef[];
 }
 
-const ROOT = `${import.meta.dirname}/..`;
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUTPUT_JSON = `${ROOT}/src/tags/generated/tags.json`;
 
 function parseExifToolXml(xml: string): TableDef[] {
@@ -86,7 +92,7 @@ function parseExifToolXml(xml: string): TableDef[] {
       continue;
     }
     if (trimmed.startsWith('<key ')) {
-      currentKeyId = extractAttr(trimmed, 'id');
+      currentKeyId = extractAttr(trimmed, 'id') ?? null;
       textBuf = '';
       continue;
     }
@@ -118,27 +124,31 @@ function extractText(line: string): string {
 
 async function generate() {
   console.error('Spawning exiftool -listx...');
-  const cmd = new Deno.Command('exiftool', { args: ['-listx'], stdout: 'piped', stderr: 'piped' });
-  const output = await cmd.output();
-  if (!output.success) {
-    console.error('exiftool failed:', new TextDecoder().decode(output.stderr));
-    Deno.exit(1);
+  const run = promisify(execFile);
+  let xml: string;
+  try {
+    ({ stdout: xml } = await run('exiftool', ['-listx'], {
+      encoding: 'utf8',
+      maxBuffer: 256 * 1024 * 1024,
+    }));
+  } catch (error) {
+    const e = error as { stderr?: string | Buffer; message?: string };
+    console.error('exiftool failed:', e.stderr?.toString() ?? e.message);
+    process.exit(1);
   }
-
-  const xml = new TextDecoder().decode(output.stdout);
   console.error(`Parsing ${(xml.length / 1024 / 1024).toFixed(1)}MB of XML...`);
   const tables = parseExifToolXml(xml);
 
   const totalTags = tables.reduce((s, t) => s + t.tags.length, 0);
   console.error(`Found ${tables.length} tables with ${totalTags} tags`);
 
-  await Deno.mkdir(`${ROOT}/src/tags/generated`, { recursive: true });
+  await mkdir(`${ROOT}/src/tags/generated`, { recursive: true });
 
   const json = JSON.stringify(tables);
-  await Deno.writeTextFile(OUTPUT_JSON, json);
+  await writeFile(OUTPUT_JSON, json);
   console.error(`Wrote ${OUTPUT_JSON} (${(json.length / 1024 / 1024).toFixed(1)}MB)`);
 }
 
-if (import.meta.main) {
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   generate();
 }

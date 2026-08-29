@@ -1,6 +1,7 @@
-import { assertEquals } from '../../deps.ts';
-import { detectParser } from './mod.ts';
-import { webpParser } from './webp.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../../src/test/asserts.js';
+import { detectParser } from './mod.js';
+import { webpParser } from './webp.js';
 
 const encoder = new TextEncoder();
 
@@ -56,7 +57,7 @@ function tinyTiff(): Uint8Array {
   return buf;
 }
 
-Deno.test('webp canParse accepts RIFF/WEBP header and rejects short/garbage', () => {
+test('webp canParse accepts RIFF/WEBP header and rejects short/garbage', () => {
   assertEquals(webpParser.canParse(riff()), true);
   assertEquals(webpParser.canParse(new Uint8Array(11)), false);
   const notRiff = encoder.encode('NOTRIFFxxWEBPxx');
@@ -65,7 +66,7 @@ Deno.test('webp canParse accepts RIFF/WEBP header and rejects short/garbage', ()
   assertEquals(webpParser.canParse(riffOnly), false);
 });
 
-Deno.test('webp VP8X flags and canvas dimensions', async () => {
+test('webp VP8X flags and canvas dimensions', async () => {
   // flags: anim 0x02 | xmp 0x04 | exif 0x08 | alpha 0x10 | icc 0x20
   const vp8xData = new Uint8Array(10);
   vp8xData[0] = 0x3e;
@@ -85,7 +86,7 @@ Deno.test('webp VP8X flags and canvas dimensions', async () => {
   assertEquals(result.tags['ImageLength'], 3);
 });
 
-Deno.test('webp EXIF chunk with Exif\\0\\0 prefix parses TIFF tags', async () => {
+test('webp EXIF chunk with Exif\\0\\0 prefix parses TIFF tags', async () => {
   const tiff = tinyTiff();
   const payload = concat(encoder.encode('Exif\0\0'), tiff);
   const bytes = riff(chunk('EXIF', payload), chunk('VP8 ', new Uint8Array(4)));
@@ -94,7 +95,7 @@ Deno.test('webp EXIF chunk with Exif\\0\\0 prefix parses TIFF tags', async () =>
   assertEquals(result.tags['Make'], 'TestCam');
   assertEquals(result.tags['WebP_Lossy'], true);
 });
-Deno.test('webp short EXIF chunk (<6 bytes) cannot be TIFF, yields no tags', async () => {
+test('webp short EXIF chunk (<6 bytes) cannot be TIFF, yields no tags', async () => {
   // chunkData.length < 6 takes the whole-chunk parseTiff path; a sub-6-byte
   // blob can never carry the 8-byte TIFF header, so it resolves to {}.
   const bytes = riff(chunk('EXIF', new Uint8Array([0x49, 0x49, 0x2a, 0x00])));
@@ -102,14 +103,14 @@ Deno.test('webp short EXIF chunk (<6 bytes) cannot be TIFF, yields no tags', asy
   assertEquals(result.tags['Make'], undefined);
 });
 
-Deno.test('webp XMP chunk over 1024 chars summarized', async () => {
+test('webp XMP chunk over 1024 chars summarized', async () => {
   const xmp = 'x'.repeat(2000);
   const bytes = riff(chunk('XMP ', encoder.encode(xmp)));
   const result = await webpParser.parse(bytes, 'bigxmp.webp');
   assertEquals(result.tags['XMP'], `[XML document: ${xmp.length} chars]`);
 });
 
-Deno.test('webp EXIF parse threads coordFormat hint into TIFF parsing', async () => {
+test('webp EXIF parse threads coordFormat hint into TIFF parsing', async () => {
   const tiff = tinyTiff();
   const payload = concat(encoder.encode('Exif\0\0'), tiff);
   const bytes = riff(chunk('EXIF', payload));
@@ -117,14 +118,14 @@ Deno.test('webp EXIF parse threads coordFormat hint into TIFF parsing', async ()
   assertEquals(result.tags['Make'], 'TestCam');
 });
 
-Deno.test('webp non-TIFF short EXIF chunk yields no tags without throwing', async () => {
+test('webp non-TIFF short EXIF chunk yields no tags without throwing', async () => {
   const bytes = riff(chunk('EXIF', encoder.encode('junk')), chunk('VP8L', new Uint8Array(4)));
   const result = await webpParser.parse(bytes, 'junk.webp');
   assertEquals(result.tags['Make'], undefined);
   assertEquals(result.tags['WebP_Lossless'], true);
 });
 
-Deno.test('webp ICCP chunk: small inlined raw, large summarized', async () => {
+test('webp ICCP chunk: small inlined raw, large summarized', async () => {
   const small = new Uint8Array(16).fill(7);
   const big = new Uint8Array(100).fill(9);
   const bytes = riff(chunk('ICCP', small), chunk('ICCP', big));
@@ -139,14 +140,14 @@ Deno.test('webp ICCP chunk: small inlined raw, large summarized', async () => {
   assertEquals((onlySmall.tags['ICC_Profile'] as Uint8Array).length, 16);
 });
 
-Deno.test('webp XMP chunk stores text inline when short', async () => {
+test('webp XMP chunk stores text inline when short', async () => {
   const xmp = '<x:xmpmeta>hi</x:xmpmeta>';
   const bytes = riff(chunk('XMP ', encoder.encode(xmp)));
   const result = await webpParser.parse(bytes, 'xmp.webp');
   assertEquals(result.tags['XMP'], xmp);
 });
 
-Deno.test('webp ANIM chunk exposes background color and loop count', async () => {
+test('webp ANIM chunk exposes background color and loop count', async () => {
   const payload = new Uint8Array(8);
   new DataView(payload.buffer).setUint32(0, 0xaabbccdd, true);
   new DataView(payload.buffer).setUint16(4, 3, true);
@@ -157,7 +158,7 @@ Deno.test('webp ANIM chunk exposes background color and loop count', async () =>
   assertEquals(result.tags['WebP_LoopCount'], 3);
 });
 
-Deno.test('webp odd-size chunk pad byte is skipped so following chunks parse', async () => {
+test('webp odd-size chunk pad byte is skipped so following chunks parse', async () => {
   const xmp = encoder.encode('abc'); // odd length -> one pad byte
   const bytes = riff(chunk('XMP ', xmp), chunk('VP8L', new Uint8Array(2)));
   const result = await webpParser.parse(bytes, 'pad.webp');
@@ -165,7 +166,7 @@ Deno.test('webp odd-size chunk pad byte is skipped so following chunks parse', a
   assertEquals(result.tags['WebP_Lossless'], true);
 });
 
-Deno.test('webp zero RIFF size walks nothing', async () => {
+test('webp zero RIFF size walks nothing', async () => {
   const bytes = riff(chunk('VP8X', new Uint8Array(10)));
   // Overwrite declared RIFF size with 0.
   new DataView(bytes.buffer).setUint32(4, 0, true);
@@ -174,7 +175,7 @@ Deno.test('webp zero RIFF size walks nothing', async () => {
   assertEquals('WebP_Extended' in result.tags, false);
 });
 
-Deno.test('webp truncated chunk size stops the walk cleanly', async () => {
+test('webp truncated chunk size stops the walk cleanly', async () => {
   const good = chunk('VP8L', new Uint8Array(2));
   const bogus = new Uint8Array(8);
   bogus.set(encoder.encode('FAKE'), 0);
@@ -185,14 +186,14 @@ Deno.test('webp truncated chunk size stops the walk cleanly', async () => {
   assertEquals('Make' in result.tags, false);
 });
 
-Deno.test('webp parse tolerates garbage body without RIFF semantics', async () => {
+test('webp parse tolerates garbage body without RIFF semantics', async () => {
   const garbage = new Uint8Array(64).fill(0xff);
   const result = await webpParser.parse(garbage, 'garbage.webp');
   assertEquals(result.path, 'garbage.webp');
   assertEquals(result.format, 'WebP');
 });
 
-Deno.test('detectParser routes WebP buffers to the webp parser', () => {
+test('detectParser routes WebP buffers to the webp parser', () => {
   const parser = detectParser(riff(chunk('VP8 ', new Uint8Array(4))))!;
   assertEquals(parser.format, 'WebP');
 });

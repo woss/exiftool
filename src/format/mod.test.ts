@@ -1,5 +1,6 @@
-import { assertEquals } from '../../deps.ts';
-import { detectParser, getAllParsers, getParser, registerParser } from './mod.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../../src/test/asserts.js';
+import { detectParser, getAllParsers, getParser, registerParser } from './mod.js';
 
 // The parser registry is process-global; use throwaway format names so the
 // built-in JPEG/PNG/WebP/AVIF registrations are never disturbed.
@@ -14,7 +15,7 @@ function dummyParser(tag: string) {
   };
 }
 
-Deno.test('registerParser overwrites same-format entries and getParser returns latest', () => {
+test('registerParser overwrites same-format entries and getParser returns latest', () => {
   registerParser(dummyParser('v1'));
   const first = getParser(DUMMY);
   assertEquals(first?.format, DUMMY);
@@ -28,10 +29,10 @@ Deno.test('registerParser overwrites same-format entries and getParser returns l
   assertEquals(stale.length, 1);
 });
 
-Deno.test('getParser returns undefined for unknown formats', () => {
+test('getParser returns undefined for unknown formats', () => {
   assertEquals(getParser('No-Such-Format'), undefined);
 });
 
-Deno.test('detectParser falls back to undefined on unrecognized magic', () => {
+test('detectParser falls back to undefined on unrecognized magic', () => {
   assertEquals(detectParser(new Uint8Array([0x01, 0x02, 0x03, 0x04])), undefined);
 });

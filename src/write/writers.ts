@@ -1,6 +1,6 @@
-import type { TagValue } from '../types.ts';
-import { buildTiff } from '../exif/tiff-builder.ts';
-import { crc32 } from '../utils/crc32.ts';
+import type { TagValue } from '../types.js';
+import { buildTiff } from '../exif/tiff-builder.js';
+import { crc32 } from '../utils/crc32.js';
 
 export interface WriteOutcome {
   bytes: Uint8Array;

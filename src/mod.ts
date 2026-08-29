@@ -1,5 +1,5 @@
-export { ExifTool } from './exiftool.ts';
-export { TagDb } from './tag-db.ts';
+export { ExifTool } from './exiftool.js';
+export { TagDb } from './tag-db.js';
 export type {
   ExifToolOptions,
   FileInfo,
@@ -9,10 +9,10 @@ export type {
   TagGroups,
   TagValue,
   WriteOptions,
-} from './types.ts';
+} from './types.js';
 
-export { detectParser, getAllParsers, getParser, registerParser } from './format/mod.ts';
+export { detectParser, getAllParsers, getParser, registerParser } from './format/mod.js';
 
-export { parseTiff } from './exif/tiff.ts';
-export { parseIFD } from './exif/ifd.ts';
-export { EXIF_TYPES, getExifTypeName, getExifTypeSize } from './exif/types.ts';
+export { parseTiff } from './exif/tiff.js';
+export { parseIFD } from './exif/ifd.js';
+export { EXIF_TYPES, getExifTypeName, getExifTypeSize } from './exif/types.js';

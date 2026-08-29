@@ -1,25 +1,26 @@
-import { assertEquals } from 'jsr:@std/assert';
-import { renderTagValue, verboseLines } from './verbosity.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../../src/test/asserts.js';
+import { renderTagValue, verboseLines } from './verbosity.js';
 
-Deno.test('renderTagValue renders Uint8Array as byte count', () => {
+test('renderTagValue renders Uint8Array as byte count', () => {
   assertEquals(renderTagValue(new Uint8Array(5)), '[5 bytes]');
   assertEquals(renderTagValue(new Uint8Array(0)), '[0 bytes]');
 });
 
-Deno.test('renderTagValue renders scalars and arrays', () => {
+test('renderTagValue renders scalars and arrays', () => {
   assertEquals(renderTagValue('hello'), 'hello');
   assertEquals(renderTagValue(42), '42');
   assertEquals(renderTagValue(null), '');
   assertEquals(renderTagValue(['a', 1]), 'a, 1');
 });
 
-Deno.test('verboseLines level 1 summary only', () => {
+test('verboseLines level 1 summary only', () => {
   assertEquals(verboseLines({ path: 'a.jpg', format: 'JPEG', tags: { Make: 'X' } }, 1), [
     '[verbose] a.jpg: 1 tags (JPEG)',
   ]);
 });
 
-Deno.test('verboseLines level 2 dumps each tag', () => {
+test('verboseLines level 2 dumps each tag', () => {
   const info = {
     path: 'b.png',
     format: 'PNG',

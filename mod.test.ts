@@ -1,8 +1,9 @@
-import { assertEquals } from './deps.ts';
-import { TagDb } from './src/tag-db.ts';
-import type { TagEntry } from './src/types.ts';
+import { test } from 'vitest';
+import { assertEquals } from './src/test/asserts.js';
+import { TagDb } from './src/tag-db.js';
+import type { TagEntry } from './src/types.js';
 
-Deno.test('TagDb basic operations', () => {
+test('TagDb basic operations', () => {
   const db = new TagDb();
 
   const entry: TagEntry = {
@@ -22,7 +23,7 @@ Deno.test('TagDb basic operations', () => {
   assertEquals(db.getById(0x010f, 'EXIF'), entry);
 });
 
-Deno.test('TagDb getByGroup', () => {
+test('TagDb getByGroup', () => {
   const db = new TagDb();
 
   db.register({
@@ -44,7 +45,7 @@ Deno.test('TagDb getByGroup', () => {
   assertEquals(db.getByGroup('Image').length, 2);
 });
 
-Deno.test('TagDb getWritableTags', () => {
+test('TagDb getWritableTags', () => {
   const db = new TagDb();
 
   db.register({ id: 1, name: 'Writable', writable: true, groups: {} });
@@ -54,7 +55,7 @@ Deno.test('TagDb getWritableTags', () => {
   assertEquals(db.getWritableTags()[0].name, 'Writable');
 });
 
-Deno.test('TagDb getGroups', () => {
+test('TagDb getGroups', () => {
   const db = new TagDb();
   db.register({ id: 1, name: 'T1', writable: true, groups: { family1: 'EXIF' } });
   db.register({ id: 2, name: 'T2', writable: true, groups: { family1: 'XMP' } });
@@ -63,7 +64,7 @@ Deno.test('TagDb getGroups', () => {
   assertEquals(groups, ['EXIF', 'XMP']);
 });
 
-Deno.test('TagDb getById without a group and on a miss', () => {
+test('TagDb getById without a group and on a miss', () => {
   const db = new TagDb();
   const entry: TagEntry = {
     id: 0x8827,
@@ -77,13 +78,13 @@ Deno.test('TagDb getById without a group and on a miss', () => {
   assertEquals(db.getById(0x8827, 'IFD0'), undefined);
 });
 
-Deno.test('TagDb getByGroup returns an empty array for unknown groups', () => {
+test('TagDb getByGroup returns an empty array for unknown groups', () => {
   const db = new TagDb();
   db.register({ id: 1, name: 'T', writable: false, groups: { family1: 'EXIF' } });
   assertEquals(db.getByGroup('NoSuchGroup'), []);
 });
 
-Deno.test('TagDb getAllTags returns every registered entry', () => {
+test('TagDb getAllTags returns every registered entry', () => {
   const db = new TagDb();
   db.register({ id: 1, name: 'A', writable: true, groups: {} });
   db.register({ id: 2, name: 'B', writable: false, groups: {} });
@@ -92,7 +93,7 @@ Deno.test('TagDb getAllTags returns every registered entry', () => {
   assertEquals(all, ['A', 'B']);
 });
 
-Deno.test('TagDb registerBatch registers many entries at once', () => {
+test('TagDb registerBatch registers many entries at once', () => {
   const db = new TagDb();
   db.registerBatch([
     { id: 1, name: 'One', writable: true, groups: { family1: 'EXIF' } },
@@ -104,7 +105,7 @@ Deno.test('TagDb registerBatch registers many entries at once', () => {
   assertEquals(db.getByName('two')?.name, 'Two');
 });
 
-Deno.test('TagDb last registration wins for duplicate names but keeps both ids', () => {
+test('TagDb last registration wins for duplicate names but keeps both ids', () => {
   const db = new TagDb();
   const first: TagEntry = { id: 1, name: 'Dup', writable: true, groups: { family1: 'EXIF' } };
   const second: TagEntry = { id: 2, name: 'Dup', writable: false, groups: { family1: 'EXIF' } };

@@ -1,9 +1,9 @@
-import type { FormatParser, ParseHints } from './mod.ts';
-import type { FileInfo, TagValue } from '../types.ts';
-import type { TagDb } from '../tag-db.ts';
-import { registerParser } from './mod.ts';
-import { parseTiff } from '../exif/tiff.ts';
-import { computeCompositeTags } from '../exif/composite.ts';
+import type { FormatParser, ParseHints } from './mod.js';
+import type { FileInfo, TagValue } from '../types.js';
+import type { TagDb } from '../tag-db.js';
+import { registerParser } from './mod.js';
+import { parseTiff } from '../exif/tiff.js';
+import { computeCompositeTags } from '../exif/composite.js';
 
 function readBoxHeader(
   bytes: Uint8Array,

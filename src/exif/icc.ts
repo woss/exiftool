@@ -1,4 +1,4 @@
-import type { TagValue } from '../types.ts';
+import type { TagValue } from '../types.js';
 
 const textDecoder = new TextDecoder();
 

@@ -1,6 +1,7 @@
-import { assertEquals } from '../../deps.ts';
-import { detectParser } from './mod.ts';
-import { extractEmbeddedJpegs } from './jpeg.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../../src/test/asserts.js';
+import { detectParser } from './mod.js';
+import { extractEmbeddedJpegs } from './jpeg.js';
 
 function miniJpeg(marker = 0x01): Uint8Array {
   return new Uint8Array([
@@ -96,7 +97,7 @@ function buildMpf(
   ]);
 }
 
-Deno.test('extractEmbeddedJpegs returns both images in entry order (little-endian)', () => {
+test('extractEmbeddedJpegs returns both images in entry order (little-endian)', () => {
   const file = buildMpf();
   const docs = extractEmbeddedJpegs(file);
   assertEquals(docs.length, 2);
@@ -104,13 +105,13 @@ Deno.test('extractEmbeddedJpegs returns both images in entry order (little-endia
   assertEquals(docs[1], miniJpeg(0xA2));
 });
 
-Deno.test('extractEmbeddedJpegs handles big-endian MP Endian field', () => {
+test('extractEmbeddedJpegs handles big-endian MP Endian field', () => {
   const docs = extractEmbeddedJpegs(buildMpf({ endian: 'MM' }));
   assertEquals(docs.length, 2);
   assertEquals(docs[0], miniJpeg(0xA1));
 });
 
-Deno.test('embedded images are standalone copies parseable as JPEG', async () => {
+test('embedded images are standalone copies parseable as JPEG', async () => {
   const docs = extractEmbeddedJpegs(buildMpf());
   assertEquals(docs[0].buffer !== (undefined as unknown), true);
   const parser = detectParser(docs[0]);
@@ -119,24 +120,24 @@ Deno.test('embedded images are standalone copies parseable as JPEG', async () =>
   assertEquals(info.format, 'JPEG');
 });
 
-Deno.test('plain JPEG without MPF segment yields no documents', () => {
+test('plain JPEG without MPF segment yields no documents', () => {
   assertEquals(extractEmbeddedJpegs(miniJpeg()), []);
 });
 
-Deno.test('invalid endian signature yields no documents', () => {
+test('invalid endian signature yields no documents', () => {
   assertEquals(extractEmbeddedJpegs(buildMpf({ endian: 'XX' })), []);
 });
 
-Deno.test('missing MPEntry index tag yields no documents', () => {
+test('missing MPEntry index tag yields no documents', () => {
   assertEquals(extractEmbeddedJpegs(buildMpf({ omitB002: true })), []);
 });
 
-Deno.test('truncated file stops cleanly', () => {
+test('truncated file stops cleanly', () => {
   const file = buildMpf();
   assertEquals(extractEmbeddedJpegs(file.slice(0, file.length - 14)), []);
 });
 
-Deno.test('entry whose data lies beyond the buffer is skipped', () => {
+test('entry whose data lies beyond the buffer is skipped', () => {
   const docs = extractEmbeddedJpegs(buildMpf({
     items: [{ bytes: miniJpeg() }, { size: 999_999 }],
   }));
@@ -144,27 +145,27 @@ Deno.test('entry whose data lies beyond the buffer is skipped', () => {
   assertEquals(docs[0], miniJpeg());
 });
 
-Deno.test('entry without a SOI marker is skipped', () => {
+test('entry without a SOI marker is skipped', () => {
   assertEquals(extractEmbeddedJpegs(buildMpf({
     items: [{ bytes: new Uint8Array([1, 2, 3, 4]) }],
   })), []);
 });
 
-Deno.test('zero-size entry is skipped', () => {
+test('zero-size entry is skipped', () => {
   assertEquals(extractEmbeddedJpegs(buildMpf({ items: [{ size: 0 }] })), []);
 });
 
-Deno.test('zero-offset entry is skipped', () => {
+test('zero-offset entry is skipped', () => {
   assertEquals(extractEmbeddedJpegs(buildMpf({
     items: [{ bytes: miniJpeg(), off: 0 }],
   })), []);
 });
 
-Deno.test('non-JPEG container yields no documents', () => {
+test('non-JPEG container yields no documents', () => {
   assertEquals(extractEmbeddedJpegs(new TextEncoder().encode('not a jpeg')), []);
 });
 
-Deno.test('SOS before any APP2 ends the header walk', () => {
+test('SOS before any APP2 ends the header walk', () => {
   const sosFirst = new Uint8Array([
     0xFF, 0xD8, 0xFF, 0xDA, 0x00, 0x02, 0xFF, 0xD9,
     0xFF, 0xE2, 0x00, 0x08, 0x4D, 0x50, 0x46, 0x00,
@@ -172,13 +173,13 @@ Deno.test('SOS before any APP2 ends the header walk', () => {
   assertEquals(extractEmbeddedJpegs(sosFirst), []);
 });
 
-Deno.test('non-marker byte where a segment is expected aborts the walk', () => {
+test('non-marker byte where a segment is expected aborts the walk', () => {
   const file = buildMpf();
   file[20] = 0x00; // APP2 segment position, corrupted marker byte
   assertEquals(extractEmbeddedJpegs(file), []);
 });
 
-Deno.test('RST markers without length fields are skipped during the walk', () => {
+test('RST markers without length fields are skipped during the walk', () => {
   const file = buildMpf();
   const withRst = new Uint8Array(file.length + 2);
   withRst.set(file.subarray(0, 20), 0);
@@ -187,14 +188,14 @@ Deno.test('RST markers without length fields are skipped during the walk', () =>
   assertEquals(extractEmbeddedJpegs(withRst).length, 2);
 });
 
-Deno.test('degenerate segment length aborts the walk', () => {
+test('degenerate segment length aborts the walk', () => {
   const file = new Uint8Array([
     0xFF, 0xD8, 0xFF, 0xE2, 0x00, 0x01, 0xFF, 0xD9,
   ]);
   assertEquals(extractEmbeddedJpegs(file), []);
 });
 
-Deno.test('entry count claiming more entries than the buffer holds yields nothing', () => {
+test('entry count claiming more entries than the buffer holds yields nothing', () => {
   const file = buildMpf();
   const numEntriesPos = 28 + 8; // tiffStart + ifdOffset
   file[numEntriesPos] = 0xFF;
@@ -202,7 +203,7 @@ Deno.test('entry count claiming more entries than the buffer holds yields nothin
   assertEquals(extractEmbeddedJpegs(file), []);
 });
 
-Deno.test('image-count style B002 count (not multiplied by 16) works', () => {
+test('image-count style B002 count (not multiplied by 16) works', () => {
   const single = buildMpf({ items: [{ bytes: miniJpeg(0xC1) }] });
   // Default builder writes count = 16 x N; rewrite it to bare N.
   const b002CountPos = 28 + 8 + 2 + 12 * 2 + 4;
@@ -215,7 +216,7 @@ Deno.test('image-count style B002 count (not multiplied by 16) works', () => {
   assertEquals(docs[0], miniJpeg(0xC1));
 });
 
-Deno.test('normalized entry table overrunning the buffer yields nothing', () => {
+test('normalized entry table overrunning the buffer yields nothing', () => {
   const single = buildMpf({ items: [{ bytes: miniJpeg(0xC1) }] });
   // B002 count field: claim one entry but blow the table size up so the
   // normalized table no longer fits the buffer.
@@ -228,7 +229,7 @@ Deno.test('normalized entry table overrunning the buffer yields nothing', () => 
   assertEquals(extractEmbeddedJpegs(single), []);
 });
 
-Deno.test('corrupted IFD offset yields no documents', () => {
+test('corrupted IFD offset yields no documents', () => {
   const file = buildMpf();
   const tiffStart = 24; // SOI(2) + APP0(18) + APP2 header(4)
   file[tiffStart + 4] = 0xFF;

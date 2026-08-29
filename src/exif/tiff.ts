@@ -1,7 +1,7 @@
-import { parseIFD } from './ifd.ts';
-import { formatExifValue, getTagName, readIfdValue, EXIF_POINTER_TAGS } from './values.ts';
-import type { TagValue } from '../types.ts';
-import type { TagDb } from '../tag-db.ts';
+import { parseIFD } from './ifd.js';
+import { formatExifValue, getTagName, readIfdValue, EXIF_POINTER_TAGS } from './values.js';
+import type { TagValue } from '../types.js';
+import type { TagDb } from '../tag-db.js';
 
 const TIFF_MAGIC_BIG = 0x4d4d;
 const TIFF_MAGIC_LITTLE = 0x4949;

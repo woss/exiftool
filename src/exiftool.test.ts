@@ -1,5 +1,7 @@
-import { assertEquals } from 'jsr:@std/assert';
-import { ExifTool } from './exiftool.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../src/test/asserts.js';
+import { ExifTool } from './exiftool.js';
+import { readFile } from 'node:fs/promises';
 
 function captureConsole() {
   const origLog = console.log;
@@ -18,14 +20,14 @@ function captureConsole() {
   };
 }
 
-Deno.test('ExifTool constructor builds tag db with known tags', () => {
+test('ExifTool constructor builds tag db with known tags', () => {
   const tool = new ExifTool();
   const make = tool.tagDb.getByName('Make');
   assertEquals(make !== undefined, true);
   assertEquals(make!.name, 'Make');
 });
 
-Deno.test('ExifTool.read parses a JPEG asset', async () => {
+test('ExifTool.read parses a JPEG asset', async () => {
   const tool = new ExifTool();
   const info = await tool.read('assets/01.jpg');
   assertEquals(info.format, 'JPEG');
@@ -33,7 +35,7 @@ Deno.test('ExifTool.read parses a JPEG asset', async () => {
   assertEquals(info.tags.Make, 'Canon');
 });
 
-Deno.test('ExifTool.read rejects on missing file', async () => {
+test('ExifTool.read rejects on missing file', async () => {
   const tool = new ExifTool();
   let threw = false;
   try {
@@ -44,7 +46,7 @@ Deno.test('ExifTool.read rejects on missing file', async () => {
   assertEquals(threw, true);
 });
 
-Deno.test('run with no args prints help and returns 0', async () => {
+test('run with no args prints help and returns 0', async () => {
   const tool = new ExifTool();
   const cap = captureConsole();
   try {
@@ -56,7 +58,7 @@ Deno.test('run with no args prints help and returns 0', async () => {
   }
 });
 
-Deno.test('run --help prints help and returns 0', async () => {
+test('run --help prints help and returns 0', async () => {
   const tool = new ExifTool();
   const cap = captureConsole();
   try {
@@ -68,7 +70,7 @@ Deno.test('run --help prints help and returns 0', async () => {
   }
 });
 
-Deno.test('run --version prints version and returns 0', async () => {
+test('run --version prints version and returns 0', async () => {
   const tool = new ExifTool();
   const cap = captureConsole();
   try {
@@ -80,7 +82,7 @@ Deno.test('run --version prints version and returns 0', async () => {
   }
 });
 
-Deno.test('run -ver prints version and returns 0', async () => {
+test('run -ver prints version and returns 0', async () => {
   const tool = new ExifTool();
   const cap = captureConsole();
   try {
@@ -92,7 +94,7 @@ Deno.test('run -ver prints version and returns 0', async () => {
   }
 });
 
-Deno.test('run stub path reports not-yet-implemented and returns 1', async () => {
+test('run stub path reports not-yet-implemented and returns 1', async () => {
   const tool = new ExifTool();
   const cap = captureConsole();
   try {
@@ -104,21 +106,21 @@ Deno.test('run stub path reports not-yet-implemented and returns 1', async () =>
   }
 });
 
-Deno.test('ExifTool constructor merges custom options over defaults', () => {
+test('ExifTool constructor merges custom options over defaults', () => {
   const tool = new ExifTool({ verbosity: 3 });
   assertEquals(tool.options.verbosity, 3);
   assertEquals(tool.options.composite, true); // untouched default
 });
 
-Deno.test('readBytes parses an in-memory buffer', async () => {
+test('readBytes parses an in-memory buffer', async () => {
   const tool = new ExifTool();
-  const bytes = await Deno.readFile('assets/01.jpg');
+  const bytes = await readFile('assets/01.jpg');
   const info = await tool.readBytes(bytes);
   assertEquals(info.format, 'JPEG');
   assertEquals(info.tags.Make, 'Canon');
 });
 
-Deno.test('readBytes returns unknown format for garbage', async () => {
+test('readBytes returns unknown format for garbage', async () => {
   const tool = new ExifTool();
   const info = await tool.readBytes(new TextEncoder().encode('not metadata'));
   assertEquals(info.format, 'Unknown');

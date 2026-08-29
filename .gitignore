@@ -3,3 +3,6 @@
 debug.ts
 01.json
 assets/
+dist/
+coverage/
+node_modules/

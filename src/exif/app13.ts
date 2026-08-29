@@ -1,4 +1,4 @@
-import type { TagValue } from '../types.ts';
+import type { TagValue } from '../types.js';
 
 const IPTC_LOOKUP: Record<number, string> = {
   0: 'ApplicationRecordVersion',

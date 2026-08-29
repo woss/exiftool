@@ -1,5 +1,5 @@
-import type { FileInfo } from '../types.ts';
-import type { TagDb } from '../tag-db.ts';
+import type { FileInfo } from '../types.js';
+import type { TagDb } from '../tag-db.js';
 
 /** Optional per-read hints threaded from the CLI down into parsers. */
 export interface ParseHints {

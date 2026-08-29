@@ -1,246 +1,163 @@
+/**
+ * ExifTool-style command-line parsing.
+ *
+ * `parseCliArgs` consumes tokens already normalized by `normalizeArgs`
+ * (ExifTool single-dash long forms mapped onto `--long`). Unknown dash-tokens
+ * fall through as operands so `-TAG=VALUE` write assignments reach runAction
+ * untouched, mirroring the real ExifTool CLI.
+ */
+
 export interface CliOptions {
-  files: string[];
-  json: boolean;
-  xml: boolean;
-  html: boolean;
-  csv: boolean;
-  binary: boolean;
-  verbose: number;
-  quiet: number;
+  json?: boolean;
+  csv?: boolean;
+  xml?: boolean;
+  binary?: boolean;
   dateFormat?: string;
+  groupHeadings?: string | boolean;
+  groupPrefix?: string | boolean;
   coordFormat?: string;
-  groupHeadings?: string;
-  groupPrefix?: string;
-  charset?: string;
-  lang?: string;
-  exclude: string[];
-  extensions: string[];
-  ignoreDirs: string[];
-  recurse: boolean;
-  outputFile?: string;
-  overwriteOriginal: boolean;
-  preserveFileDate: boolean;
-  tagsFromFile?: string;
-  conditions: string[];
-  extractEmbedded: boolean;
-  duplicates: boolean;
-  missingTagValue?: string;
-  listTags?: string;
-  listFileTypes: boolean;
-  listWritable: boolean;
-  listGroups?: number;
-  listRecognized: boolean;
-  listDeletable: boolean;
-  help: boolean;
-  version: boolean;
-  stayOpen: boolean;
-  argfile?: string;
+  if?: string[];
+  verbose?: unknown[];
+  quiet?: unknown[];
+  recurse?: boolean;
+  extension?: string[];
+  ignore?: string[];
+  output?: string;
+  extractEmbedded?: boolean;
+  overwriteOriginal?: boolean;
+  stayOpen?: string | boolean;
+  version?: boolean;
 }
 
-export function parseCliArgs(args: string[]): CliOptions {
-  const opts: CliOptions = {
-    files: [],
-    json: false,
-    xml: false,
-    html: false,
-    csv: false,
-    binary: false,
-    verbose: 0,
-    quiet: 0,
-    exclude: [],
-    extensions: [],
-    ignoreDirs: [],
-    recurse: false,
-    overwriteOriginal: false,
-    preserveFileDate: false,
-    conditions: [],
-    extractEmbedded: false,
-    duplicates: false,
-    listFileTypes: false,
-    listWritable: false,
-    listRecognized: false,
-    listDeletable: false,
-    help: false,
-    version: false,
-    stayOpen: false,
+/** How many values an option consumes; `collect` repeats into an array. */
+interface OptionSpec {
+  arity: 'flag' | 'value' | 'optional';
+  collect?: boolean;
+}
+
+const SPECS: Record<string, OptionSpec> = {
+  json: { arity: 'flag' },
+  csv: { arity: 'flag' },
+  binary: { arity: 'flag' },
+  'date-format': { arity: 'value' },
+  'group-headings': { arity: 'value' },
+  'group-prefix': { arity: 'value' },
+  'coord-format': { arity: 'value' },
+  if: { arity: 'value', collect: true },
+  verbose: { arity: 'flag', collect: true },
+  quiet: { arity: 'flag', collect: true },
+  xml: { arity: 'flag' },
+  output: { arity: 'value' },
+  recurse: { arity: 'flag' },
+  extension: { arity: 'value', collect: true },
+  ignore: { arity: 'value', collect: true },
+  'extract-embedded': { arity: 'flag' },
+  'overwrite-original': { arity: 'flag' },
+  'stay-open': { arity: 'optional' },
+  version: { arity: 'flag' },
+};
+
+/** Single-character short flags (multi-char shorts are pre-normalized). */
+const SHORTS: Record<string, string> = {
+  b: 'binary',
+  d: 'date-format',
+  g: 'group-headings',
+  G: 'group-prefix',
+  c: 'coord-format',
+  j: 'json',
+  v: 'verbose',
+  q: 'quiet',
+  X: 'xml',
+  o: 'output',
+  r: 'recurse',
+  i: 'ignore',
+};
+
+function camelize(name: string): string {
+  return name.replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+}
+
+export function parseCliArgs(argv: string[]): { options: CliOptions; files: string[] } {
+  const options: CliOptions = {};
+  const files: string[] = [];
+  const set = (name: string, value: unknown) => {
+    const key = camelize(name);
+    if (SPECS[name]!.collect) {
+      const bucket = (options as Record<string, unknown[]>)[key] ?? [];
+      bucket.push(value);
+      (options as Record<string, unknown[]>)[key] = bucket;
+    } else {
+      (options as Record<string, unknown>)[key] = value;
+    }
+  };
+  const long = (token: string): string | undefined => {
+    if (!token.startsWith('--')) return undefined;
+    const name = token.slice(2).split('=', 1)[0]!;
+    return name in SPECS ? name : undefined;
   };
 
-  let i = 0;
-  while (i < args.length) {
-    const arg = args[i];
-    if (!arg.startsWith('-')) {
-      opts.files.push(arg);
-      i++;
-      continue;
-    }
-
-    const lower = arg.toLowerCase();
-
-    if (lower === '--' || lower === '\u2212\u2212') {
-      opts.files.push(...args.slice(i + 1));
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i]!;
+    if (arg === '--') {
+      files.push(...argv.slice(i + 1));
       break;
     }
-
-    if (lower === '-h' || lower === '-help') {
-      opts.help = true;
-      i++;
+    const name = !arg.startsWith('-')
+      ? undefined // plain operands (file paths, TAG=VALUE) are never options
+      : arg.startsWith('--')
+        ? long(arg)
+        : SHORTS[arg.slice(1, 2)];
+    if (!name) {
+      // Unknown dash-token: operand (e.g. -TAG=VALUE write assignments).
+      files.push(arg);
       continue;
     }
-    if (lower === '-ver' || lower === '-version') {
-      opts.version = true;
-      i++;
+    const spec = SPECS[name]!;
+    const inline = arg.startsWith('--') && arg.includes('=') ? arg.split('=', 2)[1] : undefined;
+    if (spec.arity === 'flag') {
+      if (inline !== undefined) throw new Error(`Option --${name} does not take a value`);
+      set(name, true);
       continue;
     }
-    if (lower === '-json' || lower === '-j') {
-      opts.json = true;
-      i++;
-      continue;
+    let value: string | undefined = inline;
+    if (value === undefined) {
+      const next = argv[i + 1];
+      if (spec.arity === 'value') {
+        if (next === undefined) throw new Error(`Option --${name} requires a value`);
+        value = next;
+        i++;
+      } else if (next !== undefined && !next.startsWith('-')) {
+        value = next;
+        i++;
+      } else {
+        value = undefined;
+      }
     }
-    if (lower === '-xml' || lower === '-x') {
-      opts.xml = true;
-      i++;
-      continue;
-    }
-    if (lower === '-html' || lower === '-h') {
-      opts.html = true;
-      i++;
-      continue;
-    }
-    if (lower === '-csv') {
-      opts.csv = true;
-      i++;
-      continue;
-    }
-    if (lower === '-b' || lower === '-binary') {
-      opts.binary = true;
-      i++;
-      continue;
-    }
-    if (lower === '-n') {
-      opts.json = true;
-      i++;
-      continue;
-    }
-    if (lower === '-r' || lower === '-recurse') {
-      opts.recurse = true;
-      i++;
-      continue;
-    }
-    if (lower === '-v') {
-      opts.verbose++;
-      i++;
-      continue;
-    }
-    if (lower === '-q') {
-      opts.quiet++;
-      i++;
-      continue;
-    }
-    if (lower === '-duplicates' || lower === '-a') {
-      opts.duplicates = true;
-      i++;
-      continue;
-    }
-    if (lower === '-ee' || lower === '-extractembedded') {
-      opts.extractEmbedded = true;
-      i++;
-      continue;
-    }
-    if (lower === '-overwrite_original') {
-      opts.overwriteOriginal = true;
-      i++;
-      continue;
-    }
-
-    if (lower === '-d' || lower === '-dateformat') {
-      opts.dateFormat = args[i + 1];
-      i += 2;
-      continue;
-    }
-    if (lower === '-c' || lower === '-coordformat') {
-      opts.coordFormat = args[i + 1];
-      i += 2;
-      continue;
-    }
-    if (lower === '-charset') {
-      opts.charset = args[i + 1];
-      i += 2;
-      continue;
-    }
-    if (lower === '-lang') {
-      opts.lang = args[i + 1];
-      i += 2;
-      continue;
-    }
-    if (lower === '-o' || lower === '-out') {
-      opts.outputFile = args[i + 1];
-      i += 2;
-      continue;
-    }
-    if (lower === '-if') {
-      opts.conditions.push(args[i + 1]);
-      i += 2;
-      continue;
-    }
-    if (lower === '-tagsfromfile') {
-      opts.tagsFromFile = args[i + 1];
-      i += 2;
-      continue;
-    }
-
-    if (lower.startsWith('-ext') || lower.startsWith('-extension')) {
-      opts.extensions.push(args[i + 1]);
-      i += 2;
-      continue;
-    }
-    if (lower === '-i' || lower === '-ignore') {
-      opts.ignoreDirs.push(args[i + 1]);
-      i += 2;
-      continue;
-    }
-    if (lower === '-x' || lower === '-exclude') {
-      opts.exclude.push(args[i + 1]);
-      i += 2;
-      continue;
-    }
-
-    const listMatch = arg.match(/^-list([wfrdxg]?\d*)$/i);
-    if (listMatch) {
-      const type = listMatch[1]?.toLowerCase() ?? '';
-      if (type === 'f') opts.listFileTypes = true;
-      else if (type === 'w') opts.listWritable = true;
-      else if (type === 'r') opts.listRecognized = true;
-      else if (type === 'd') opts.listDeletable = true;
-      else if (type.startsWith('g')) opts.listGroups = parseInt(type.slice(1)) || 0;
-      else opts.listTags = type;
-      i++;
-      continue;
-    }
-
-    // -g/-G/-groupNames flags are handled by cli.ts via @cliffy/command
-
-    if (lower === '-@') {
-      opts.argfile = args[i + 1];
-      i += 2;
-      continue;
-    }
-    if (lower === '-stay_open') {
-      opts.stayOpen = args[i + 1] === 'true';
-      i += 2;
-      continue;
-    }
-    if (lower === '-common_args') {
-      i++;
-      continue;
-    }
-    if (lower === '-execute') {
-      i++;
-      continue;
-    }
-
-    opts.files.push(arg);
-    i++;
+    set(name, spec.arity === 'optional' && value === undefined ? true : value);
   }
+  return { options, files };
+}
 
-  return opts;
+export function normalizeArgs(args: string[]): string[] {
+  return args.flatMap((a) => {
+    // TAG=VALUE write assignments pass through as operands
+    if (/^-?[A-Za-z][A-Za-z0-9_]*=/.test(a)) return [a];
+    if (a === '-overwrite_original' || a === '--overwrite_original') {
+      return ['--overwrite-original'];
+    }
+    if (a === '--ee') return ['--extract-embedded'];
+    if (a.startsWith('-') && !a.startsWith('--') && a.length > 2) {
+      if (a === '-ver') return ['--version'];
+      if (a === '-stay_open' || a === '--stay_open') return ['--stay-open'];
+      // -ext maps to the long-only --extension option
+      if (a === '-ext') return ['--extension'];
+      // -ee maps to the long-only --extract-embedded option
+      if (a === '-ee') return ['--extract-embedded'];
+      if (/^-[gG]\d$/.test(a)) return [a.slice(0, 2), a.slice(2)];
+      return ['--' + a.slice(1)];
+    }
+    if (a === '-g') return ['--group-headings', '0'];
+    if (a === '-G') return ['--group-prefix', '1'];
+    return [a];
+  });
 }

@@ -1,5 +1,6 @@
-import { assertEquals } from '../deps.ts';
-import { assertThresholds, parseLcov } from './coverage-audit.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../src/test/asserts.js';
+import { assertThresholds, parseLcov } from './coverage-audit.js';
 
 const SAMPLE = `
 SF:/Users/dev/projects/exiftool-ts/src/exif/a.ts
@@ -20,14 +21,14 @@ FNH:0
 end_of_record
 `;
 
-Deno.test('parseLcov computes per-module line and function percentages', () => {
+test('parseLcov computes per-module line and function percentages', () => {
   const modules = parseLcov(SAMPLE);
   assertEquals(modules.length, 2);
   assertEquals(modules[0], { file: 'src/exif/a.ts', linePct: 100, functionPct: 100 });
   assertEquals(modules[1], { file: 'src/exif/b.ts', linePct: 50, functionPct: 0 });
 });
 
-Deno.test('assertThresholds reports each violated threshold per module', () => {
+test('assertThresholds reports each violated threshold per module', () => {
   const modules = parseLcov(SAMPLE);
   const failures = assertThresholds(modules, 100, 100);
   assertEquals(failures.length, 2);
@@ -35,12 +36,12 @@ Deno.test('assertThresholds reports each violated threshold per module', () => {
   assertEquals(failures.some((f) => f.includes('function 0%')), true);
 });
 
-Deno.test('assertThresholds passes fully compliant modules', () => {
+test('assertThresholds passes fully compliant modules', () => {
   const modules = parseLcov(SAMPLE).filter((m) => m.linePct === 100);
   assertEquals(assertThresholds(modules, 100, 100), []);
 });
 
-Deno.test('parseLcov treats a module with zero functions as trivially complete', () => {
+test('parseLcov treats a module with zero functions as trivially complete', () => {
   const modules = parseLcov('SF:/repo/src/types.ts\nLF:4\nLH:4\nFNF:0\nFNH:0\nend_of_record\n');
   assertEquals(modules[0].functionPct, 100);
 });

@@ -1,20 +1,23 @@
-import { assertEquals } from '../../deps.ts';
-import { ExifTool } from '../exiftool.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../../src/test/asserts.js';
+import { ExifTool } from '../exiftool.js';
 import {
   UnsupportedFormatError,
   writeTags,
   writeTagsWithTmp,
-} from './pipeline.ts';
+} from './pipeline.js';
+import { tempFile } from '../test/tmp.js';
+import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 
 const tool = new ExifTool();
 
 async function makeTmpJpeg(): Promise<string> {
-  const tmp = await Deno.makeTempFile({ suffix: '.jpg' });
-  await Deno.writeFile(tmp, await Deno.readFile('assets/01.jpg'));
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
   return tmp;
 }
 
-Deno.test('writeTags updates tags and creates an _original backup by default', async () => {
+test('writeTags updates tags and creates an _original backup by default', async () => {
   const file = await makeTmpJpeg();
   try {
     const result = await writeTags(file, { Make: 'Zeta' });
@@ -25,32 +28,32 @@ Deno.test('writeTags updates tags and creates an _original backup by default', a
     const info = await tool.read(file);
     assertEquals(info.tags.Make, 'Zeta');
   } finally {
-    await Deno.remove(file);
-    await Deno.remove(`${file}_original`);
+    await rm(file, { force: true });
+    await rm(`${file}_original`, { force: true });
   }
 });
 
-Deno.test('writeTags with overwriteOriginal skips the backup', async () => {
+test('writeTags with overwriteOriginal skips the backup', async () => {
   const file = await makeTmpJpeg();
   try {
     const result = await writeTags(file, { Model: 'Omni' }, { overwriteOriginal: true });
     assertEquals(result.backup, undefined);
     let exists = true;
     try {
-      await Deno.stat(`${file}_original`);
+      await stat(`${file}_original`);
     } catch {
       exists = false;
     }
     assertEquals(exists, false);
   } finally {
-    await Deno.remove(file);
+    await rm(file, { force: true });
   }
 });
 
-Deno.test('writeTags rejects unsupported formats leaving the file untouched', async () => {
-  const txt = await Deno.makeTempFile({ suffix: '.txt' });
+test('writeTags rejects unsupported formats leaving the file untouched', async () => {
+  const txt = await tempFile('.txt');
   try {
-    await Deno.writeTextFile(txt, 'plain');
+    await writeFile(txt, 'plain');
     let error: unknown;
     try {
       await writeTags(txt, { Make: 'X' });
@@ -58,17 +61,17 @@ Deno.test('writeTags rejects unsupported formats leaving the file untouched', as
       error = e;
     }
     assertEquals(error instanceof UnsupportedFormatError, true);
-    assertEquals(await Deno.readTextFile(txt), 'plain');
+    assertEquals(await readFile(txt, 'utf8'), 'plain');
   } finally {
-    await Deno.remove(txt);
+    await rm(txt, { force: true });
   }
 });
 
-Deno.test('writeTagsWithTmp cleans the temp path when writing fails', async () => {
+test('writeTagsWithTmp cleans the temp path when writing fails', async () => {
   const file = await makeTmpJpeg();
   const blockedTmp = `${file}.blocked`;
   // A directory at the temp path makes writeFile fail deterministically.
-  await Deno.mkdir(blockedTmp);
+  await mkdir(blockedTmp);
   try {
     let error: unknown;
     try {
@@ -81,18 +84,18 @@ Deno.test('writeTagsWithTmp cleans the temp path when writing fails', async () =
     // The pipeline's cleanup already removed the blocked temp path.
     let tmpGone = true;
     try {
-      await Deno.stat(blockedTmp);
+      await stat(blockedTmp);
       tmpGone = false;
     } catch {
       // expected
     }
     assertEquals(tmpGone, true);
     // Original survived.
-    assertEquals((await Deno.readFile(file)).length > 0, true);
-    await Deno.remove(file);
+    assertEquals((await readFile(file)).length > 0, true);
+    await rm(file, { force: true });
   } finally {
     try {
-      await Deno.remove(file);
+      await rm(file, { force: true });
     } catch {
       // removed in success path
     }

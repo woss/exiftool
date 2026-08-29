@@ -1,5 +1,6 @@
-import { assertEquals } from '../../deps.ts';
-import { parseAPP13 } from './app13.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../../src/test/asserts.js';
+import { parseAPP13 } from './app13.js';
 
 const enc = new TextEncoder();
 
@@ -45,7 +46,7 @@ function photoshopResource(resId: number, data: Uint8Array, name = ''): Uint8Arr
   return concatBytes(parts);
 }
 
-Deno.test('parseAPP13 decodes record 2 keywords, object name and caption', () => {
+test('parseAPP13 decodes record 2 keywords, object name and caption', () => {
   const iptc = concatBytes([
     iptcField(2, 0, b(0x00, 0x04)), // ApplicationRecordVersion
     iptcField(2, 5, 'Scene'), // ObjectName
@@ -61,7 +62,7 @@ Deno.test('parseAPP13 decodes record 2 keywords, object name and caption', () =>
   });
 });
 
-Deno.test('parseAPP13 decodes by-line, copyright notice and coded character set', () => {
+test('parseAPP13 decodes by-line, copyright notice and coded character set', () => {
   const iptc = concatBytes([
     iptcField(1, 90, '\x1b%G'), // CodedCharacterSet — value is replaced with the fixed 'UTF8'
     iptcField(2, 80, 'Jane Doe'), // By-line
@@ -74,7 +75,7 @@ Deno.test('parseAPP13 decodes by-line, copyright notice and coded character set'
   });
 });
 
-Deno.test('parseAPP13 keeps date/time created records under their raw names', () => {
+test('parseAPP13 keeps date/time created records under their raw names', () => {
   const iptc = concatBytes([
     iptcField(2, 55, '2026:08:25'), // DateCreated
     iptcField(2, 60, '12:34:56'), // TimeCreated
@@ -85,7 +86,7 @@ Deno.test('parseAPP13 keeps date/time created records under their raw names', ()
   });
 });
 
-Deno.test('parseAPP13 ignores datasets whose numbers are not in the lookup table', () => {
+test('parseAPP13 ignores datasets whose numbers are not in the lookup table', () => {
   // Dataset 45 (0x2D) has no mapping in IPTC_LOOKUP, so it is skipped entirely.
   const iptc = concatBytes([
     iptcField(2, 25, 'kept'),
@@ -95,14 +96,14 @@ Deno.test('parseAPP13 ignores datasets whose numbers are not in the lookup table
   assertEquals(parseAPP13(photoshopResource(0x0404, iptc)), { Keywords: ['kept'] });
 });
 
-Deno.test('parseAPP13 decodes Photoshop display units resources', () => {
+test('parseAPP13 decodes Photoshop display units resources', () => {
   assertEquals(
     parseAPP13(concatBytes([photoshopResource(0x0417, b(2)), photoshopResource(0x0418, b(1))])),
     { DisplayedUnitsX: 'inches', DisplayedUnitsY: 'cm' },
   );
 });
 
-Deno.test('parseAPP13 skips unknown resources and survives odd-length padding', () => {
+test('parseAPP13 skips unknown resources and survives odd-length padding', () => {
   // Unknown resource id 0x2710 with odd-size data must be stepped over (with
   // its pad byte) so that the following resource still parses.
   const block = concatBytes([
@@ -112,19 +113,19 @@ Deno.test('parseAPP13 skips unknown resources and survives odd-length padding', 
   assertEquals(parseAPP13(block), { DisplayedUnitsX: 'inches' });
 });
 
-Deno.test('parseAPP13 handles non-empty Pascal names in resources', () => {
+test('parseAPP13 handles non-empty Pascal names in resources', () => {
   const iptc = iptcField(2, 5, 'Named');
   assertEquals(parseAPP13(photoshopResource(0x0404, iptc, 'AB')), { ObjectName: 'Named' });
   assertEquals(parseAPP13(photoshopResource(0x0404, iptc, 'ABC')), { ObjectName: 'Named' });
 });
 
-Deno.test('parseAPP13 returns empty for buffers shorter than one resource header', () => {
+test('parseAPP13 returns empty for buffers shorter than one resource header', () => {
   assertEquals(parseAPP13(new Uint8Array(0)), {});
   assertEquals(parseAPP13(b(0x38)), {});
   assertEquals(parseAPP13(enc.encode('8BIM\x00')), {});
 });
 
-Deno.test('parseAPP13 returns empty when the signature is not 8BIM', () => {
+test('parseAPP13 returns empty when the signature is not 8BIM', () => {
   assertEquals(parseAPP13(enc.encode('hello world this is not a photoshop block')), {});
   assertEquals(
     parseAPP13(concatBytes([b(0x38, 0x42, 0x49, 0x58), u16(0x0404), b(0), u32(4), b(1, 2, 3, 4)])),
@@ -132,7 +133,7 @@ Deno.test('parseAPP13 returns empty when the signature is not 8BIM', () => {
   );
 });
 
-Deno.test('parseAPP13 stops cleanly on a truncated resource header or size overrun', () => {
+test('parseAPP13 stops cleanly on a truncated resource header or size overrun', () => {
   // Header complete but size field cut off.
   assertEquals(parseAPP13(enc.encode('8BIM\x04\x04\x00\x00')), {});
   // Declared size exceeds the bytes actually present.
@@ -142,7 +143,7 @@ Deno.test('parseAPP13 stops cleanly on a truncated resource header or size overr
   );
 });
 
-Deno.test('parseAPP13 keeps fields parsed before a truncated IPTC dataset without throwing', () => {
+test('parseAPP13 keeps fields parsed before a truncated IPTC dataset without throwing', () => {
   // Second keyword claims 50 payload bytes but only 2 are present.
   const truncated = concatBytes([
     iptcField(2, 25, 'sun'),
@@ -153,12 +154,12 @@ Deno.test('parseAPP13 keeps fields parsed before a truncated IPTC dataset withou
   assertEquals(parseAPP13(photoshopResource(0x0404, truncated)), { Keywords: ['sun'] });
 });
 
-Deno.test('parseAPP13 ignores IPTC payloads that do not start with a dataset marker', () => {
+test('parseAPP13 ignores IPTC payloads that do not start with a dataset marker', () => {
   const data = photoshopResource(0x0404, b(0x00, 0x01, 0x02, 0x03, 0x04));
   assertEquals(parseAPP13(data), {});
 });
 
-Deno.test('parseAPP13 maps non-inch display unit codes to centimetres', () => {
+test('parseAPP13 maps non-inch display unit codes to centimetres', () => {
   const data = concatBytes([
     photoshopResource(0x0417, b(1)),
     photoshopResource(0x0418, b(0)),
@@ -166,7 +167,7 @@ Deno.test('parseAPP13 maps non-inch display unit codes to centimetres', () => {
   assertEquals(parseAPP13(data), { DisplayedUnitsX: 'cm', DisplayedUnitsY: 'cm' });
 });
 
-Deno.test('parseAPP13 maps inch codes for both display unit axes', () => {
+test('parseAPP13 maps inch codes for both display unit axes', () => {
   const data = concatBytes([
     photoshopResource(0x0417, b(2)),
     photoshopResource(0x0418, b(2)),
@@ -174,17 +175,17 @@ Deno.test('parseAPP13 maps inch codes for both display unit axes', () => {
   assertEquals(parseAPP13(data), { DisplayedUnitsX: 'inches', DisplayedUnitsY: 'inches' });
 });
 
-Deno.test('parseAPP13 keeps earlier fields when an IPTC dataset length overruns the buffer', () => {
+test('parseAPP13 keeps earlier fields when an IPTC dataset length overruns the buffer', () => {
   const truncated = concatBytes([b(0x1c, 2, 120), u16(5)]); // declares 5 bytes that never arrive
   const data = photoshopResource(0x0404, concatBytes([iptcField(2, 120, 'Caption'), truncated]));
   assertEquals(parseAPP13(data), { 'Caption-Abstract': 'Caption' });
 });
 
-Deno.test('parseAPP13 stops cleanly when the buffer ends right after an 8BIM signature', () => {
+test('parseAPP13 stops cleanly when the buffer ends right after an 8BIM signature', () => {
   assertEquals(parseAPP13(concatBytes([enc.encode('8BIM'), b(0x04)])), {});
 });
 
-Deno.test('parseAPP13 skips Photoshop thumbnail resources and keeps walking', () => {
+test('parseAPP13 skips Photoshop thumbnail resources and keeps walking', () => {
   const data = concatBytes([
     photoshopResource(0x040c, b(1, 2, 3, 4)),
     photoshopResource(0x0417, b(2)),

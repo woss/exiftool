@@ -1,18 +1,19 @@
-import { assertEquals } from '../../deps.ts';
-import { buildTiff } from '../exif/tiff-builder.ts';
-import { supportedWriteFormats } from './pipeline.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../../src/test/asserts.js';
+import { buildTiff } from '../exif/tiff-builder.js';
+import { supportedWriteFormats } from './pipeline.js';
 import {
   avifWriter,
   jpegWriter,
   pngWriter,
   UnsupportedFormatError,
   webpWriter,
-} from './writers.ts';
-import { crc32 } from '../utils/crc32.ts';
-import { jpegParser } from '../format/jpeg.ts';
-import { pngParser } from '../format/png.ts';
-import { webpParser } from '../format/webp.ts';
-import { avifParser } from '../format/avif.ts';
+} from './writers.js';
+import { crc32 } from '../utils/crc32.js';
+import { jpegParser } from '../format/jpeg.js';
+import { pngParser } from '../format/png.js';
+import { webpParser } from '../format/webp.js';
+import { avifParser } from '../format/avif.js';
 
 function u16be(v: number): number[] {
   return [(v >> 8) & 255, v & 255];
@@ -46,7 +47,7 @@ const COM = [...[0xFF, 0xFE], ...u16be(5), 0x68, 0x69, 0x21]; // "hi!"
   return new Uint8Array(parts.flat());
 }
 
-Deno.test('jpegWriter rebuilds APP1 EXIF and preserves other segments', async () => {
+test('jpegWriter rebuilds APP1 EXIF and preserves other segments', async () => {
   const out = jpegWriter(buildJpeg(true), { Make: 'NewCo', Orientation: 1 });
   let app1Count = 0;
   for (let i = 2; i < out.bytes.length - 1; i++) {
@@ -60,13 +61,13 @@ Deno.test('jpegWriter rebuilds APP1 EXIF and preserves other segments', async ()
   assertEquals(info.tags.Make, 'NewCo');
 });
 
-Deno.test('jpegWriter inserts EXIF into files without one', async () => {
+test('jpegWriter inserts EXIF into files without one', async () => {
   const out = jpegWriter(buildJpeg(false), { Make: 'Fresh' });
   const info = await jpegParser.parse(out.bytes, '(test)');
   assertEquals(info.tags.Make, 'Fresh');
 });
 
-Deno.test('jpegWriter rejects non-JPEG input', () => {
+test('jpegWriter rejects non-JPEG input', () => {
   try {
     jpegWriter(new TextEncoder().encode('nope'), { Make: 'X' });
     throw new Error('should have thrown');
@@ -93,7 +94,7 @@ function buildPng(withExif: boolean): Uint8Array {
   ]);
 }
 
-Deno.test('pngWriter replaces eXIf chunk after IHDR with valid CRCs', async () => {
+test('pngWriter replaces eXIf chunk after IHDR with valid CRCs', async () => {
   const out = pngWriter(buildPng(true), { Make: 'PngCo' });
   const dv = new DataView(out.bytes.buffer);
   const found: string[] = [];
@@ -116,13 +117,13 @@ Deno.test('pngWriter replaces eXIf chunk after IHDR with valid CRCs', async () =
   assertEquals(info.tags.Make, 'PngCo');
 });
 
-Deno.test('pngWriter adds eXIf to files without one', async () => {
+test('pngWriter adds eXIf to files without one', async () => {
   const out = pngWriter(buildPng(false), { Make: 'PngNew' });
   const info = await pngParser.parse(out.bytes, '(test)');
   assertEquals(info.tags.Make, 'PngNew');
 });
 
-Deno.test('pngWriter rejects non-PNG input', () => {
+test('pngWriter rejects non-PNG input', () => {
   try {
     pngWriter(new Uint8Array(32), { Make: 'X' });
     throw new Error('should have thrown');
@@ -151,14 +152,14 @@ function buildWebp(vp8xFlags = 0x00): Uint8Array {
   ]);
 }
 
-Deno.test('webpWriter sets the EXIF flag and swaps the EXIF chunk', async () => {
+test('webpWriter sets the EXIF flag and swaps the EXIF chunk', async () => {
   const out = webpWriter(buildWebp(), { Make: 'WebpCo' });
   const info = await webpParser.parse(out.bytes, '(test)');
   assertEquals(info.tags.WebP_EXIF, true);
   assertEquals(info.tags.Make, 'WebpCo');
 });
 
-Deno.test('webpWriter requires an existing VP8X chunk', () => {
+test('webpWriter requires an existing VP8X chunk', () => {
   const noVp8x = new Uint8Array([
     ...chars('RIFF'),
     ...u32le(4 + 12),
@@ -173,7 +174,7 @@ Deno.test('webpWriter requires an existing VP8X chunk', () => {
   }
 });
 
-Deno.test('webpWriter rejects non-WebP input', () => {
+test('webpWriter rejects non-WebP input', () => {
   try {
     webpWriter(new Uint8Array(16), { Make: 'X' });
     throw new Error('should have thrown');
@@ -197,20 +198,20 @@ function buildAvif(withMeta: boolean): Uint8Array {
   return new Uint8Array([...ftyp, ...(withMeta ? meta : []), ...box('mdat', [9, 9, 9])]);
 }
 
-Deno.test('avifWriter replaces the Exif box inside existing meta', async () => {
+test('avifWriter replaces the Exif box inside existing meta', async () => {
   const out = avifWriter(buildAvif(true), { Make: 'AvifCo' });
   const info = await avifParser.parse(out.bytes, '(test)');
   assertEquals(info.tags.Make, 'AvifCo');
   assertEquals(String.fromCharCode(...out.bytes).includes('pict'), true);
 });
 
-Deno.test('avifWriter appends a fresh meta box after ftyp when absent', async () => {
+test('avifWriter appends a fresh meta box after ftyp when absent', async () => {
   const out = avifWriter(buildAvif(false), { Make: 'AvifNew' });
   const info = await avifParser.parse(out.bytes, '(test)');
   assertEquals(info.tags.Make, 'AvifNew');
 });
 
-Deno.test('avifWriter rejects non-ISOBMFF input', () => {
+test('avifWriter rejects non-ISOBMFF input', () => {
   try {
     avifWriter(new Uint8Array(64), { Make: 'X' });
     throw new Error('should have thrown');
@@ -219,11 +220,11 @@ Deno.test('avifWriter rejects non-ISOBMFF input', () => {
   }
 });
 
-Deno.test('supportedWriteFormats lists the four containers', () => {
+test('supportedWriteFormats lists the four containers', () => {
   assertEquals(supportedWriteFormats(), ['JPEG', 'PNG', 'WebP', 'AVIF']);
 });
 
-Deno.test('jpegWriter skips RST markers while rebuilding', async () => {
+test('jpegWriter skips RST markers while rebuilding', async () => {
   const base = buildJpeg(true);
   const withRst = new Uint8Array(base.length + 2);
   withRst.set(base.subarray(0, 20), 0);
@@ -234,7 +235,7 @@ Deno.test('jpegWriter skips RST markers while rebuilding', async () => {
   assertEquals(info.tags.Make, 'RstCo');
 });
 
-Deno.test('pngWriter stops at a truncated trailing chunk but keeps valid output', async () => {
+test('pngWriter stops at a truncated trailing chunk but keeps valid output', async () => {
   const base = buildPng(true);
   const truncated = new Uint8Array([...base, ...u32be(999), 1, 2, 3, 4, 5, 6, 7, 8]);
   const out = pngWriter(truncated, { Make: 'TruncCo' });
@@ -242,7 +243,7 @@ Deno.test('pngWriter stops at a truncated trailing chunk but keeps valid output'
   assertEquals(info.tags.Make, 'TruncCo');
 });
 
-Deno.test('pngWriter rejects files without an IHDR chunk', () => {
+test('pngWriter rejects files without an IHDR chunk', () => {
   const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
   const noIhdr = new Uint8Array([
     ...sig,
@@ -258,7 +259,7 @@ Deno.test('pngWriter rejects files without an IHDR chunk', () => {
 });
 
 
-Deno.test('avifWriter handles a zero-terminated final box and malformed meta children', async () => {
+test('avifWriter handles a zero-terminated final box and malformed meta children', async () => {
   // size==0 on the last box means "extends to end of stream"; a meta child
   // declaring an impossible size terminates the child scan without throwing.
   const ftyp = box('ftyp', [...chars('avif'), 0, 0, 0, 0]);
@@ -273,7 +274,7 @@ Deno.test('avifWriter handles a zero-terminated final box and malformed meta chi
   assertEquals(info.tags.Make, 'ZeroAv');
 });
 
-Deno.test('avifParser skips malformed meta children in the original input', async () => {
+test('avifParser skips malformed meta children in the original input', async () => {
   const ftyp = box('ftyp', [...chars('avif'), 0, 0, 0, 0]);
   const exif = box('Exif', [0, 0, 0, 4, ...buildTiff({ Make: 'OldAv' }).bytes]);
   const hdlr = box('hdlr', [0, 0, 0, 0, 0, 0, 0, 0, ...chars('pict'), 0]);

@@ -50,9 +50,9 @@ export async function stayOpenLoop(
   return { batches, shutdownRequested };
 }
 
-/** Splits a byte stream into newline-terminated lines. */
+/** Splits a byte stream (web ReadableStream or node stdin) into newline-terminated lines. */
 export async function* readLines(
-  stream: ReadableStream<Uint8Array>,
+  stream: AsyncIterable<Uint8Array>,
 ): AsyncGenerator<string, void, unknown> {
   const decoder = new TextDecoder();
   let buf = '';

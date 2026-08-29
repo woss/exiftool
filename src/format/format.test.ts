@@ -1,10 +1,11 @@
-import { assertEquals } from '../../deps.ts';
-import { detectParser } from './mod.ts';
-import type { FileInfo } from '../types.ts';
-import './jpeg.ts';
-import './png.ts';
-import './webp.ts';
-import './avif.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../../src/test/asserts.js';
+import { detectParser } from './mod.js';
+import type { FileInfo } from '../types.js';
+import './jpeg.js';
+import './png.js';
+import './webp.js';
+import './avif.js';
 
 function makeTiffExif(
   tags: Record<number, { type: number; value: number | string }>,
@@ -114,7 +115,7 @@ function makeTiffExif(
   return result;
 }
 
-Deno.test('detectParser JPEG', () => {
+test('detectParser JPEG', () => {
   const bytes = new Uint8Array([
     0xff,
     0xd8,
@@ -132,7 +133,7 @@ Deno.test('detectParser JPEG', () => {
   assertEquals(detectParser(bytes)?.format, 'JPEG');
 });
 
-Deno.test('detectParser PNG', () => {
+test('detectParser PNG', () => {
   const bytes = new Uint8Array([
     0x89,
     0x50,
@@ -150,7 +151,7 @@ Deno.test('detectParser PNG', () => {
   assertEquals(detectParser(bytes)?.format, 'PNG');
 });
 
-Deno.test('detectParser WebP', () => {
+test('detectParser WebP', () => {
   const bytes = new Uint8Array([
     0x52,
     0x49,
@@ -168,7 +169,7 @@ Deno.test('detectParser WebP', () => {
   assertEquals(detectParser(bytes)?.format, 'WebP');
 });
 
-Deno.test('detectParser AVIF', () => {
+test('detectParser AVIF', () => {
   const bytes = new Uint8Array([
     0x00,
     0x00,
@@ -194,7 +195,7 @@ Deno.test('detectParser AVIF', () => {
   assertEquals(detectParser(bytes)?.format, 'AVIF');
 });
 
-Deno.test('JPEG parse — COM and SOF0', async () => {
+test('JPEG parse — COM and SOF0', async () => {
   const encoder = new TextEncoder();
   const comData = encoder.encode('Test comment');
   const comSegLen = 2 + comData.length;
@@ -231,7 +232,7 @@ Deno.test('JPEG parse — COM and SOF0', async () => {
   assertEquals(result.tags['ImageHeight'], 480);
 });
 
-Deno.test('JPEG parse — EXIF TIFF APP1', async () => {
+test('JPEG parse — EXIF TIFF APP1', async () => {
   const tiff = makeTiffExif({
     0x010f: { type: 2, value: 'TestMake' },
     0x0110: { type: 2, value: 'TestModel' },
@@ -262,7 +263,7 @@ Deno.test('JPEG parse — EXIF TIFF APP1', async () => {
   assertEquals(result.tags['Orientation'], 'Horizontal (normal)');
 });
 
-Deno.test('PNG parse — IHDR and eXIf', async () => {
+test('PNG parse — IHDR and eXIf', async () => {
   const encoder = new TextEncoder();
   const ihdrData = new Uint8Array(13);
   new DataView(ihdrData.buffer).setUint32(0, 100, false); // width
@@ -326,7 +327,7 @@ Deno.test('PNG parse — IHDR and eXIf', async () => {
   assertEquals(result.tags['Model'], 'PNGModel');
 });
 
-Deno.test('avif: parses minimal ftyp+mdat without hanging', async () => {
+test('avif: parses minimal ftyp+mdat without hanging', async () => {
   const encoder = new TextEncoder();
 
   // ftyp box: size=16, type='ftyp', major brand 'avif', minor version 0
@@ -355,7 +356,7 @@ Deno.test('avif: parses minimal ftyp+mdat without hanging', async () => {
   assertEquals(elapsedMs < 1000, true);
 });
 
-Deno.test('avif: degenerate extended-size box (ext size 0) terminates cleanly', async () => {
+test('avif: degenerate extended-size box (ext size 0) terminates cleanly', async () => {
   const encoder = new TextEncoder();
 
   // ftyp box: size=16, type='ftyp', major brand 'avif', minor version 0

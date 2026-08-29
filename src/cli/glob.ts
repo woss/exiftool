@@ -1,3 +1,5 @@
+import { readdir, stat as fsStat } from 'node:fs/promises';
+import type { Stats } from 'node:fs';
 export interface ExpandOptions {
   recurse: boolean;
   extensions?: string[];
@@ -19,14 +21,14 @@ export async function expandInputs(
   const ignoreDirs = opts.ignoreDirs ?? [];
   const out: string[] = [];
   for (const input of inputs) {
-    let stat: Deno.FileInfo;
+    let stat: Stats;
     try {
-      stat = await Deno.stat(input);
+      stat = await fsStat(input);
     } catch {
       out.push(input);
       continue;
     }
-    if (!stat.isDirectory) {
+    if (!stat.isDirectory()) {
       out.push(input);
       continue;
     }
@@ -50,13 +52,13 @@ async function walkDir(
   const base = dir.endsWith('/') ? dir : `${dir}/`;
   const files: string[] = [];
   const dirs: string[] = [];
-  for await (const entry of Deno.readDir(dir)) {
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
     // Symlinks are skipped outright, which also makes directory cycles
     // impossible without any visited-set bookkeeping.
-    if (entry.isSymlink) continue;
-    if (entry.isFile) {
+    if (entry.isSymbolicLink()) continue;
+    if (entry.isFile()) {
       files.push(entry.name);
-    } else if (entry.isDirectory && !opts.ignoreDirs.includes(entry.name)) {
+    } else if (entry.isDirectory() && !opts.ignoreDirs.includes(entry.name)) {
       dirs.push(entry.name);
     }
   }

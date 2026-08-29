@@ -1,4 +1,4 @@
-import type { TagValue } from '../types.ts';
+import type { TagValue } from '../types.js';
 
 export interface BuildTiffResult {
   bytes: Uint8Array;

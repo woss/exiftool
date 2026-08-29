@@ -11,19 +11,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - uses: denoland/setup-deno@v2
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          deno-version: v2.x
-
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
       - name: Type check
-        run: deno check mod.ts cli.ts src/**/*.ts
-
-      - name: Lint
-        run: deno lint
-
-      - name: Format check
-        run: deno fmt --check
-
-      - name: Run tests
-        run: deno test -A
+        run: pnpm check
+      - name: Tests
+        run: pnpm test
+      - name: Coverage audit (100% line/function)
+        run: pnpm coverage-audit

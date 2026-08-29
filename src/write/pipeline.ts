@@ -1,5 +1,6 @@
-import type { TagValue } from '../types.ts';
-import { detectParser } from '../format/mod.ts';
+import { copyFile, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import type { TagValue } from '../types.js';
+import { detectParser } from '../format/mod.js';
 import {
   avifWriter,
   jpegWriter,
@@ -7,7 +8,7 @@ import {
   webpWriter,
   UnsupportedFormatError,
   type ContainerWriter,
-} from './writers.ts';
+} from './writers.js';
 
 export interface WriteOptions {
   /** Skip creating a `<file>_original` backup copy. */
@@ -56,7 +57,7 @@ export async function writeTagsWithTmp(
   opts: WriteOptions,
   tmp: string,
 ): Promise<WriteResult> {
-  const original = await Deno.readFile(filePath);
+  const original = await readFile(filePath);
   const parser = detectParser(original);
   if (!parser || !WRITERS[parser.format]) {
     throw new UnsupportedFormatError(
@@ -67,15 +68,15 @@ export async function writeTagsWithTmp(
 
   let backup: string | undefined;
   try {
-    await Deno.writeFile(tmp, outcome.bytes);
+    await writeFile(tmp, outcome.bytes);
     if (!opts.overwriteOriginal) {
       backup = `${filePath}_original`;
-      await Deno.copyFile(filePath, backup);
+      await copyFile(filePath, backup);
     }
-    await Deno.rename(tmp, filePath);
+    await rename(tmp, filePath);
   } catch (e) {
     // Best-effort cleanup; a blocked temp path is left for inspection.
-    await Deno.remove(tmp).catch(() => {});
+    await rm(tmp, { recursive: true, force: true }).catch(() => {});
     throw e;
   }
 

@@ -1,5 +1,6 @@
-import { assertEquals } from '../../deps.ts';
-import { parseIFD } from './ifd.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../../src/test/asserts.js';
+import { parseIFD } from './ifd.js';
 
 /** Little-endian u16/u32 writers for building raw IFD bytes. */
 function u16(value: number): number[] {
@@ -20,7 +21,7 @@ function viewOf(bytes: number[]): DataView {
   return new DataView(Uint8Array.from(bytes).buffer);
 }
 
-Deno.test('valid minimal IFD parses entry and nextIfdOffset', () => {
+test('valid minimal IFD parses entry and nextIfdOffset', () => {
   // offset 0: count=1; one ASCII "AB" entry inline; nextIfdOffset=7
   const bytes = [
     ...u16(1),
@@ -38,7 +39,7 @@ Deno.test('valid minimal IFD parses entry and nextIfdOffset', () => {
   assertEquals(ifd.nextIfdOffset, 7);
 });
 
-Deno.test('numEntries claims 5 but buffer holds only 2 entries: returns 2, no throw', () => {
+test('numEntries claims 5 but buffer holds only 2 entries: returns 2, no throw', () => {
   const bytes = [
     ...u16(5), // lies about 5 entries
     ...entry(0x0001, 3, 1, u16(10)), // SHORT inline
@@ -53,7 +54,7 @@ Deno.test('numEntries claims 5 but buffer holds only 2 entries: returns 2, no th
   assertEquals(ifd.nextIfdOffset, 0); // truncated next-IFD read -> 0
 });
 
-Deno.test('out-of-line value offset+dataSize exceeds buffer: partial result, no throw', () => {
+test('out-of-line value offset+dataSize exceeds buffer: partial result, no throw', () => {
   // UNDEFINED (type 7, size 1) count 100 -> dataSize 100 > 4, out-of-line.
   // Only 1 of the claimed 100 value bytes is present, so the buffer ends
   // before both the value and the 4-byte next-IFD pointer.
@@ -65,7 +66,7 @@ Deno.test('out-of-line value offset+dataSize exceeds buffer: partial result, no 
   assertEquals(ifd.nextIfdOffset, 0);
 });
 
-Deno.test('truncated second entry stops parsing with prior entries intact', () => {
+test('truncated second entry stops parsing with prior entries intact', () => {
   // numEntries=2 but only the first entry is complete; the second has just
   // its first 8 of 12 bytes before EOF.
   const good = entry(0x0001, 3, 1, u16(7));
@@ -79,7 +80,7 @@ Deno.test('truncated second entry stops parsing with prior entries intact', () =
   assertEquals(ifd.nextIfdOffset, 0);
 });
 
-Deno.test('offset beyond buffer: empty entries, no throw', () => {
+test('offset beyond buffer: empty entries, no throw', () => {
   const view = viewOf([0x49, 0x49]); // 2-byte buffer
 
   let ifd;
@@ -93,7 +94,7 @@ Deno.test('offset beyond buffer: empty entries, no throw', () => {
   assertEquals(ifd.nextIfdOffset, 0);
 });
 
-Deno.test('maxRecursion 0 returns empty immediately', () => {
+test('maxRecursion 0 returns empty immediately', () => {
   const view = viewOf([
     0x00, 0x01, // entry count 1 (would parse if recursion allowed)
     0x01, 0x01, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x41, 0x00, 0x00, 0x00,

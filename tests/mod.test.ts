@@ -1,12 +1,13 @@
-import { assertEquals } from '../deps.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../src/test/asserts.js';
 // Importing the barrel pulls in src/exiftool.ts, whose side-effect imports
 // register every format parser — detectParser below depends on that.
-import { ExifTool, TagDb, UnsupportedFormatError, writeTags } from '../mod.ts';
-import type { WriteResult } from '../mod.ts';
-import { DEFAULT_OPTIONS } from '../src/types.ts';
-import { detectParser, getParser } from '../src/format/mod.ts';
+import { ExifTool, TagDb, UnsupportedFormatError, writeTags } from '../mod.js';
+import type { WriteResult } from '../mod.js';
+import { DEFAULT_OPTIONS } from '../src/types.js';
+import { detectParser, getParser } from '../src/format/mod.js';
 
-Deno.test('barrel exports the public API surface', () => {
+test('barrel exports the public API surface', () => {
   assertEquals(typeof ExifTool, 'function');
   assertEquals(typeof TagDb, 'function');
   assertEquals(typeof writeTags, 'function');
@@ -15,7 +16,7 @@ Deno.test('barrel exports the public API surface', () => {
   assertEquals(sample.file, 'x');
 });
 
-Deno.test('ExifTool constructor wires a populated tag db and default options', () => {
+test('ExifTool constructor wires a populated tag db and default options', () => {
   const tool = new ExifTool();
   assertEquals(tool.tagDb instanceof TagDb, true);
   assertEquals(tool.tagDb.size() > 0, true);
@@ -25,13 +26,13 @@ Deno.test('ExifTool constructor wires a populated tag db and default options', (
   assertEquals(custom.options.composite, DEFAULT_OPTIONS.composite);
 });
 
-Deno.test('format parsers are registered via side-effect import; JPEG is detected', () => {
+test('format parsers are registered via side-effect import; JPEG is detected', () => {
   const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
   const parser = detectParser(jpeg);
   assertEquals(parser?.format, 'JPEG');
 });
 
-Deno.test('DEFAULT_OPTIONS exposes exiftool-parity defaults', () => {
+test('DEFAULT_OPTIONS exposes exiftool-parity defaults', () => {
   assertEquals(DEFAULT_OPTIONS.duplicates, false);
   assertEquals(DEFAULT_OPTIONS.binary, false);
   assertEquals(DEFAULT_OPTIONS.composite, true);

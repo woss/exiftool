@@ -1,6 +1,10 @@
-import { assertEquals } from '../../deps.ts';
-import { detectParser } from './mod.ts';
-import { jpegParser } from './jpeg.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../../src/test/asserts.js';
+import { detectParser } from './mod.js';
+import { jpegParser } from './jpeg.js';
+import { chmod, mkdtemp, open, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const encoder = new TextEncoder();
 
@@ -72,35 +76,35 @@ function xmpApp1(attrs: string, withIdent = true): Uint8Array {
   return seg(0xe1, concat(encoder.encode(withIdent ? XMP_IDENT : 'https://example.com/\0'), encoder.encode(xml)));
 }
 
-Deno.test('jpeg canParse checks SOI marker', () => {
+test('jpeg canParse checks SOI marker', () => {
   assertEquals(jpegParser.canParse(new Uint8Array([0xff, 0xd8])), true);
   assertEquals(jpegParser.canParse(new Uint8Array([0xff, 0xd9])), false);
 });
 
-Deno.test('jpeg walk breaks on non-marker byte', async () => {
+test('jpeg walk breaks on non-marker byte', async () => {
   const bytes = concat(new Uint8Array([0xff, 0xd8]), encoder.encode('garbage'));
   const result = await jpegParser.parse(bytes, 'a.jpg');
   assertEquals(result.format, 'JPEG');
 });
 
-Deno.test('jpeg walk breaks when only fill bytes remain', async () => {
+test('jpeg walk breaks when only fill bytes remain', async () => {
   const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xff]);
   const result = await jpegParser.parse(bytes, 'b.jpg');
   assertEquals(result.tags['Comment'], undefined);
 });
 
-Deno.test('jpeg walk breaks on 0x00 stuffed byte', async () => {
+test('jpeg walk breaks on 0x00 stuffed byte', async () => {
   const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0x00]);
   await jpegParser.parse(bytes, 'c.jpg');
 });
 
-Deno.test('jpeg skips RST and TEM markers without length fields', async () => {
+test('jpeg skips RST and TEM markers without length fields', async () => {
   const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xd0, 0xff, 0xd1, 0xff, 0x01]);
   const result = await jpegParser.parse(bytes, 'd.jpg');
   assertEquals(result.format, 'JPEG');
 });
 
-Deno.test('jpeg SOS marker ends header traversal', async () => {
+test('jpeg SOS marker ends header traversal', async () => {
   const sos = new Uint8Array([0xff, 0xda, 0x00, 0x04, 0x01, 0x11]);
   const com = seg(0xfe, encoder.encode('before'));
   const bytes = concat(new Uint8Array([0xff, 0xd8]), com, sos, seg(0xfe, encoder.encode('after')));
@@ -108,19 +112,19 @@ Deno.test('jpeg SOS marker ends header traversal', async () => {
   assertEquals(result.tags['Comment'], 'before');
 });
 
-Deno.test('jpeg breaks on truncated segment length', async () => {
+test('jpeg breaks on truncated segment length', async () => {
   const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00]);
   const result = await jpegParser.parse(bytes, 'f.jpg');
   assertEquals(result.format, 'JPEG');
 });
 
-Deno.test('jpeg breaks on degenerate zero segment length', async () => {
+test('jpeg breaks on degenerate zero segment length', async () => {
   const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x01]);
   const result = await jpegParser.parse(bytes, 'g.jpg');
   assertEquals(result.format, 'JPEG');
 });
 
-Deno.test('jpeg COM comment extracted', async () => {
+test('jpeg COM comment extracted', async () => {
   const bytes = concat(new Uint8Array([0xff, 0xd8]), seg(0xfe, encoder.encode('hello comment')));
   const result = await jpegParser.parse(bytes, 'h.jpg');
   assertEquals(result.tags['Comment'], 'hello comment');
@@ -142,7 +146,7 @@ function sof(marker: number, precision: number, h: number, w: number, comps: num
   return seg(marker, payload);
 }
 
-Deno.test('jpeg SOF variants expose encoding and sampling', async () => {
+test('jpeg SOF variants expose encoding and sampling', async () => {
   const base = new Uint8Array([0xff, 0xd8]);
 
   const c0 = await jpegParser.parse(
@@ -181,14 +185,14 @@ Deno.test('jpeg SOF variants expose encoding and sampling', async () => {
   assertEquals(gray.tags['ColorComponents'], 1);
   assertEquals('YCbCrSubSampling' in gray.tags, false);
 });
-Deno.test('jpeg APP1 Exif little-endian tags merged', async () => {
+test('jpeg APP1 Exif little-endian tags merged', async () => {
   const bytes = concat(new Uint8Array([0xff, 0xd8]), exifApp1(tinyTiffLE('CamLE')));
   const result = await jpegParser.parse(bytes, 'exif-le.jpg');
   assertEquals(result.tags['Make'], 'CamLE');
   assertEquals(result.tags['ExifByteOrder'], 'Little-endian (Intel, II)');
 });
 
-Deno.test('jpeg APP1 Exif big-endian byte order reported', async () => {
+test('jpeg APP1 Exif big-endian byte order reported', async () => {
   const tiff = new Uint8Array(8 + 2 + 12 + 4);
   const dv = new DataView(tiff.buffer);
   tiff[0] = 0x4d;
@@ -207,7 +211,7 @@ Deno.test('jpeg APP1 Exif big-endian byte order reported', async () => {
   assertEquals(result.tags['ExifByteOrder'], 'Big-endian (Motorola, MM)');
 });
 
-Deno.test('jpeg thumbnail offset made absolute and image sliced', async () => {
+test('jpeg thumbnail offset made absolute and image sliced', async () => {
   // Hand-built TIFF: IFD0 (Make inline, next->IFD1), IFD1 thumb ptr+len, thumb bytes.
   const thumb = encoder.encode('THUMBDATA000000'); // 15 bytes
   const ifd0Off = 8;
@@ -252,7 +256,7 @@ Deno.test('jpeg thumbnail offset made absolute and image sliced', async () => {
   void bytes;
 });
 
-Deno.test('jpeg multi-APP1 keeps Exif and XMP side by side', async () => {
+test('jpeg multi-APP1 keeps Exif and XMP side by side', async () => {
   const bytes = concat(
     new Uint8Array([0xff, 0xd8]),
     exifApp1(tinyTiffLE('DualCam')),
@@ -263,7 +267,7 @@ Deno.test('jpeg multi-APP1 keeps Exif and XMP side by side', async () => {
   assertEquals(result.tags['Subject'], 'subj');
 });
 
-Deno.test('jpeg XMP APP1 without full ident parses from byte 0', async () => {
+test('jpeg XMP APP1 without full ident parses from byte 0', async () => {
   const bytes = concat(
     new Uint8Array([0xff, 0xd8]),
     seg(0xe1, concat(encoder.encode('http://wrong.example/\0x'), encoder.encode(
@@ -274,7 +278,7 @@ Deno.test('jpeg XMP APP1 without full ident parses from byte 0', async () => {
   assertEquals(result.tags['Subject'], 'bare');
 });
 
-Deno.test('jpeg derives DerivedFrom* tags from XMP history', async () => {
+test('jpeg derives DerivedFrom* tags from XMP history', async () => {
   const bytes = concat(
     new Uint8Array([0xff, 0xd8]),
     xmpApp1('stEvt:instanceID="xmp.iid:AAA"'),
@@ -284,7 +288,7 @@ Deno.test('jpeg derives DerivedFrom* tags from XMP history', async () => {
   assertEquals(result.tags['DerivedFromDocumentID'], 'xmp.did:AAA');
 });
 
-Deno.test('jpeg derives DerivedFromOriginalDocumentID', async () => {
+test('jpeg derives DerivedFromOriginalDocumentID', async () => {
   const bytes = concat(
     new Uint8Array([0xff, 0xd8]),
     xmpApp1('xmpMM:OriginalDocumentID="orig-doc"'),
@@ -293,13 +297,13 @@ Deno.test('jpeg derives DerivedFromOriginalDocumentID', async () => {
   assertEquals(result.tags['DerivedFromOriginalDocumentID'], 'orig-doc');
 });
 
-Deno.test('jpeg MPF APP2 flagged present', async () => {
+test('jpeg MPF APP2 flagged present', async () => {
   const bytes = concat(new Uint8Array([0xff, 0xd8]), seg(0xe2, encoder.encode('MPF\0rest')));
   const result = await jpegParser.parse(bytes, 'mpf.jpg');
   assertEquals(result.tags['MPF'], 'present');
 });
 
-Deno.test('jpeg valid ICC profile parsed', async () => {
+test('jpeg valid ICC profile parsed', async () => {
   const profile = new Uint8Array(132);
   const dv = new DataView(profile.buffer);
   dv.setUint32(0, 132, false);
@@ -310,7 +314,7 @@ Deno.test('jpeg valid ICC profile parsed', async () => {
   assertEquals(result.tags['ProfileClass'], 'Display Device Profile');
 });
 
-Deno.test('jpeg IPTC keywords and dates composed from Photoshop APP13', async () => {
+test('jpeg IPTC keywords and dates composed from Photoshop APP13', async () => {
   function iptcDs(rec: number, ds: number, val: string): Uint8Array {
     const v = encoder.encode(val);
     return concat(new Uint8Array([0x1c, rec, ds]), pack([v.length], 2, false), v);
@@ -336,7 +340,7 @@ Deno.test('jpeg IPTC keywords and dates composed from Photoshop APP13', async ()
   assertEquals(result.tags['DigitalCreationTime'], '09:15:00');
 });
 
-Deno.test('jpeg Subject merged into existing Keywords list', async () => {
+test('jpeg Subject merged into existing Keywords list', async () => {
   function iptcDs(ds: number, val: string): Uint8Array {
     const v = encoder.encode(val);
     return concat(new Uint8Array([0x1c, 2, ds]), pack([v.length], 2, false), v);
@@ -352,13 +356,13 @@ Deno.test('jpeg Subject merged into existing Keywords list', async () => {
   assertEquals(result.tags['Keywords'], ['kw1', 'subj']);
 });
 
-Deno.test('jpeg lone Subject promoted to Keywords', async () => {
+test('jpeg lone Subject promoted to Keywords', async () => {
   const bytes = concat(new Uint8Array([0xff, 0xd8]), xmpApp1('dc:subject="only-subj"'));
   const result = await jpegParser.parse(bytes, 'subj.jpg');
   assertEquals(result.tags['Keywords'], 'only-subj');
 });
 
-Deno.test('jpeg APP14 Adobe exposes DCT flags and color transform', async () => {
+test('jpeg APP14 Adobe exposes DCT flags and color transform', async () => {
   function adobe(ct: number, flags0 = 0, flags1 = 0): Uint8Array {
     const payload = concat(
       encoder.encode('Adobe'),
@@ -384,55 +388,55 @@ Deno.test('jpeg APP14 Adobe exposes DCT flags and color transform', async () => 
   assertEquals(unknownCt.tags['ColorTransform'], 'Unknown');
 });
 
-Deno.test('jpeg file metadata reflects real temp files', async () => {
-  const dir = await Deno.makeTempDir();
+test('jpeg file metadata reflects real temp files', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'exiftool-ts-'));
   try {
     const tiny = `${dir}/tiny.jpg`;
-    await Deno.writeFile(tiny, concat(new Uint8Array([0xff, 0xd8]), seg(0xfe, encoder.encode('x'))));
-    const small = await jpegParser.parse(await Deno.readFile(tiny), tiny);
+    await writeFile(tiny, concat(new Uint8Array([0xff, 0xd8]), seg(0xfe, encoder.encode('x'))));
+    const small = await jpegParser.parse(await readFile(tiny), tiny);
     assertEquals(small.tags['FileName'], 'tiny.jpg');
     assertEquals(small.tags['Directory'], dir);
     assertEquals(small.tags['SourceFile'], tiny);
-    assertEquals(small.tags['FileSize'], `${(await Deno.stat(tiny)).size} B`);
+    assertEquals(small.tags['FileSize'], `${(await stat(tiny)).size} B`);
     assertEquals(small.tags['FileType'], 'JPEG');
     assertEquals(typeof small.tags['FileModifyDate'], 'string');
     assertEquals(small.tags['FilePermissions'], '-rw-r--r--');
 
     const big = `${dir}/big.jpg`;
-    const fh = await Deno.create(big);
+    const fh = await open(big, 'w');
     await fh.truncate(2048);
-    fh.close();
-    const bigResult = await jpegParser.parse(await Deno.readFile(big), big);
+    await fh.close();
+    const bigResult = await jpegParser.parse(await readFile(big), big);
     assertEquals(bigResult.tags['FileSize'], '2 kB');
 
     const huge = `${dir}/huge.jpg`;
-    const fh2 = await Deno.create(huge);
+    const fh2 = await open(huge, 'w');
     await fh2.truncate(1048576 * 1.5 | 0);
-    fh2.close();
-    const hugeResult = await jpegParser.parse(await Deno.readFile(huge), huge);
+    await fh2.close();
+    const hugeResult = await jpegParser.parse(await readFile(huge), huge);
     assertEquals(hugeResult.tags['FileSize'], '1.6 MB');
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await rm(dir, { recursive: true, force: true });
   }
 });
 
-Deno.test('jpeg stat failure leaves file metadata minimal', async () => {
+test('jpeg stat failure leaves file metadata minimal', async () => {
   const result = await jpegParser.parse(new Uint8Array([0xff, 0xd8]), '/nonexistent-dir/nope.jpg');
   assertEquals(result.tags['FileName'], 'nope.jpg');
   assertEquals('FileSize' in result.tags, false);
 });
 
-Deno.test('detectParser routes JPEG buffers', () => {
+test('detectParser routes JPEG buffers', () => {
   assertEquals(detectParser(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))!.format, 'JPEG');
 });
 
-Deno.test('jpeg unknown APP1 payload is skipped silently', async () => {
+test('jpeg unknown APP1 payload is skipped silently', async () => {
   const bytes = concat(new Uint8Array([0xff, 0xd8]), seg(0xe1, encoder.encode('XXopaque-data')));
   const result = await jpegParser.parse(bytes, 'unknown-app1.jpg');
   assertEquals('Subject' in result.tags, false);
 });
 
-Deno.test('jpeg duplicate Subject is not appended twice', async () => {
+test('jpeg duplicate Subject is not appended twice', async () => {
   function iptcDs(ds: number, val: string): Uint8Array {
     const v = encoder.encode(val);
     return concat(new Uint8Array([0x1c, 2, ds]), pack([v.length], 2, false), v);
@@ -448,7 +452,7 @@ Deno.test('jpeg duplicate Subject is not appended twice', async () => {
   assertEquals(result.tags['Keywords'], ['kw1']);
 });
 
-Deno.test('jpeg explicit DerivedFrom wins over History derivation', async () => {
+test('jpeg explicit DerivedFrom wins over History derivation', async () => {
   const bytes = concat(
     new Uint8Array([0xff, 0xd8]),
     xmpApp1('stEvt:instanceID="xmp.iid:HIST" stRef:instanceID="direct-id"'),
@@ -457,25 +461,25 @@ Deno.test('jpeg explicit DerivedFrom wins over History derivation', async () => 
   assertEquals(result.tags['DerivedFromInstanceID'], 'direct-id');
 });
 
-Deno.test('jpeg permissions rendering covers set and unset bits', async () => {
-  const dir = await Deno.makeTempDir();
+test('jpeg permissions rendering covers set and unset bits', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'exiftool-ts-'));
   try {
     const a = `${dir}/a755.jpg`;
-    await Deno.writeFile(a, new Uint8Array([0xff, 0xd8]));
-    await Deno.chmod(a, 0o755);
-    const ra = await jpegParser.parse(await Deno.readFile(a), a);
+    await writeFile(a, new Uint8Array([0xff, 0xd8]));
+    await chmod(a, 0o755);
+    const ra = await jpegParser.parse(await readFile(a), a);
     assertEquals(ra.tags['FilePermissions'], '-rwxr-xr-x');
 
     const b = `${dir}/b462.jpg`;
-    await Deno.writeFile(b, new Uint8Array([0xff, 0xd8]));
-    await Deno.chmod(b, 0o462);
-    const rb = await jpegParser.parse(await Deno.readFile(b), b);
+    await writeFile(b, new Uint8Array([0xff, 0xd8]));
+    await chmod(b, 0o462);
+    const rb = await jpegParser.parse(await readFile(b), b);
     assertEquals(rb.tags['FilePermissions'], '-r--rw--w-');
 
     // A directory path flips the type bit.
     const rd = await jpegParser.parse(new Uint8Array([0xff, 0xd8]), dir);
     assertEquals((rd.tags['FilePermissions'] as string)[0], 'd');
   } finally {
-    await Deno.remove(dir, { recursive: true });
+    await rm(dir, { recursive: true, force: true });
   }
 });

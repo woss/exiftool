@@ -1,15 +1,16 @@
-import { TagDb } from './tag-db.ts';
-import { DEFAULT_OPTIONS, type ExifToolOptions, type FileInfo, type TagEntry, type TagValue } from './types.ts';
+import { readFile } from 'node:fs/promises';
+import { TagDb } from './tag-db.js';
+import { DEFAULT_OPTIONS, type ExifToolOptions, type FileInfo, type TagEntry, type TagValue } from './types.js';
 import tagData from './tags/generated/tags.json' with { type: 'json' };
-import type { TableDef } from './tags.ts';
-import { detectParser } from './format/mod.ts';
-import type { ParseHints } from './format/mod.ts';
-import './format/jpeg.ts';
-import './format/png.ts';
-import './format/webp.ts';
-import './format/avif.ts';
+import type { TableDef } from './tags.js';
+import { detectParser } from './format/mod.js';
+import type { ParseHints } from './format/mod.js';
+import './format/jpeg.js';
+import './format/png.js';
+import './format/webp.js';
+import './format/avif.js';
 
-import { writeTags, type WriteResult } from './write/pipeline.ts';
+import { writeTags, type WriteResult } from './write/pipeline.js';
 function buildTagDb(): TagDb {
   const db = new TagDb();
   const tables = tagData as TableDef[];
@@ -59,9 +60,8 @@ export class ExifTool {
   }
 
   async read(filePath: string, hints?: ParseHints): Promise<FileInfo> {
-    const bytes = await Deno.readFile(filePath);
+    const bytes = await readFile(filePath);
     const parser = detectParser(bytes);
-
     if (parser) {
       return parser.parse(bytes, filePath, this.tagDb, hints);
     }

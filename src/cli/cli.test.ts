@@ -1,7 +1,13 @@
-import { assertEquals } from 'jsr:@std/assert';
-import { main, normalizeArgs, runAction } from '../../cli.ts';
-import type { CliOptions } from '../../cli.ts';
-import { ExifTool } from '../../src/exiftool.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../../src/test/asserts.js';
+import { main, normalizeArgs, runAction } from '../../cli.js';
+import type { CliOptions } from '../../cli.js';
+import { ExifTool } from '../../src/exiftool.js';
+import { spawn } from 'node:child_process';
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { tempFile } from '../../src/test/tmp.js';
 
 function captureConsole() {
   const origLog = console.log;
@@ -22,31 +28,31 @@ function captureConsole() {
 
 // --- normalizeArgs ---
 
-Deno.test('normalizeArgs — -ver maps to --version', () => {
+test('normalizeArgs — -ver maps to --version', () => {
   assertEquals(normalizeArgs(['-ver']), ['--version']);
 });
 
-Deno.test('normalizeArgs — attached short values split', () => {
+test('normalizeArgs — attached short values split', () => {
   assertEquals(normalizeArgs(['-g1']), ['-g', '1']);
   assertEquals(normalizeArgs(['-G2']), ['-G', '2']);
 });
 
-Deno.test('normalizeArgs — bare -g/-G expand to group flags with defaults', () => {
+test('normalizeArgs — bare -g/-G expand to group flags with defaults', () => {
   assertEquals(normalizeArgs(['-g']), ['--group-headings', '0']);
   assertEquals(normalizeArgs(['-G']), ['--group-prefix', '1']);
 });
 
-Deno.test('normalizeArgs — multi-dash args pass through untouched', () => {
+test('normalizeArgs — multi-dash args pass through untouched', () => {
   assertEquals(normalizeArgs(['--json', '--csv']), ['--json', '--csv']);
 });
 
-Deno.test('normalizeArgs — plain operands and short boolean flags unchanged', () => {
+test('normalizeArgs — plain operands and short boolean flags unchanged', () => {
   assertEquals(normalizeArgs(['photo.jpg', '-v', '-q']), ['photo.jpg', '-v', '-q']);
 });
 
 // --- runAction ---
 
-Deno.test('runAction default tabular output returns 0', async () => {
+test('runAction default tabular output returns 0', async () => {
   const cap = captureConsole();
   try {
     const code = await runAction({}, 'assets/01.jpg');
@@ -59,7 +65,7 @@ Deno.test('runAction default tabular output returns 0', async () => {
   }
 });
 
-Deno.test('runAction multiple files tabular includes each source file', async () => {
+test('runAction multiple files tabular includes each source file', async () => {
   const cap = captureConsole();
   try {
     const code = await runAction({}, 'assets/01.jpg', 'assets/03.jpg');
@@ -72,7 +78,7 @@ Deno.test('runAction multiple files tabular includes each source file', async ()
   }
 });
 
-Deno.test('runAction --json emits parseable JSON array', async () => {
+test('runAction --json emits parseable JSON array', async () => {
   const cap = captureConsole();
   try {
     const code = await runAction({ json: true }, 'assets/01.jpg');
@@ -85,7 +91,7 @@ Deno.test('runAction --json emits parseable JSON array', async () => {
   }
 });
 
-Deno.test('runAction --csv emits CSV rows', async () => {
+test('runAction --csv emits CSV rows', async () => {
   const cap = captureConsole();
   try {
     const code = await runAction({ csv: true }, 'assets/01.jpg');
@@ -98,7 +104,7 @@ Deno.test('runAction --csv emits CSV rows', async () => {
   }
 });
 
-Deno.test('runAction -b dumps raw binary bytes to stdout', async () => {
+test('runAction -b dumps raw binary bytes to stdout', async () => {
   // Expected bytes: every Uint8Array value of the parsed file, in tag order.
   const tool = new ExifTool();
   const info = await tool.read('assets/01.jpg');
@@ -107,13 +113,13 @@ Deno.test('runAction -b dumps raw binary bytes to stdout', async () => {
     if (value instanceof Uint8Array && value.length > 0) expected.push(...value);
   }
   assertEquals(expected.length > 0, true);
-  // Stub seam: shadow Deno.stdout.write to capture raw bytes without touching a TTY.
-  const stdout = Deno.stdout as unknown as { write: (data: Uint8Array) => Promise<number> };
+  // Stub seam: shadow process.stdout.write to capture raw bytes without touching a TTY.
+  const stdout = process.stdout as unknown as { write: (data: Uint8Array) => boolean };
   const origWrite = stdout.write.bind(stdout);
   const collected: number[] = [];
-  stdout.write = (data: Uint8Array): Promise<number> => {
+  stdout.write = (data: Uint8Array): boolean => {
     collected.push(...data);
-    return Promise.resolve(data.length);
+    return true;
   };
   const cap = captureConsole();
   try {
@@ -127,10 +133,10 @@ Deno.test('runAction -b dumps raw binary bytes to stdout', async () => {
   }
 });
 
-Deno.test('runAction -b without binary tags reports failure and returns 1', async () => {
-  const tmp = await Deno.makeTempFile({ suffix: '.bin' });
+test('runAction -b without binary tags reports failure and returns 1', async () => {
+  const tmp = await tempFile('.bin');
   try {
-    await Deno.writeFile(tmp, new TextEncoder().encode('plain text, no metadata'));
+    await writeFile(tmp, new TextEncoder().encode('plain text, no metadata'));
     const cap = captureConsole();
     try {
       const code = await runAction({ binary: true }, tmp);
@@ -140,11 +146,11 @@ Deno.test('runAction -b without binary tags reports failure and returns 1', asyn
       cap.restore();
     }
   } finally {
-    await Deno.remove(tmp);
+    await rm(tmp);
   }
 });
 
-Deno.test('runAction -b --json embeds base64 binary instead of raw dump', async () => {
+test('runAction -b --json embeds base64 binary instead of raw dump', async () => {
   const cap = captureConsole();
   try {
     const code = await runAction({ binary: true, json: true }, 'assets/01.jpg');
@@ -156,7 +162,7 @@ Deno.test('runAction -b --json embeds base64 binary instead of raw dump', async 
   }
 });
 
-Deno.test('runAction nonexistent file prints error and returns 1', async () => {
+test('runAction nonexistent file prints error and returns 1', async () => {
   const cap = captureConsole();
   try {
     const code = await runAction({}, 'no-such-file.jpg');
@@ -168,7 +174,7 @@ Deno.test('runAction nonexistent file prints error and returns 1', async () => {
 });
 
 
-Deno.test('runAction -if keeps matching files only', async () => {
+test('runAction -if keeps matching files only', async () => {
   const cap = captureConsole();
   try {
     const opts: CliOptions = { json: true, if: ['$ISO > 100'] };
@@ -182,11 +188,11 @@ Deno.test('runAction -if keeps matching files only', async () => {
   }
 });
 
-Deno.test('runAction -if drops non-matching files and reports count', async () => {
-  const tmp = await Deno.makeTempFile({ suffix: '.jpg' });
+test('runAction -if drops non-matching files and reports count', async () => {
+  const tmp = await tempFile('.jpg');
   try {
     // Copy of a real JPEG so both operands parse; only 03.jpg matches the condition.
-    await Deno.writeFile(tmp, await Deno.readFile('assets/01.jpg'));
+    await writeFile(tmp, await readFile('assets/01.jpg'));
     const cap = captureConsole();
     try {
       const code = await runAction({ json: true, if: ['$FileName eq 03.jpg'] }, 'assets/03.jpg', tmp);
@@ -199,11 +205,11 @@ Deno.test('runAction -if drops non-matching files and reports count', async () =
       cap.restore();
     }
   } finally {
-    await Deno.remove(tmp);
+    await rm(tmp);
   }
 });
 
-Deno.test('runAction quiet suppresses condition-failure message', async () => {
+test('runAction quiet suppresses condition-failure message', async () => {
   const cap = captureConsole();
   try {
     const opts: CliOptions = { json: true, if: ['$Missing eq x'], quiet: [true] };
@@ -216,7 +222,7 @@ Deno.test('runAction quiet suppresses condition-failure message', async () => {
   }
 });
 
-Deno.test('runAction verbose writes diagnostic lines to stderr', async () => {
+test('runAction verbose writes diagnostic lines to stderr', async () => {
   const cap = captureConsole();
   try {
     const code = await runAction({ verbose: [true] }, 'assets/01.jpg');
@@ -227,7 +233,7 @@ Deno.test('runAction verbose writes diagnostic lines to stderr', async () => {
   }
 });
 
-Deno.test('runAction group headings render GROUP banners', async () => {
+test('runAction group headings render GROUP banners', async () => {
   const cap = captureConsole();
   try {
     const code = await runAction({ groupHeadings: '0' }, 'assets/01.jpg');
@@ -238,7 +244,7 @@ Deno.test('runAction group headings render GROUP banners', async () => {
   }
 });
 
-Deno.test('runAction group prefix renders Group:Tag names', async () => {
+test('runAction group prefix renders Group:Tag names', async () => {
   const cap = captureConsole();
   try {
     const code = await runAction({ groupPrefix: '1' }, 'assets/01.jpg');
@@ -249,7 +255,7 @@ Deno.test('runAction group prefix renders Group:Tag names', async () => {
   }
 });
 
-Deno.test('runAction date format reformats date tags', async () => {
+test('runAction date format reformats date tags', async () => {
   const cap = captureConsole();
   try {
     const code = await runAction({ dateFormat: '%Y-%m-%d' }, 'assets/01.jpg');
@@ -305,21 +311,21 @@ function buildMpfFixture(): Uint8Array {
   ]);
 }
 
-Deno.test('normalizeArgs maps -ext and -ee to long-only options', () => {
+test('normalizeArgs maps -ext and -ee to long-only options', () => {
   assertEquals(normalizeArgs(['-ext', 'jpg']), ['--extension', 'jpg']);
   assertEquals(normalizeArgs(['-ee']), ['--extract-embedded']);
   assertEquals(normalizeArgs(['-overwrite_original']), ['--overwrite-original']);
   assertEquals(normalizeArgs(['--overwrite_original']), ['--overwrite-original']);
 });
 
-Deno.test('runAction walks directories with recurse, extension filter, and ignore', async () => {
-  const root = await Deno.makeTempDir();
+test('runAction walks directories with recurse, extension filter, and ignore', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'exiftool-ts-'));
   try {
-    await Deno.mkdir(`${root}/nested/skipme`, { recursive: true });
-    await Deno.writeFile(`${root}/top.jpg`, await Deno.readFile('assets/01.jpg'));
-    await Deno.writeTextFile(`${root}/note.txt`, 'x');
-    await Deno.writeFile(`${root}/nested/in.jpg`, await Deno.readFile('assets/03.jpg'));
-    await Deno.writeTextFile(`${root}/nested/skipme/hidden.jpg`, 'x');
+    await mkdir(`${root}/nested/skipme`, { recursive: true });
+    await writeFile(`${root}/top.jpg`, await readFile('assets/01.jpg'));
+    await writeFile(`${root}/note.txt`, 'x');
+    await writeFile(`${root}/nested/in.jpg`, await readFile('assets/03.jpg'));
+    await writeFile(`${root}/nested/skipme/hidden.jpg`, 'x');
     const cap = captureConsole();
     try {
       const opts: CliOptions = {
@@ -341,11 +347,11 @@ Deno.test('runAction walks directories with recurse, extension filter, and ignor
       cap.restore();
     }
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await rm(root, { recursive: true, force: true });
   }
 });
 
-Deno.test('runAction continues after unreadable files and reports each failure', async () => {
+test('runAction continues after unreadable files and reports each failure', async () => {
   const cap = captureConsole();
   try {
     const code = await runAction({ json: true }, 'missing.jpg', 'assets/01.jpg');
@@ -363,7 +369,7 @@ Deno.test('runAction continues after unreadable files and reports each failure',
   }
 });
 
-Deno.test('runAction quiet suppresses per-file failure lines but keeps exit code', async () => {
+test('runAction quiet suppresses per-file failure lines but keeps exit code', async () => {
   const cap = captureConsole();
   try {
     const opts: CliOptions = { json: true, quiet: [true] };
@@ -375,7 +381,7 @@ Deno.test('runAction quiet suppresses per-file failure lines but keeps exit code
   }
 });
 
-Deno.test('runAction --xml emits an XML document', async () => {
+test('runAction --xml emits an XML document', async () => {
   const cap = captureConsole();
   try {
     const code = await runAction({ xml: true }, 'assets/01.jpg');
@@ -388,8 +394,8 @@ Deno.test('runAction --xml emits an XML document', async () => {
   }
 });
 
-Deno.test('runAction -o writes formatter output to a file instead of stdout', async () => {
-  const out = await Deno.makeTempFile({ suffix: '.txt' });
+test('runAction -o writes formatter output to a file instead of stdout', async () => {
+  const out = await tempFile('.txt');
   try {
     const cap = captureConsole();
     try {
@@ -399,14 +405,14 @@ Deno.test('runAction -o writes formatter output to a file instead of stdout', as
     } finally {
       cap.restore();
     }
-    const written = await Deno.readTextFile(out);
+    const written = await readFile(out, 'utf8');
     assertEquals(written.includes('Canon EOS 700D'), true);
   } finally {
-    await Deno.remove(out);
+    await rm(out);
   }
 });
 
-Deno.test('runAction -o failure is reported and returns 1', async () => {
+test('runAction -o failure is reported and returns 1', async () => {
   const cap = captureConsole();
   try {
     const code = await runAction(
@@ -424,10 +430,10 @@ Deno.test('runAction -o failure is reported and returns 1', async () => {
   }
 });
 
-Deno.test('runAction -ee appends embedded MPF images as documents', async () => {
-  const tmp = await Deno.makeTempFile({ suffix: '.jpg' });
+test('runAction -ee appends embedded MPF images as documents', async () => {
+  const tmp = await tempFile('.jpg');
   try {
-    await Deno.writeFile(tmp, buildMpfFixture());
+    await writeFile(tmp, buildMpfFixture());
     const cap = captureConsole();
     try {
       const code = await runAction({ json: true, extractEmbedded: true }, tmp);
@@ -442,11 +448,11 @@ Deno.test('runAction -ee appends embedded MPF images as documents', async () => 
       cap.restore();
     }
   } finally {
-    await Deno.remove(tmp);
+    await rm(tmp);
   }
 });
 
-Deno.test('runAction -ee on a plain JPEG adds no documents', async () => {
+test('runAction -ee on a plain JPEG adds no documents', async () => {
   const cap = captureConsole();
   try {
     const code = await runAction(
@@ -460,48 +466,51 @@ Deno.test('runAction -ee on a plain JPEG adds no documents', async () => {
   }
 });
 
-Deno.test('normalizeArgs — generic single-dash flag converts to long form', () => {
+test('normalizeArgs — generic single-dash flag converts to long form', () => {
   assertEquals(normalizeArgs(['-json']), ['--json']);
   assertEquals(normalizeArgs(['-csv', '-b']), ['--csv', '-b']);
 });
 
 
-// Runs cli.ts as a real entrypoint so the import.meta.main block, cmd.parse,
-// and the non-zero exit branch execute; coverage reaches these lines through
-// the DENO_COVERAGE_DIR the test runner exports to subprocesses.
-Deno.test('CLI entrypoint exits nonzero on unreadable file', async () => {
-  const entry = new URL('../../cli.ts', import.meta.url).pathname;
-  const child = new Deno.Command(Deno.execPath(), {
-    args: ['run', '-A', '--config', new URL('../../deno.json', import.meta.url).pathname, entry, 'definitely-missing.jpg'],
-    stdin: 'null',
-    stdout: 'piped',
-    stderr: 'piped',
+// Runs cli.ts as a real entrypoint so the import.meta.main guard, cmd.parse,
+// and the non-zero exit branch execute.
+test('CLI entrypoint exits nonzero on unreadable file', async () => {
+  const child = spawn(
+    process.execPath,
+    ['--import', 'tsx', 'cli.ts', 'definitely-missing.jpg'],
+    { cwd: new URL('../..', import.meta.url).pathname, stdio: ['ignore', 'pipe', 'pipe'] },
+  );
+  let errText = '';
+  child.stderr!.on('data', (chunk: Buffer) => { errText += chunk.toString('utf8'); });
+  const code = await new Promise<number>((resolve, reject) => {
+    child.on('error', reject);
+    child.on('exit', (c) => resolve(c ?? -1));
   });
-  const { code, stderr } = await child.output();
-  const errText = new TextDecoder().decode(stderr);
   assertEquals(code !== 0, true);
   assertEquals(errText.includes('Error reading definitely-missing.jpg:'), true);
 });
 
-Deno.test('CLI entrypoint succeeds on a real file', async () => {
-  const entry = new URL('../../cli.ts', import.meta.url).pathname;
-  const child = new Deno.Command(Deno.execPath(), {
-    args: ['run', '-A', '--config', new URL('../../deno.json', import.meta.url).pathname, entry, 'assets/01.jpg'],
-    stdin: 'null',
-    stdout: 'piped',
-    stderr: 'piped',
+test('CLI entrypoint succeeds on a real file', async () => {
+  const child = spawn(
+    process.execPath,
+    ['--import', 'tsx', 'cli.ts', 'assets/01.jpg'],
+    { cwd: new URL('../..', import.meta.url).pathname, stdio: ['ignore', 'pipe', 'pipe'] },
+  );
+  let outText = '';
+  child.stdout!.on('data', (chunk: Buffer) => { outText += chunk.toString('utf8'); });
+  const code = await new Promise<number>((resolve, reject) => {
+    child.on('error', reject);
+    child.on('exit', (c) => resolve(c ?? -1));
   });
-  const { code, stdout } = await child.output();
-  const outText = new TextDecoder().decode(stdout);
   assertEquals(code, 0);
   assertEquals(outText.includes('Make'), true);
 });
 
 // --- Phase 5: TAG=VALUE write mode ---
 
-Deno.test('runAction write mode updates file and creates backup', async () => {
-  const tmp = await Deno.makeTempFile({ suffix: '.jpg' });
-  await Deno.writeFile(tmp, await Deno.readFile('assets/01.jpg'));
+test('runAction write mode updates file and creates backup', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
   const cap = captureConsole();
   try {
     const code = await runAction({}, '-Make=Acme', tmp);
@@ -513,14 +522,14 @@ Deno.test('runAction write mode updates file and creates backup', async () => {
     const originalInfo = await tool.read(`${tmp}_original`);
     assertEquals(originalInfo.tags.Make, 'Canon');
   } finally {
-    try { await Deno.remove(`${tmp}_original`); } catch { /* absent */ }
-    await Deno.remove(tmp);
+    try { await rm(`${tmp}_original`); } catch { /* absent */ }
+    await rm(tmp);
   }
 });
 
-Deno.test('runAction write mode with overwriteOriginal skips backup', async () => {
-  const tmp = await Deno.makeTempFile({ suffix: '.jpg' });
-  await Deno.writeFile(tmp, await Deno.readFile('assets/01.jpg'));
+test('runAction write mode with overwriteOriginal skips backup', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
   const cap = captureConsole();
   try {
     const opts: CliOptions = { overwriteOriginal: true };
@@ -528,7 +537,7 @@ Deno.test('runAction write mode with overwriteOriginal skips backup', async () =
     assertEquals(code, 0);
     let exists = true;
     try {
-      await Deno.stat(`${tmp}_original`);
+      await stat(`${tmp}_original`);
     } catch {
       exists = false;
     }
@@ -537,13 +546,13 @@ Deno.test('runAction write mode with overwriteOriginal skips backup', async () =
     assertEquals((await tool.read(tmp)).tags.Software, 'tiny');
   } finally {
     cap.restore();
-    await Deno.remove(tmp);
+    await rm(tmp);
   }
 });
 
-Deno.test('runAction write mode reports unsupported files and returns 1', async () => {
-  const txt = await Deno.makeTempFile({ suffix: '.txt' });
-  await Deno.writeTextFile(txt, 'plain');
+test('runAction write mode reports unsupported files and returns 1', async () => {
+  const txt = await tempFile('.txt');
+  await writeFile(txt, 'plain');
   const cap = captureConsole();
   try {
     const code = await runAction({}, '-Make=X', txt);
@@ -556,11 +565,11 @@ Deno.test('runAction write mode reports unsupported files and returns 1', async 
     assertEquals(cap.out.join('\n').includes('updated'), false);
   } finally {
     cap.restore();
-    await Deno.remove(txt);
+    await rm(txt);
   }
 });
 
-Deno.test('main routes one-shot runs through runAction', async () => {
+test('main routes one-shot runs through runAction', async () => {
   const cap = captureConsole();
   try {
     const code = await main({ json: true }, ['assets/01.jpg']);
@@ -571,9 +580,9 @@ Deno.test('main routes one-shot runs through runAction', async () => {
   }
 });
 
-Deno.test('main runs the -stay_open daemon over an injected stream', async () => {
-  const tmp = await Deno.makeTempFile({ suffix: '.jpg' });
-  await Deno.writeFile(tmp, await Deno.readFile('assets/01.jpg'));
+test('main runs the -stay_open daemon over an injected stream', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
   const enc = new TextEncoder();
   const input = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -591,11 +600,11 @@ Deno.test('main runs the -stay_open daemon over an injected stream', async () =>
     assertEquals(cap.out.includes('{ready}'), true);
   } finally {
     cap.restore();
-    await Deno.remove(tmp);
+    await rm(tmp);
   }
 });
 
-Deno.test('main propagates a failing batch exit code on shutdown', async () => {
+test('main propagates a failing batch exit code on shutdown', async () => {
   const enc = new TextEncoder();
   const input = new ReadableStream<Uint8Array>({
     start(controller) {

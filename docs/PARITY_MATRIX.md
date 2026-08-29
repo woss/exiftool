@@ -7,7 +7,7 @@ Enforcement: value parity is continuously verified by
 `src/cli/exiftool-parity.test.ts` against the real `exiftool` binary when
 available; the known-divergence registry lives in that file
 (`KNOWN_DIVERGENCES`). Coverage of everything we _do_ ship is gated at
-100% line / 100% function by `deno task coverage-audit`.
+100% line / 100% function by `pnpm coverage-audit`.
 
 ---
 

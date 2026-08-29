@@ -1,19 +1,23 @@
-import { assertEquals } from '../../deps.ts';
-import { expandInputs } from './glob.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../../src/test/asserts.js';
+import { expandInputs } from './glob.js';
+import { mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 async function makeTree(): Promise<string> {
-  const root = await Deno.makeTempDir();
-  await Deno.mkdir(`${root}/sub/deep/node_modules`, { recursive: true });
-  await Deno.writeTextFile(`${root}/b.txt`, 'x');
-  await Deno.writeTextFile(`${root}/a.jpg`, 'x');
-  await Deno.writeTextFile(`${root}/sub/2.JPG`, 'x');
-  await Deno.writeTextFile(`${root}/sub/1.png`, 'x');
-  await Deno.writeTextFile(`${root}/sub/deep/3.jpg`, 'x');
-  await Deno.writeTextFile(`${root}/sub/deep/node_modules/4.jpg`, 'x');
+  const root = await mkdtemp(join(tmpdir(), 'exiftool-ts-'));
+  await mkdir(`${root}/sub/deep/node_modules`, { recursive: true });
+  await writeFile(`${root}/b.txt`, 'x');
+  await writeFile(`${root}/a.jpg`, 'x');
+  await writeFile(`${root}/sub/2.JPG`, 'x');
+  await writeFile(`${root}/sub/1.png`, 'x');
+  await writeFile(`${root}/sub/deep/3.jpg`, 'x');
+  await writeFile(`${root}/sub/deep/node_modules/4.jpg`, 'x');
   return root;
 }
 
-Deno.test('expandInputs keeps nonexistent paths in place for error reporting', async () => {
+test('expandInputs keeps nonexistent paths in place for error reporting', async () => {
   const out = await expandInputs(['missing.jpg'], {
     recurse: false,
     extensions: [],
@@ -22,7 +26,7 @@ Deno.test('expandInputs keeps nonexistent paths in place for error reporting', a
   assertEquals(out, ['missing.jpg']);
 });
 
-Deno.test('expandInputs passes regular files through untouched', async () => {
+test('expandInputs passes regular files through untouched', async () => {
   const root = await makeTree();
   try {
     const out = await expandInputs([`${root}/a.jpg`], {
@@ -32,11 +36,11 @@ Deno.test('expandInputs passes regular files through untouched', async () => {
     });
     assertEquals(out, [`${root}/a.jpg`]);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await rm(root, { recursive: true, force: true });
   }
 });
 
-Deno.test('expandInputs non-recursive walk lists direct children sorted', async () => {
+test('expandInputs non-recursive walk lists direct children sorted', async () => {
   const root = await makeTree();
   try {
     const out = await expandInputs([root], {
@@ -46,11 +50,11 @@ Deno.test('expandInputs non-recursive walk lists direct children sorted', async 
     });
     assertEquals(out, [`${root}/a.jpg`, `${root}/b.txt`]);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await rm(root, { recursive: true, force: true });
   }
 });
 
-Deno.test('expandInputs recursive walk covers nested directories', async () => {
+test('expandInputs recursive walk covers nested directories', async () => {
   const root = await makeTree();
   try {
     const out = await expandInputs([root], {
@@ -67,11 +71,11 @@ Deno.test('expandInputs recursive walk covers nested directories', async () => {
       `${root}/sub/deep/node_modules/4.jpg`,
     ]);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await rm(root, { recursive: true, force: true });
   }
 });
 
-Deno.test('expandInputs extension filter is case-insensitive and only affects walked files', async () => {
+test('expandInputs extension filter is case-insensitive and only affects walked files', async () => {
   const root = await makeTree();
   try {
     const out = await expandInputs([`${root}/b.txt`, root], {
@@ -87,11 +91,11 @@ Deno.test('expandInputs extension filter is case-insensitive and only affects wa
       `${root}/sub/deep/node_modules/4.jpg`,
     ]);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await rm(root, { recursive: true, force: true });
   }
 });
 
-Deno.test('expandInputs prunes ignored directory names during walks', async () => {
+test('expandInputs prunes ignored directory names during walks', async () => {
   const root = await makeTree();
   try {
     const out = await expandInputs([root], {
@@ -102,12 +106,12 @@ Deno.test('expandInputs prunes ignored directory names during walks', async () =
     assertEquals(out.includes(`${root}/sub/deep/node_modules/4.jpg`), false);
     assertEquals(out.length, 5);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await rm(root, { recursive: true, force: true });
   }
 });
 
-Deno.test('expandInputs empty directory expands to nothing', async () => {
-  const empty = await Deno.makeTempDir();
+test('expandInputs empty directory expands to nothing', async () => {
+  const empty = await mkdtemp(join(tmpdir(), 'exiftool-ts-'));
   try {
     const out = await expandInputs([empty], {
       recurse: true,
@@ -116,15 +120,15 @@ Deno.test('expandInputs empty directory expands to nothing', async () => {
     });
     assertEquals(out, []);
   } finally {
-    await Deno.remove(empty);
+    await rm(empty, { recursive: true, force: true });
   }
 });
 
-Deno.test('expandInputs skips symlinks instead of following or listing them', async () => {
+test('expandInputs skips symlinks instead of following or listing them', async () => {
   const root = await makeTree();
   try {
-    await Deno.symlink(`${root}/a.jpg`, `${root}/link.jpg`);
-    await Deno.symlink(`${root}/sub`, `${root}/dirlink`);
+    await symlink(`${root}/a.jpg`, `${root}/link.jpg`);
+    await symlink(`${root}/sub`, `${root}/dirlink`);
     const out = await expandInputs([root], {
       recurse: true,
       extensions: [],
@@ -133,6 +137,6 @@ Deno.test('expandInputs skips symlinks instead of following or listing them', as
     assertEquals(out.includes(`${root}/link.jpg`), false);
     assertEquals(out.filter((p) => p.includes('dirlink')).length, 0);
   } finally {
-    await Deno.remove(root, { recursive: true });
+    await rm(root, { recursive: true, force: true });
   }
 });

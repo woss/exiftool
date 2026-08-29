@@ -1,4 +1,4 @@
-import type { TagValue } from '../types.ts';
+import type { TagValue } from '../types.js';
 
 const CONDITION_RE = /^\$([A-Za-z0-9_]+)\s*(>=|<=|eq|ne|>|<)\s*(.+)$/;
 

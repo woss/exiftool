@@ -1,6 +1,6 @@
-import { getExifTypeSize } from './types.ts';
-import type { IfdEntry } from './types.ts';
-import type { TagValue } from '../types.ts';
+import { getExifTypeSize } from './types.js';
+import type { IfdEntry } from './types.js';
+import type { TagValue } from '../types.js';
 
 export function readIfdValue(entry: IfdEntry, view: DataView, littleEndian: boolean): TagValue {
   const { type, count, offset } = entry;

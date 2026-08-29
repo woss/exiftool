@@ -1,59 +1,21 @@
-import { Command } from '@cliffy/command';
-import { ExifTool } from './src/exiftool.ts';
-import { formatJSON, formatCSV, formatTabular, formatXML } from './src/cli/output.ts';
-import type { FormatOptions } from './src/cli/output.ts';
-import { evalCondition } from './src/cli/filter.ts';
-import { verboseLines } from './src/cli/verbosity.ts';
-import { expandInputs } from './src/cli/glob.ts';
-import { readLines, stayOpenLoop } from './src/cli/stay-open.ts';
-import { extractEmbeddedJpegs, jpegParser } from './src/format/jpeg.ts';
+#!/usr/bin/env node
+import { readFile, writeFile } from 'node:fs/promises';
+import { pathToFileURL } from 'node:url';
+import { normalizeArgs, parseCliArgs, type CliOptions } from './src/cli/args.js';
+import { ExifTool } from './src/exiftool.js';
+import { formatJSON, formatCSV, formatTabular, formatXML } from './src/cli/output.js';
+import type { FormatOptions } from './src/cli/output.js';
+import { evalCondition } from './src/cli/filter.js';
+import { verboseLines } from './src/cli/verbosity.js';
+import { expandInputs } from './src/cli/glob.js';
+import { readLines, stayOpenLoop } from './src/cli/stay-open.js';
+import { extractEmbeddedJpegs, jpegParser } from './src/format/jpeg.js';
 
-export function normalizeArgs(args: string[]): string[] {
-  return args.flatMap((a) => {
-    // TAG=VALUE write assignments pass through as operands
-    if (/^-?[A-Za-z][A-Za-z0-9_]*=/.test(a)) return [a];
-    if (a === '-overwrite_original' || a === '--overwrite_original') {
-      return ['--overwrite-original'];
-    }
-    if (a === '--ee') return ['--extract-embedded'];
-    if (a.startsWith('-') && !a.startsWith('--') && a.length > 2) {
-      if (a === '-ver') return ['--version'];
-      if (a === '-stay_open' || a === '--stay_open') return ['--stay-open'];
-      // -ext maps to the long-only --extension option
-      if (a === '-ext') return ['--extension'];
-      // -ee maps to the long-only --extract-embedded option
-      if (a === '-ee') return ['--extract-embedded'];
-      if (/^-[gG]\d$/.test(a)) return [a.slice(0, 2), a.slice(2)];
-      return ['--' + a.slice(1)];
-    }
-    if (a === '-g') return ['--group-headings', '0'];
-    if (a === '-G') return ['--group-prefix', '1'];
-    return [a];
-  });
-}
+export { normalizeArgs, parseCliArgs } from './src/cli/args.js';
+export type { CliOptions } from './src/cli/args.js';
 
 const tool = new ExifTool();
 
-export interface CliOptions {
-  json?: boolean;
-  csv?: boolean;
-  xml?: boolean;
-  binary?: boolean;
-  dateFormat?: string;
-  groupHeadings?: string | boolean;
-  groupPrefix?: string | boolean;
-  coordFormat?: string;
-  if?: string[];
-  verbose?: unknown[];
-  quiet?: unknown[];
-  recurse?: boolean;
-  extension?: string[];
-  ignore?: string[];
-  output?: string;
-  extractEmbedded?: boolean;
-  overwriteOriginal?: boolean;
-  stayOpen?: string | boolean;
-}
 
 export async function runAction(options: CliOptions, ...files: string[]): Promise<number> {
   const quietCount: number = options.quiet?.length ?? 0;
@@ -105,7 +67,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
       if (options.extractEmbedded === true && info.format === 'JPEG') {
         // The file was just read successfully; a re-read failure here is
         // handled by the same per-file catch below.
-        const bytes = await Deno.readFile(file);
+        const bytes = await readFile(file);
         for (const doc of extractEmbeddedJpegs(bytes)) {
           results.push(await jpegParser.parse(doc, file, tool.tagDb));
         }
@@ -159,7 +121,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
     for (const file of kept) {
       for (const value of Object.values(file.tags)) {
         if (value instanceof Uint8Array && value.length > 0) {
-          await Deno.stdout.write(value);
+          process.stdout.write(value);
           foundBinary = true;
         }
       }
@@ -188,7 +150,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
   }
   if (options.output !== undefined) {
     try {
-      await Deno.writeTextFile(options.output, text);
+      await writeFile(options.output, text);
     } catch (e) {
       console.error(`Error writing ${options.output}: ${(e as Error).message}`);
       return 1;
@@ -207,8 +169,12 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
 export async function main(
   options: CliOptions,
   files: string[],
-  input: ReadableStream<Uint8Array> = Deno.stdin.readable,
+  input: AsyncIterable<Uint8Array> = process.stdin,
 ): Promise<number> {
+  if (options.version) {
+    console.log('0.1.0');
+    return 0;
+  }
   const wantsDaemon = options.stayOpen !== undefined &&
     options.stayOpen !== false &&
     options.stayOpen !== 'False';
@@ -226,34 +192,13 @@ export async function main(
   return loop.shutdownRequested ? lastCode : 0;
 }
 
-const cmd = new Command()
-  .name('exiftool-ts')
-  .version('0.1.0')
-  .description('Read/write metadata across 140+ file formats')
-  .option('--json', 'Output in JSON format')
-  .option('--csv', 'Output in CSV format')
-  .option('-b, --binary', 'Output binary data for binary-valued tags')
-  .option('-d, --date-format <format:string>', 'Date format string (%Y %m %d %H %M %S %f)')
-  .option('-g, --group-headings <family:string>', 'Show group headings (tabular only, -g[NUM])')
-  .option('-G, --group-prefix <family:string>', 'Show group name prefix (-G[NUM])')
-  .option('-c, --coord-format <format:string>', 'GPS coordinate format (%+.6f or template with %d %.Nf %.Ns %c)')
-  .option('-if, --if <expr:string>', 'Filter files by condition ($Tag eq/ne/>/</>=/<= value)', { collect: true })
-  .option('-v, --verbose', 'Verbose output', { collect: true })
-  .option('-q, --quiet', 'Quiet output', { collect: true })
-  .option('-X, --xml', 'Output in XML format')
-  .option('-o, --output <file:string>', 'Write output to file instead of stdout')
-  .option('-r, --recurse', 'Recurse into subdirectories')
-  .option('--extension <ext:string>', 'Extension filter for directory scans (use -ext EXT)', { collect: true })
-  .option('-i, --ignore <dirname:string>', 'Ignore a directory name during scans', { collect: true })
-  .option('--extract-embedded', 'Extract embedded documents from supported formats (Multi-Picture JPEG); use -ee')
-  .option('--overwrite-original', 'Skip creating <file>_original backups when writing (use -overwrite_original)')
-  .option('--stay-open [flag:string]', 'Run as persistent daemon reading commands from stdin (use -stay_open)')
-  .arguments('[files...:string]')
-  .action(async (options, ...files: string[]) => {
-    const code = await main(options as CliOptions, files);
-    if (code !== 0) Deno.exit(code);
-  });
-
-if (import.meta.main) {
-  await cmd.parse(normalizeArgs(Deno.args));
+if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
+  try {
+    const { options, files } = parseCliArgs(normalizeArgs(process.argv.slice(2)));
+    const code = await main(options, files);
+    if (code !== 0) process.exitCode = code;
+  } catch (e) {
+    console.error(e instanceof Error ? e.message : e);
+    process.exitCode = 1;
+  }
 }

@@ -1,4 +1,4 @@
-import type { TagValue } from '../types.ts';
+import type { TagValue } from '../types.js';
 
 export function computeCompositeTags(tags: Record<string, TagValue>): void {
   const imageWidth = asNum(tags['ImageWidth']);

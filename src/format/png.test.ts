@@ -1,6 +1,7 @@
-import { assertEquals } from '../../deps.ts';
-import { detectParser } from './mod.ts';
-import { pngParser } from './png.ts';
+import { test } from 'vitest';
+import { assertEquals } from '../../src/test/asserts.js';
+import { detectParser } from './mod.js';
+import { pngParser } from './png.js';
 
 const encoder = new TextEncoder();
 
@@ -40,13 +41,13 @@ function png(...chunks_: Uint8Array[]): Uint8Array {
   return concat(PNG_SIG, ...chunks_);
 }
 
-Deno.test('png canParse accepts signature and rejects short/garbage', () => {
+test('png canParse accepts signature and rejects short/garbage', () => {
   assertEquals(pngParser.canParse(png(ihdr(1, 1))), true);
   assertEquals(pngParser.canParse(new Uint8Array(7)), false);
   assertEquals(pngParser.canParse(encoder.encode('NOTPNG!!')), false);
 });
 
-Deno.test('png IHDR extracts dimensions and color info', async () => {
+test('png IHDR extracts dimensions and color info', async () => {
   const result = await pngParser.parse(png(ihdr(320, 240), chunk('IEND', new Uint8Array(0))), 'a.png');
   assertEquals(result.format, 'PNG');
   assertEquals(result.tags['ImageWidth'], 320);
@@ -55,7 +56,7 @@ Deno.test('png IHDR extracts dimensions and color info', async () => {
   assertEquals(result.tags['ColorType'], 'RGB');
 });
 
-Deno.test('png eXIf chunk parses embedded TIFF', async () => {
+test('png eXIf chunk parses embedded TIFF', async () => {
   // Minimal little-endian TIFF with Make="Cam\0" (inline, <=4 bytes).
   const tiff = new Uint8Array(8 + 2 + 12 + 4);
   const dv = new DataView(tiff.buffer);
@@ -79,24 +80,24 @@ Deno.test('png eXIf chunk parses embedded TIFF', async () => {
   assertEquals(result.tags['Make'], 'Cam');
 });
 
-Deno.test('png iCCP exposes profile name before the NUL', async () => {
+test('png iCCP exposes profile name before the NUL', async () => {
   const payload = concat(encoder.encode('sRGB IEC61966-2.1\0\x00\x00'), new Uint8Array(8));
   const result = await pngParser.parse(png(chunk('iCCP', payload), chunk('IEND', new Uint8Array(0))), 'icc.png');
   assertEquals(result.tags['ICC_Profile_Name'], 'sRGB IEC61966-2.1');
 });
 
-Deno.test('png iCCP without name NUL yields no tag', async () => {
+test('png iCCP without name NUL yields no tag', async () => {
   const result = await pngParser.parse(png(chunk('iCCP', encoder.encode('noname')), chunk('IEND', new Uint8Array(0))), 'icc.png');
   assertEquals('ICC_Profile_Name' in result.tags, false);
 });
 
-Deno.test('png tEXt keyword/value split on first NUL', async () => {
+test('png tEXt keyword/value split on first NUL', async () => {
   const payload = encoder.encode('Title\0A Scene');
   const result = await pngParser.parse(png(chunk('tEXt', payload), chunk('IEND', new Uint8Array(0))), 'text.png');
   assertEquals(result.tags['PNG_Title'], 'A Scene');
 });
 
-Deno.test('png tEXt without separator or leading NUL is skipped', async () => {
+test('png tEXt without separator or leading NUL is skipped', async () => {
   const noSep = await pngParser.parse(png(chunk('tEXt', encoder.encode('noseparator')), chunk('IEND', new Uint8Array(0))), 'a.png');
   const leadNul = await pngParser.parse(
     png(chunk('tEXt', new Uint8Array([0, 0x41])), chunk('IEND', new Uint8Array(0))),
@@ -106,7 +107,7 @@ Deno.test('png tEXt without separator or leading NUL is skipped', async () => {
   assertEquals(Object.keys(leadNul.tags).filter((k) => k.startsWith('PNG_')).length, 0);
 });
 
-Deno.test('png iTXt uncompressed text extracted', async () => {
+test('png iTXt uncompressed text extracted', async () => {
   const payload = concat(
     encoder.encode('Comment\0'),
     new Uint8Array([0, 0]), // compression flag 0, method 0
@@ -118,7 +119,7 @@ Deno.test('png iTXt uncompressed text extracted', async () => {
   assertEquals(result.tags['PNG_Comment'], 'world text');
 });
 
-Deno.test('png iTXt compressed flag summarized instead of decoded', async () => {
+test('png iTXt compressed flag summarized instead of decoded', async () => {
   const payload = concat(
     encoder.encode('Comment\0'),
     new Uint8Array([1, 0]),
@@ -129,7 +130,7 @@ Deno.test('png iTXt compressed flag summarized instead of decoded', async () => 
   assertEquals(result.tags['PNG_Comment'], '[compressed:1]');
 });
 
-Deno.test('png iTXt malformed truncations bail out without throwing', async () => {
+test('png iTXt malformed truncations bail out without throwing', async () => {
   const cases: Uint8Array[] = [
     encoder.encode('NoNulKeyword'), // null1 missing
     encoder.encode('K\0'), // no room for compression flag
@@ -147,14 +148,14 @@ Deno.test('png iTXt malformed truncations bail out without throwing', async () =
   }
 });
 
-Deno.test('png gAMA converts gamma to float', async () => {
+test('png gAMA converts gamma to float', async () => {
   const d = new Uint8Array(4);
   new DataView(d.buffer).setUint32(0, 45455, false);
   const result = await pngParser.parse(png(chunk('gAMA', d), chunk('IEND', new Uint8Array(0))), 'g.png');
   assertEquals(Math.abs((result.tags['Gamma'] as number) - 0.45455) < 1e-9, true);
 });
 
-Deno.test('png pHYs exposes pixel density', async () => {
+test('png pHYs exposes pixel density', async () => {
   const d = new Uint8Array(9);
   const dv = new DataView(d.buffer);
   dv.setUint32(0, 2835, false);
@@ -166,14 +167,14 @@ Deno.test('png pHYs exposes pixel density', async () => {
   assertEquals(result.tags['UnitSpecifier'], 1);
 });
 
-Deno.test('png trailing garbage shorter than a chunk header ends the walk', async () => {
+test('png trailing garbage shorter than a chunk header ends the walk', async () => {
   // No IEND present: the walker must bail via the short-header guard.
   const bytes = png(ihdr(1, 1), new Uint8Array([1, 2, 3, 4]));
   const result = await pngParser.parse(bytes, 'tail.png');
   assertEquals(result.tags['ImageWidth'], 1);
 });
 
-Deno.test('png chunk claiming impossible length stops the walk cleanly', async () => {
+test('png chunk claiming impossible length stops the walk cleanly', async () => {
   const bogus = new Uint8Array(12);
   new DataView(bogus.buffer).setUint32(0, 0xffffff, false); // length beyond buffer
   bogus.set(encoder.encode('BOGUS'), 4);
@@ -182,6 +183,6 @@ Deno.test('png chunk claiming impossible length stops the walk cleanly', async (
   assertEquals(result.tags['ImageWidth'], 2);
 });
 
-Deno.test('detectParser routes PNG buffers to the png parser', () => {
+test('detectParser routes PNG buffers to the png parser', () => {
   assertEquals(detectParser(png(ihdr(1, 1)))!.format, 'PNG');
 });
