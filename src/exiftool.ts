@@ -1,73 +1,14 @@
-import { readFile } from 'node:fs/promises';
-import { TagDb } from './tag-db.js';
-import { DEFAULT_OPTIONS, type ExifToolOptions, type FileInfo, type TagEntry, type TagValue } from './types.js';
-import tagData from './tags/generated/tags.json' with { type: 'json' };
-import type { TableDef } from './tags.js';
-import { builtinPlugins, detectParser } from './format/mod.js';
-import type { FormatParser, ParseHints } from './format/mod.js';
-
+import { readFile, writeFile } from 'node:fs/promises';
+import { ExifToolCore } from './exiftool-core.js';
+import { detectParser, type ParseHints } from './format/mod.js';
+import type { FileInfo, TagValue } from './types.js';
 import { writeTags, type WriteResult } from './write/pipeline.js';
-function buildTagDb(): TagDb {
-  const db = new TagDb();
-  const tables = tagData as TableDef[];
-  for (const table of tables) {
-    const entries: TagEntry[] = table.tags.map((t) => ({
-      id: t.id,
-      name: t.name,
-      description: t.description,
-      format: t.type !== '?' ? t.type as TagEntry['format'] : undefined,
-      writable: t.writable,
-      groups: {
-        family0: table.groups.g0,
-        family1: table.groups.g1,
-        family2: table.groups.g2,
-        family7: t.g2,
-      },
-      values: t.values && Object.keys(t.values).length > 0 ? t.values : undefined,
-    }));
-    db.registerBatch(entries);
-  }
-  return db;
-}
 
-export class ExifTool {
-  readonly tagDb: TagDb;
-  readonly options: ExifToolOptions;
-
-  private resolvedPlugins?: FormatParser[];
-
-  constructor(opts?: Partial<ExifToolOptions>) {
-    this.options = { ...DEFAULT_OPTIONS, ...opts };
-    this.tagDb = buildTagDb();
-  }
-
-  /** Plugin set: explicit `plugins` option, else every built-in format (lazily). */
-  private async resolvePlugins(): Promise<FormatParser[]> {
-    this.resolvedPlugins ??= this.options.plugins ?? await builtinPlugins();
-    return this.resolvedPlugins;
-  }
-
-  /** The resolved plugin for `format`, if this instance uses it. */
-  getParser(format: string): FormatParser | undefined {
-    return this.resolvedPlugins?.find((p) => p.format === format);
-  }
-
-  async run(args: string[]): Promise<number> {
-    if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
-      this.printHelp();
-      return 0;
-    }
-
-    if (args.includes('--version') || args.includes('-ver')) {
-      console.log('0.1.0');
-      return 0;
-    }
-
-    console.error('exiftool-ts: not yet implemented');
-    await 0;
-    return 1;
-  }
-
+/**
+ * Node entry: extends the platform-free core with path-based read/write
+ * backed by the filesystem.
+ */
+export class ExifTool extends ExifToolCore {
   async read(filePath: string, hints?: ParseHints): Promise<FileInfo> {
     const bytes = await readFile(filePath);
     const parser = detectParser(bytes, await this.resolvePlugins());
@@ -91,16 +32,20 @@ export class ExifTool {
     return writeTags(filePath, tags, opts, await this.resolvePlugins());
   }
 
-  /**
-   * Parses metadata from an in-memory buffer instead of a file path.
-   * File-system-derived tags (FileName, FileSize, …) are absent here.
-   */
-  async readBytes(bytes: Uint8Array): Promise<FileInfo> {
-    const parser = detectParser(bytes, await this.resolvePlugins());
-    if (parser) {
-      return parser.parse(bytes, '(buffer)', this.tagDb);
+  async run(args: string[]): Promise<number> {
+    if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
+      this.printHelp();
+      return 0;
     }
-    return { path: '(buffer)', format: 'Unknown', tags: {} };
+
+    if (args.includes('--version') || args.includes('-ver')) {
+      console.log('0.1.0');
+      return 0;
+    }
+
+    console.error('exiftool-ts: not yet implemented');
+    await 0;
+    return 1;
   }
 
   private printHelp(): void {
@@ -113,7 +58,6 @@ Usage:
 Options:
   -h, --help       Show help
   -ver, --version  Show version
-  -json            Output in JSON format
   -n               Print tag values only
   -g[NUM]          Show group names
   -b               Output binary data

@@ -1,7 +1,9 @@
 import { test } from 'vitest';
 import { assertEquals } from '../../src/test/asserts.js';
-import { detectParser } from './mod.js';
+import { applyFileStat } from '../cli/filestat.js';
 import { jpegParser } from './jpeg.js';
+import type { TagValue } from '../types.js';
+import { detectParser } from './mod.js';
 import { chmod, mkdtemp, open, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -394,6 +396,7 @@ test('jpeg file metadata reflects real temp files', async () => {
     const tiny = `${dir}/tiny.jpg`;
     await writeFile(tiny, concat(new Uint8Array([0xff, 0xd8]), seg(0xfe, encoder.encode('x'))));
     const small = await jpegParser.parse(await readFile(tiny), tiny);
+    await applyFileStat(small.tags, tiny);
     assertEquals(small.tags['FileName'], 'tiny.jpg');
     assertEquals(small.tags['Directory'], dir);
     assertEquals(small.tags['SourceFile'], tiny);
@@ -407,13 +410,14 @@ test('jpeg file metadata reflects real temp files', async () => {
     await fh.truncate(2048);
     await fh.close();
     const bigResult = await jpegParser.parse(await readFile(big), big);
+    await applyFileStat(bigResult.tags, big);
     assertEquals(bigResult.tags['FileSize'], '2 kB');
-
     const huge = `${dir}/huge.jpg`;
     const fh2 = await open(huge, 'w');
     await fh2.truncate(1048576 * 1.5 | 0);
     await fh2.close();
     const hugeResult = await jpegParser.parse(await readFile(huge), huge);
+    await applyFileStat(hugeResult.tags, huge);
     assertEquals(hugeResult.tags['FileSize'], '1.6 MB');
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -424,6 +428,11 @@ test('jpeg stat failure leaves file metadata minimal', async () => {
   const result = await jpegParser.parse(new Uint8Array([0xff, 0xd8]), '/nonexistent-dir/nope.jpg');
   assertEquals(result.tags['FileName'], 'nope.jpg');
   assertEquals('FileSize' in result.tags, false);
+
+  // applyFileStat ignores stat failures the same way the parser used to.
+  const statTags: Record<string, TagValue> = {};
+  await applyFileStat(statTags, '/nonexistent-dir/nope.jpg');
+  assertEquals(Object.keys(statTags).length, 0);
 });
 
 test('detectParser routes JPEG buffers', () => {
@@ -468,17 +477,20 @@ test('jpeg permissions rendering covers set and unset bits', async () => {
     await writeFile(a, new Uint8Array([0xff, 0xd8]));
     await chmod(a, 0o755);
     const ra = await jpegParser.parse(await readFile(a), a);
+    await applyFileStat(ra.tags, a);
     assertEquals(ra.tags['FilePermissions'], '-rwxr-xr-x');
 
     const b = `${dir}/b462.jpg`;
     await writeFile(b, new Uint8Array([0xff, 0xd8]));
     await chmod(b, 0o462);
     const rb = await jpegParser.parse(await readFile(b), b);
+    await applyFileStat(rb.tags, b);
     assertEquals(rb.tags['FilePermissions'], '-r--rw--w-');
 
     // A directory path flips the type bit.
-    const rd = await jpegParser.parse(new Uint8Array([0xff, 0xd8]), dir);
-    assertEquals((rd.tags['FilePermissions'] as string)[0], 'd');
+    const rdTags: Record<string, TagValue> = {};
+    await applyFileStat(rdTags, dir);
+    assertEquals((rdTags['FilePermissions'] as string)[0], 'd');
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

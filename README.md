@@ -84,8 +84,41 @@ await tool.write("photo.jpg", { Artist: "me", Copyright: "(c)" });
 
 Exported surface: `ExifTool`, `TagDb`, `writeTags`, `UnsupportedFormatError`,
 and the types `FileInfo`, `TagValue`, `WriteResult`, `ParseHints`, `ReadOptions`,
-`TagEntry`, `TagGroups`. Your editor resolves all of it — no `.d.ts` stubs needed,
-since the package is published as source.
+`TagEntry`, `TagGroups`.
+
+## Plugins
+
+Formats are plugins. By default `ExifTool` loads every built-in one, but you
+can restrict an instance to a set — the bundler then ships only those parsers:
+
+```ts
+import { ExifTool } from "exiftool-ts";
+import { MODERN_PLUGINS } from "exiftool-ts/plugins";
+
+const tool = new ExifTool({ plugins: MODERN_PLUGINS }); // JPEG, PNG, WebP, AVIF only
+```
+
+`MODERN_PLUGINS` / `ALL_PLUGINS` cover the shipped formats; individual parsers
+(`jpegParser`, `pngParser`, `webpParser`, `avifParser`) and fully custom plugins
+(`{ format, extensions, canParse, parse, writeBytes? }`) come from the same
+subpath. A plugin without `writeBytes` is read-only. The default — every
+built-in — loads lazily, so `new ExifTool()` keeps working unchanged.
+
+## Browser
+
+The parser core is platform-free. The `browser` export condition resolves to a
+bundle with no Node builtins; reads and writes work on in-memory buffers:
+
+```ts
+import { ExifTool, MODERN_PLUGINS } from "exiftool-ts/browser";
+
+const tool = new ExifTool({ plugins: MODERN_PLUGINS });
+const { bytes, written } = await tool.writeBytes(imageBuffer, { Artist: "me" });
+const info = await tool.readBytes(bytes);
+```
+
+Path-based `read`/`write` stay Node-only (main entry); browser consumers get
+`readBytes`/`writeBytes`.
 
 ## CLI usage
 
@@ -106,21 +139,26 @@ printf -- '-j\nphoto.jpg\n-execute\n-stay_open\nFalse\n' \
 ## Architecture
 
 ```
-mod.ts               → Library barrel (public API + types)
+mod.ts               → JSR barrel (re-exports the public API)
 src/
   cli.ts             → CLI entry point (arg normalization → main())
-  exiftool.ts        → ExifTool class (read / readBytes / write)
+  exiftool.ts        → Node ExifTool class (path-based read / write via fs)
+  exiftool-core.ts   → Platform-free core (readBytes / writeBytes / plugins)
+  browser.ts         → Browser entry (platform-free bundle)
+  plugins.ts         → Plugin presets (./plugins subpath)
   tag-db.ts          → Tag database (name/id/group lookups)
   types.ts           → Core types (FileInfo, TagEntry, TagValue, …)
   cli/
     args.ts          → ExifTool-style argument parser (normalizeArgs + parseCliArgs)
+    filestat.ts      → File-stat tag overlay (FileSize, FileModifyDate, …)
     filter.ts        → -if condition evaluation
     glob.ts          → directory recursion / extension filters
     output.ts        → JSON / XML / CSV / tabular formatters
     stay-open.ts     → -stay_open daemon command loop
     verbosity.ts     → -v/-q rendering helpers
   format/
-    mod.ts           → Format parser registry + ParseHints
+    mod.ts           → Plugin contract + detection (FormatParser, detectParser)
+    all.ts           → Built-in plugin set (lazy default)
     jpeg.ts          → JPEG segment walk (EXIF/XMP/IPTC/ICC/MPF/Adobe)
     png.ts           → PNG chunk walk (eXIf/iTXt/zTXt/tEXt/iCCP…)
     webp.ts          → RIFF/VP8X chunk walk

@@ -1,4 +1,3 @@
-import { statSync } from 'node:fs';
 import type { FormatParser, ParseHints } from './mod.js';
 import { jpegWriter } from '../write/writers.js';
 import type { FileInfo, TagValue } from '../types.js';
@@ -230,46 +229,7 @@ function addFileMetadata(result: Record<string, TagValue>, filePath: string): vo
   result['FileType'] = 'JPEG';
   result['FileTypeExtension'] = 'jpg';
   result['MIMEType'] = 'image/jpeg';
-
-  try {
-    const stat = statSync(filePath);
-    const size = stat.size;
-    if (size >= 1048576) {
-      result['FileSize'] = `${Number((size / 1000000).toPrecision(2))} MB`;
-    } else if (size >= 1024) {
-      result['FileSize'] = `${Math.round(size / 1000)} kB`;
-    } else {
-      result['FileSize'] = `${size} B`;
-    }
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const fmtDate = (d: Date) =>
-      `${d.getFullYear()}:${pad(d.getMonth()+1)}:${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-    const mod = stat.mtime;
-    if (mod) result['FileModifyDate'] = fmtDate(new Date(mod));
-    const access = stat.atime;
-    if (access) result['FileAccessDate'] = fmtDate(new Date(access));
-    const inode = stat.ctime || stat.birthtime;
-    if (inode) result['FileInodeChangeDate'] = fmtDate(new Date(inode));
-    if (stat.mode !== null && stat.mode !== undefined) {
-      const mode = stat.mode;
-      const perms = (mode & 0o777).toString(8).padStart(3, '0');
-      const type = (mode & 0o40000) ? 'd' : '-';
-      const ur = (mode & 0o400) ? 'r' : '-';
-      const uw = (mode & 0o200) ? 'w' : '-';
-      const ux = (mode & 0o100) ? 'x' : '-';
-      const gr = (mode & 0o040) ? 'r' : '-';
-      const gw = (mode & 0o020) ? 'w' : '-';
-      const gx = (mode & 0o010) ? 'x' : '-';
-      const or = (mode & 0o004) ? 'r' : '-';
-      const ow = (mode & 0o002) ? 'w' : '-';
-      const ox = (mode & 0o001) ? 'x' : '-';
-      result['FilePermissions'] = `${type}${ur}${uw}${ux}${gr}${gw}${gx}${or}${ow}${ox}`;
-    }
-  } catch {
-    // stat failed
-  }
 }
-
 const MP_ENTRY_SIZE = 16;
 
 /**

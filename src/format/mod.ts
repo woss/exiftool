@@ -41,7 +41,9 @@ let builtinPromise: Promise<FormatParser[]> | undefined;
 
 /**
  * The built-in plugin set (JPEG, PNG, WebP, AVIF), loaded lazily so that
- * importing the library never pulls a format module by default.
+ * importing the library never pulls a format module by default. Dynamic
+ * import is deliberate: plugin loading from a runtime-optional module,
+ * keeping the static import graph parser-free.
  */
 export function builtinPlugins(): Promise<FormatParser[]> {
   builtinPromise ??= import('./all.js').then((m) => m.BUILTIN_PLUGINS);

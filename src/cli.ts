@@ -1,8 +1,10 @@
 #!/usr/bin/env node
+import { applyFileStat } from './cli/filestat.js';
 import { readFile, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { normalizeArgs, parseCliArgs, type CliOptions } from './cli/args.js';
 import { ExifTool } from './exiftool.js';
+import { BUILTIN_PLUGINS } from './format/all.js';
 import { formatJSON, formatCSV, formatTabular, formatXML } from './cli/output.js';
 import type { FormatOptions } from './cli/output.js';
 import { evalCondition } from './cli/filter.js';
@@ -14,7 +16,9 @@ import { extractEmbeddedJpegs } from './format/jpeg.js';
 export { normalizeArgs, parseCliArgs } from './cli/args.js';
 export type { CliOptions } from './cli/args.js';
 
-const tool = new ExifTool();
+// The CLI is the all-formats binary: wire every builtin explicitly so
+// the lazy default-plugin path (and its dynamic import) never runs.
+const tool = new ExifTool({ plugins: BUILTIN_PLUGINS });
 
 
 export async function runAction(options: CliOptions, ...files: string[]): Promise<number> {
@@ -63,6 +67,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
   for (const file of expanded) {
     try {
       const info = await tool.read(file, coordFormat ? { coordFormat } : undefined);
+      await applyFileStat(info.tags, file);
       results.push(info);
       if (options.extractEmbedded === true && info.format === 'JPEG') {
         // The file was just read successfully; a re-read failure here is
