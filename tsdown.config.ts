@@ -9,9 +9,14 @@ const outExtensions = () => ({ js: '.js', dts: '.d.ts' }) as const;
 
 export default defineConfig([
   {
-    // Library: bundled ESM + bundled public-API declarations.
+    // Library: per-module ESM + declarations. Unbundle keeps module
+    // boundaries visible to consumer bundlers (the parser registry in
+    // format/* is a deliberate side effect, so real tree-shaking is
+    // limited either way -- see exiftool.ts's bare format imports).
     entry: ['src/mod.ts'],
     format: 'esm',
+    platform: 'node',
+    unbundle: true,
     dts: true,
     publint: true,
     attw: { profile: 'node16' },
