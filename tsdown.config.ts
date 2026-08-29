@@ -13,8 +13,7 @@ export default defineConfig([
     // boundaries visible to consumer bundlers (the parser registry in
     // format/* is a deliberate side effect, so real tree-shaking is
     // limited either way -- see exiftool.ts's bare format imports).
-    entry: ['src/mod.ts'],
-    format: 'esm',
+    entry: ['src/mod.ts', 'src/plugins.ts'],
     platform: 'node',
     unbundle: true,
     dts: true,

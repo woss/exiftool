@@ -12,6 +12,10 @@
       "types": "./dist/mod.d.ts",
       "import": "./dist/mod.js"
     },
+    "./plugins": {
+      "types": "./dist/plugins.d.ts",
+      "import": "./dist/plugins.js"
+    },
     "./cli": "./dist/cli.js"
   },
   "files": [

@@ -1,4 +1,5 @@
 import type { FormatParser, ParseHints } from './mod.js';
+import { avifWriter } from '../write/writers.js';
 import type { FileInfo, TagValue } from '../types.js';
 import type { TagDb } from '../tag-db.js';
 import { parseTiff } from '../exif/tiff.js';
@@ -113,6 +114,7 @@ function parseBoxTree(
 }
 
 export const avifParser: FormatParser = {
+  writeBytes: avifWriter,
   format: 'AVIF',
   extensions: ['.avif', '.heic', '.heif', '.hif'],
   canParse(bytes: Uint8Array): boolean {

@@ -1,5 +1,6 @@
 import { statSync } from 'node:fs';
 import type { FormatParser, ParseHints } from './mod.js';
+import { jpegWriter } from '../write/writers.js';
 import type { FileInfo, TagValue } from '../types.js';
 import type { TagDb } from '../tag-db.js';
 import { parseTiff } from '../exif/tiff.js';
@@ -9,6 +10,7 @@ import { computeCompositeTags } from '../exif/composite.js';
 import { parseAPP13 } from '../exif/app13.js';
 
 export const jpegParser: FormatParser = {
+  writeBytes: jpegWriter,
   format: 'JPEG',
   extensions: ['.jpg', '.jpeg', '.jpe', '.jif', '.jfif', '.jfi'],
   canParse(bytes: Uint8Array): boolean {

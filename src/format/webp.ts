@@ -1,4 +1,5 @@
 import type { FormatParser, ParseHints } from './mod.js';
+import { webpWriter } from '../write/writers.js';
 import type { FileInfo, TagValue } from '../types.js';
 import type { TagDb } from '../tag-db.js';
 import { parseTiff } from '../exif/tiff.js';
@@ -8,6 +9,7 @@ const RIFF_HEADER = new TextEncoder().encode('RIFF');
 const WEBP_HEADER = new TextEncoder().encode('WEBP');
 
 export const webpParser: FormatParser = {
+  writeBytes: webpWriter,
   format: 'WebP',
   extensions: ['.webp'],
   canParse(bytes: Uint8Array): boolean {

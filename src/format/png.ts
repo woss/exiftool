@@ -1,4 +1,5 @@
 import type { FormatParser, ParseHints } from './mod.js';
+import { pngWriter } from '../write/writers.js';
 import type { FileInfo, TagValue } from '../types.js';
 import type { TagDb } from '../tag-db.js';
 import { parseTiff } from '../exif/tiff.js';
@@ -22,6 +23,7 @@ function readChunk(
 }
 
 export const pngParser: FormatParser = {
+  writeBytes: pngWriter,
   format: 'PNG',
   extensions: ['.png'],
   canParse(bytes: Uint8Array): boolean {

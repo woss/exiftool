@@ -1,4 +1,4 @@
-import type { FileInfo } from '../types.js';
+import type { ContainerWriter, FileInfo, TagValue, WriteOutcome } from '../types.js';
 import type { TagDb } from '../tag-db.js';
 
 /** Optional per-read hints threaded from the CLI down into parsers. */
@@ -22,6 +22,8 @@ export interface FormatParser {
     tagDb?: TagDb,
     hints?: ParseHints,
   ): Promise<FileInfo>;
+  /** Produces updated container bytes; present only for writable formats. */
+  writeBytes?(original: Uint8Array, tags: Record<string, TagValue>): WriteOutcome;
 }
 
 /** First parser whose `canParse` accepts the buffer, else undefined. */

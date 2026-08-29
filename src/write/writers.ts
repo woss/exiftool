@@ -1,17 +1,6 @@
-import type { TagValue } from '../types.js';
+import type { ContainerWriter, TagValue, WriteOutcome } from '../types.js';
 import { buildTiff } from '../exif/tiff-builder.js';
 import { crc32 } from '../utils/crc32.js';
-
-export interface WriteOutcome {
-  bytes: Uint8Array;
-  written: string[];
-  skipped: string[];
-}
-
-export type ContainerWriter = (
-  original: Uint8Array,
-  tags: Record<string, TagValue>,
-) => WriteOutcome;
 
 export class UnsupportedFormatError extends Error {}
 

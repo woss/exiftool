@@ -9,7 +9,7 @@ import { evalCondition } from './cli/filter.js';
 import { verboseLines } from './cli/verbosity.js';
 import { expandInputs } from './cli/glob.js';
 import { readLines, stayOpenLoop } from './cli/stay-open.js';
-import { extractEmbeddedJpegs, jpegParser } from './format/jpeg.js';
+import { extractEmbeddedJpegs } from './format/jpeg.js';
 
 export { normalizeArgs, parseCliArgs } from './cli/args.js';
 export type { CliOptions } from './cli/args.js';
@@ -69,7 +69,8 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
         // handled by the same per-file catch below.
         const bytes = await readFile(file);
         for (const doc of extractEmbeddedJpegs(bytes)) {
-          results.push(await jpegParser.parse(doc, file, tool.tagDb));
+          // info.format === 'JPEG' implies the JPEG plugin is in the resolved set.
+          results.push(await tool.getParser('JPEG')!.parse(doc, file, tool.tagDb));
         }
       }
     } catch (e) {

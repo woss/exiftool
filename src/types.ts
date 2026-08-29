@@ -79,6 +79,18 @@ export interface FileInfo {
 
 import type { FormatParser } from './format/mod.js';
 
+/** A writer produces the new container bytes for updated metadata. */
+export interface WriteOutcome {
+  bytes: Uint8Array;
+  written: string[];
+  skipped: string[];
+}
+
+export type ContainerWriter = (
+  original: Uint8Array,
+  tags: Record<string, TagValue>,
+) => WriteOutcome;
+
 export interface ExifToolOptions {
   /** Format plugins this instance uses; defaults to every built-in format. */
   plugins?: FormatParser[];

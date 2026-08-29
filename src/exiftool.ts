@@ -4,7 +4,7 @@ import { DEFAULT_OPTIONS, type ExifToolOptions, type FileInfo, type TagEntry, ty
 import tagData from './tags/generated/tags.json' with { type: 'json' };
 import type { TableDef } from './tags.js';
 import { builtinPlugins, detectParser } from './format/mod.js';
-import type { ParseHints } from './format/mod.js';
+import type { FormatParser, ParseHints } from './format/mod.js';
 
 import { writeTags, type WriteResult } from './write/pipeline.js';
 function buildTagDb(): TagDb {
@@ -34,9 +34,22 @@ export class ExifTool {
   readonly tagDb: TagDb;
   readonly options: ExifToolOptions;
 
+  private resolvedPlugins?: FormatParser[];
+
   constructor(opts?: Partial<ExifToolOptions>) {
     this.options = { ...DEFAULT_OPTIONS, ...opts };
     this.tagDb = buildTagDb();
+  }
+
+  /** Plugin set: explicit `plugins` option, else every built-in format (lazily). */
+  private async resolvePlugins(): Promise<FormatParser[]> {
+    this.resolvedPlugins ??= this.options.plugins ?? await builtinPlugins();
+    return this.resolvedPlugins;
+  }
+
+  /** The resolved plugin for `format`, if this instance uses it. */
+  getParser(format: string): FormatParser | undefined {
+    return this.resolvedPlugins?.find((p) => p.format === format);
   }
 
   async run(args: string[]): Promise<number> {
@@ -57,7 +70,7 @@ export class ExifTool {
 
   async read(filePath: string, hints?: ParseHints): Promise<FileInfo> {
     const bytes = await readFile(filePath);
-    const parser = detectParser(bytes, this.options.plugins ?? await builtinPlugins());
+    const parser = detectParser(bytes, await this.resolvePlugins());
     if (parser) {
       return parser.parse(bytes, filePath, this.tagDb, hints);
     }
@@ -75,7 +88,7 @@ export class ExifTool {
     tags: Record<string, TagValue>,
     opts: { overwriteOriginal?: boolean } = {},
   ): Promise<WriteResult> {
-    return writeTags(filePath, tags, opts, this.options.plugins ?? await builtinPlugins());
+    return writeTags(filePath, tags, opts, await this.resolvePlugins());
   }
 
   /**
@@ -83,7 +96,7 @@ export class ExifTool {
    * File-system-derived tags (FileName, FileSize, …) are absent here.
    */
   async readBytes(bytes: Uint8Array): Promise<FileInfo> {
-    const parser = detectParser(bytes, this.options.plugins ?? await builtinPlugins());
+    const parser = detectParser(bytes, await this.resolvePlugins());
     if (parser) {
       return parser.parse(bytes, '(buffer)', this.tagDb);
     }
