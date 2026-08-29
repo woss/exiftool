@@ -2,7 +2,6 @@ import { statSync } from 'node:fs';
 import type { FormatParser, ParseHints } from './mod.js';
 import type { FileInfo, TagValue } from '../types.js';
 import type { TagDb } from '../tag-db.js';
-import { registerParser } from './mod.js';
 import { parseTiff } from '../exif/tiff.js';
 import { parseICCProfile } from '../exif/icc.js';
 import { parseXMP } from '../exif/xmp.js';
@@ -269,7 +268,6 @@ function addFileMetadata(result: Record<string, TagValue>, filePath: string): vo
   }
 }
 
-registerParser(jpegParser);
 const MP_ENTRY_SIZE = 16;
 
 /**

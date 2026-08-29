@@ -194,6 +194,6 @@ test('webp parse tolerates garbage body without RIFF semantics', async () => {
 });
 
 test('detectParser routes WebP buffers to the webp parser', () => {
-  const parser = detectParser(riff(chunk('VP8 ', new Uint8Array(4))))!;
+  const parser = detectParser(riff(chunk('VP8 ', new Uint8Array(4))), [webpParser])!;
   assertEquals(parser.format, 'WebP');
 });

@@ -1,11 +1,9 @@
 import { test } from 'vitest';
 import { assertEquals } from '../src/test/asserts.js';
-// Importing the barrel pulls in src/exiftool.ts, whose side-effect imports
-// register every format parser — detectParser below depends on that.
 import { ExifTool, TagDb, UnsupportedFormatError, writeTags } from '../mod.js';
 import type { WriteResult } from '../mod.js';
 import { DEFAULT_OPTIONS } from '../src/types.js';
-import { detectParser, getParser } from '../src/format/mod.js';
+import { builtinPlugins, detectParser } from '../src/format/mod.js';
 
 test('barrel exports the public API surface', () => {
   assertEquals(typeof ExifTool, 'function');
@@ -26,9 +24,9 @@ test('ExifTool constructor wires a populated tag db and default options', () => 
   assertEquals(custom.options.composite, DEFAULT_OPTIONS.composite);
 });
 
-test('format parsers are registered via side-effect import; JPEG is detected', () => {
+test('JPEG is detected by the built-in plugin set', async () => {
   const jpeg = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10]);
-  const parser = detectParser(jpeg);
+  const parser = detectParser(jpeg, await builtinPlugins());
   assertEquals(parser?.format, 'JPEG');
 });
 

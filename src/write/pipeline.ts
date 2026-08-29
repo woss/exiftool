@@ -1,6 +1,7 @@
 import { copyFile, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import type { TagValue } from '../types.js';
-import { detectParser } from '../format/mod.js';
+import { builtinPlugins, detectParser } from '../format/mod.js';
+import type { FormatParser } from '../format/mod.js';
 import {
   avifWriter,
   jpegWriter,
@@ -43,8 +44,9 @@ export async function writeTags(
   filePath: string,
   tags: Record<string, TagValue>,
   opts: WriteOptions = {},
+  plugins?: FormatParser[],
 ): Promise<WriteResult> {
-  return writeTagsWithTmp(filePath, tags, opts, `${filePath}.tmp-${crypto.randomUUID()}`);
+  return writeTagsWithTmp(filePath, tags, opts, `${filePath}.tmp-${crypto.randomUUID()}`, plugins);
 }
 
 /**
@@ -56,9 +58,10 @@ export async function writeTagsWithTmp(
   tags: Record<string, TagValue>,
   opts: WriteOptions,
   tmp: string,
+  plugins?: FormatParser[],
 ): Promise<WriteResult> {
   const original = await readFile(filePath);
-  const parser = detectParser(original);
+  const parser = detectParser(original, plugins ?? await builtinPlugins());
   if (!parser || !WRITERS[parser.format]) {
     throw new UnsupportedFormatError(
       `writing not supported for ${parser?.format ?? 'unknown'} files`,

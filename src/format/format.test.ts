@@ -1,6 +1,7 @@
 import { test } from 'vitest';
 import { assertEquals } from '../../src/test/asserts.js';
 import { detectParser } from './mod.js';
+import { BUILTIN_PLUGINS } from './all.js';
 import type { FileInfo } from '../types.js';
 import './jpeg.js';
 import './png.js';
@@ -130,7 +131,7 @@ test('detectParser JPEG', () => {
     0x00,
     0x01,
   ]);
-  assertEquals(detectParser(bytes)?.format, 'JPEG');
+  assertEquals(detectParser(bytes, BUILTIN_PLUGINS)?.format, 'JPEG');
 });
 
 test('detectParser PNG', () => {
@@ -148,7 +149,7 @@ test('detectParser PNG', () => {
     0x00,
     0x0d,
   ]);
-  assertEquals(detectParser(bytes)?.format, 'PNG');
+  assertEquals(detectParser(bytes, BUILTIN_PLUGINS)?.format, 'PNG');
 });
 
 test('detectParser WebP', () => {
@@ -166,7 +167,7 @@ test('detectParser WebP', () => {
     0x42,
     0x50,
   ]);
-  assertEquals(detectParser(bytes)?.format, 'WebP');
+  assertEquals(detectParser(bytes, BUILTIN_PLUGINS)?.format, 'WebP');
 });
 
 test('detectParser AVIF', () => {
@@ -192,7 +193,7 @@ test('detectParser AVIF', () => {
     0x69,
     0x66,
   ]);
-  assertEquals(detectParser(bytes)?.format, 'AVIF');
+  assertEquals(detectParser(bytes, BUILTIN_PLUGINS)?.format, 'AVIF');
 });
 
 test('JPEG parse — COM and SOF0', async () => {
@@ -224,7 +225,7 @@ test('JPEG parse — COM and SOF0', async () => {
   bytes.set(sofData, off);
   off += sofData.length;
 
-  const parser = detectParser(bytes)!;
+  const parser = detectParser(bytes, BUILTIN_PLUGINS)!;
   const result = await parser.parse(bytes, 'test.jpg');
   assertEquals(result.format, 'JPEG');
   assertEquals(result.tags['Comment'], 'Test comment');
@@ -256,7 +257,7 @@ test('JPEG parse — EXIF TIFF APP1', async () => {
   off += 2;
   bytes.set(app1Data, off);
 
-  const parser = detectParser(bytes)!;
+  const parser = detectParser(bytes, BUILTIN_PLUGINS)!;
   const result = await parser.parse(bytes, 'test.jpg');
   assertEquals(result.tags['Make'], 'TestMake');
   assertEquals(result.tags['Model'], 'TestModel');
@@ -317,7 +318,7 @@ test('PNG parse — IHDR and eXIf', async () => {
     off += p.length;
   }
 
-  const parser = detectParser(bytes)!;
+  const parser = detectParser(bytes, BUILTIN_PLUGINS)!;
   const result = await parser.parse(bytes, 'test.png');
   assertEquals(result.format, 'PNG');
   assertEquals(result.tags['ImageWidth'], 100);
@@ -345,7 +346,7 @@ test('avif: parses minimal ftyp+mdat without hanging', async () => {
   bytes.set(ftyp, 0);
   bytes.set(mdat, ftyp.length);
 
-  const parser = detectParser(bytes)!;
+  const parser = detectParser(bytes, BUILTIN_PLUGINS)!;
   const startedAt = Date.now();
   const result = await parser.parse(bytes, 'test.avif');
   const elapsedMs = Date.now() - startedAt;
@@ -376,7 +377,7 @@ test('avif: degenerate extended-size box (ext size 0) terminates cleanly', async
   bytes.set(ftyp, 0);
   bytes.set(degenerateFreeBox, ftyp.length);
 
-  const parser = detectParser(bytes)!;
+  const parser = detectParser(bytes, BUILTIN_PLUGINS)!;
   const startedAt = Date.now();
   const result = await parser.parse(bytes, 'test.avif');
   const elapsedMs = Date.now() - startedAt;

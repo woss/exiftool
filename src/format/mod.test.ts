@@ -1,38 +1,30 @@
 import { test } from 'vitest';
 import { assertEquals } from '../../src/test/asserts.js';
-import { detectParser, getAllParsers, getParser, registerParser } from './mod.js';
+import { builtinPlugins, detectParser, type FormatParser } from './mod.js';
 
-// The parser registry is process-global; use throwaway format names so the
-// built-in JPEG/PNG/WebP/AVIF registrations are never disturbed.
-const DUMMY = 'ZZ-RegistryTestFmt';
-
-function dummyParser(tag: string) {
+function dummyParser(accepts: (bytes: Uint8Array) => boolean): FormatParser {
   return {
-    format: DUMMY,
+    format: 'ZZ-TestFmt',
     extensions: ['.zztest'],
-    canParse: (bytes: Uint8Array) => bytes[0] === 0x7f && tag === 'v2',
-    parse: () => Promise.resolve({ path: '', format: DUMMY, tags: {} }),
+    canParse: accepts,
+    parse: () => Promise.resolve({ path: '', format: 'ZZ-TestFmt', tags: {} }),
   };
 }
 
-test('registerParser overwrites same-format entries and getParser returns latest', () => {
-  registerParser(dummyParser('v1'));
-  const first = getParser(DUMMY);
-  assertEquals(first?.format, DUMMY);
-
-  registerParser(dummyParser('v2'));
-  const second = getParser(DUMMY)!;
-  assertEquals(second.canParse(new Uint8Array([0x7f])), true);
-
-  // v1 was replaced: its predicate no longer matches.
-  const stale = getAllParsers().filter((p) => p.format === DUMMY);
-  assertEquals(stale.length, 1);
+test('detectParser returns the first accepting plugin in order', () => {
+  const never = dummyParser(() => false);
+  const always = dummyParser(() => true);
+  assertEquals(detectParser(new Uint8Array([1]), [never, always]), always);
+  assertEquals(detectParser(new Uint8Array([1]), [never]), undefined);
 });
 
-test('getParser returns undefined for unknown formats', () => {
-  assertEquals(getParser('No-Such-Format'), undefined);
+test('detectParser returns undefined on unrecognized magic', () => {
+  assertEquals(detectParser(new Uint8Array([0x01, 0x02, 0x03, 0x04]), []), undefined);
 });
 
-test('detectParser falls back to undefined on unrecognized magic', () => {
-  assertEquals(detectParser(new Uint8Array([0x01, 0x02, 0x03, 0x04])), undefined);
+test('builtinPlugins lazily provides all four built-in formats', async () => {
+  const plugins = await builtinPlugins();
+  assertEquals(plugins.map((p) => p.format), ['JPEG', 'PNG', 'WebP', 'AVIF']);
+  // Cached: the same array instances come back.
+  assertEquals(await builtinPlugins(), plugins);
 });

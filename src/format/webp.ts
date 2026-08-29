@@ -1,7 +1,6 @@
 import type { FormatParser, ParseHints } from './mod.js';
 import type { FileInfo, TagValue } from '../types.js';
 import type { TagDb } from '../tag-db.js';
-import { registerParser } from './mod.js';
 import { parseTiff } from '../exif/tiff.js';
 import { computeCompositeTags } from '../exif/composite.js';
 
@@ -97,4 +96,3 @@ export const webpParser: FormatParser = {
   },
 };
 
-registerParser(webpParser);

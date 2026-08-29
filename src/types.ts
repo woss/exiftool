@@ -77,7 +77,11 @@ export interface FileInfo {
   warnings?: string[];
 }
 
+import type { FormatParser } from './format/mod.js';
+
 export interface ExifToolOptions {
+  /** Format plugins this instance uses; defaults to every built-in format. */
+  plugins?: FormatParser[];
   duplicates: boolean;
   binary: boolean;
   composite: boolean;

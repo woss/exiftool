@@ -1,6 +1,7 @@
 import { test } from 'vitest';
 import { assertEquals } from '../../src/test/asserts.js';
 import { detectParser } from './mod.js';
+import { jpegParser } from './jpeg.js';
 import { extractEmbeddedJpegs } from './jpeg.js';
 
 function miniJpeg(marker = 0x01): Uint8Array {
@@ -114,7 +115,7 @@ test('extractEmbeddedJpegs handles big-endian MP Endian field', () => {
 test('embedded images are standalone copies parseable as JPEG', async () => {
   const docs = extractEmbeddedJpegs(buildMpf());
   assertEquals(docs[0].buffer !== (undefined as unknown), true);
-  const parser = detectParser(docs[0]);
+  const parser = detectParser(docs[0], [jpegParser]);
   assertEquals(parser?.format, 'JPEG');
   const info = await parser!.parse(docs[0], '(synthetic)');
   assertEquals(info.format, 'JPEG');

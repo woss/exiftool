@@ -5,6 +5,7 @@ import type { FormatOptions } from './output.js';
 import { TagDb } from '../tag-db.js';
 import type { FileInfo } from '../types.js';
 import { detectParser } from '../format/mod.js';
+import { jpegParser } from '../format/jpeg.js';
 // Side-effect import: registers the JPEG parser with the parser registry.
 import '../format/jpeg.js';
 
@@ -336,7 +337,7 @@ test('JPEG parse — EXIF IFD1 thumbnail extracted as exact bytes (ThumbnailImag
   ]);
   const bytes = makeJpegWithExifThumbnail(thumbBytes);
 
-  const parser = detectParser(bytes)!;
+  const parser = detectParser(bytes, [jpegParser])!;
   const info = await parser.parse(bytes, 'thumb.jpg');
 
   assertEquals(info.format, 'JPEG');

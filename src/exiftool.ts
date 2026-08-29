@@ -3,12 +3,8 @@ import { TagDb } from './tag-db.js';
 import { DEFAULT_OPTIONS, type ExifToolOptions, type FileInfo, type TagEntry, type TagValue } from './types.js';
 import tagData from './tags/generated/tags.json' with { type: 'json' };
 import type { TableDef } from './tags.js';
-import { detectParser } from './format/mod.js';
+import { builtinPlugins, detectParser } from './format/mod.js';
 import type { ParseHints } from './format/mod.js';
-import './format/jpeg.js';
-import './format/png.js';
-import './format/webp.js';
-import './format/avif.js';
 
 import { writeTags, type WriteResult } from './write/pipeline.js';
 function buildTagDb(): TagDb {
@@ -61,7 +57,7 @@ export class ExifTool {
 
   async read(filePath: string, hints?: ParseHints): Promise<FileInfo> {
     const bytes = await readFile(filePath);
-    const parser = detectParser(bytes);
+    const parser = detectParser(bytes, this.options.plugins ?? await builtinPlugins());
     if (parser) {
       return parser.parse(bytes, filePath, this.tagDb, hints);
     }
@@ -79,7 +75,7 @@ export class ExifTool {
     tags: Record<string, TagValue>,
     opts: { overwriteOriginal?: boolean } = {},
   ): Promise<WriteResult> {
-    return writeTags(filePath, tags, opts);
+    return writeTags(filePath, tags, opts, this.options.plugins ?? await builtinPlugins());
   }
 
   /**
@@ -87,7 +83,7 @@ export class ExifTool {
    * File-system-derived tags (FileName, FileSize, …) are absent here.
    */
   async readBytes(bytes: Uint8Array): Promise<FileInfo> {
-    const parser = detectParser(bytes);
+    const parser = detectParser(bytes, this.options.plugins ?? await builtinPlugins());
     if (parser) {
       return parser.parse(bytes, '(buffer)', this.tagDb);
     }

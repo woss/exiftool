@@ -1,6 +1,7 @@
 import { test } from 'vitest';
 import { assertEquals } from '../../src/test/asserts.js';
 import { detectParser } from './mod.js';
+import { avifParser } from './avif.js';
 import './avif.js';
 
 const encoder = new TextEncoder();
@@ -36,7 +37,7 @@ test('avif regression: minimal ftyp+mdat resolves without hanging', async () => 
   const mdat = buildBox('mdat', mdatPayload);
   const bytes = concat(buildFtyp(), mdat);
 
-  const parser = detectParser(bytes)!;
+  const parser = detectParser(bytes, [avifParser])!;
   assertEquals(parser.format, 'AVIF');
 
   const startedAt = Date.now();
@@ -56,7 +57,7 @@ test('avif: meta container with infe child traverses recursively without error',
   const meta = buildBox('meta', infe);
   const bytes = concat(buildFtyp(), meta);
 
-  const parser = detectParser(bytes)!;
+  const parser = detectParser(bytes, [avifParser])!;
   const result = await parser.parse(bytes, 'container.avif');
 
   assertEquals(result.format, 'AVIF');
@@ -70,7 +71,7 @@ test('avif: truncated final box header breaks walk cleanly without throwing', as
   const trailing = new Uint8Array([0x64, 0x61, 0x74]); // 3 more bytes, still < 8
   const bytes = concat(buildFtyp(), partialHeader, trailing);
 
-  const parser = detectParser(bytes)!;
+  const parser = detectParser(bytes, [avifParser])!;
   const result = await parser.parse(bytes, 'truncated.avif');
 
   assertEquals(result.format, 'AVIF');
@@ -78,7 +79,7 @@ test('avif: truncated final box header breaks walk cleanly without throwing', as
 });
 
 test('avif canParse rejects short buffers, wrong box, unknown brand', () => {
-  const parser = detectParser(buildFtyp())!;
+  const parser = detectParser(buildFtyp(), [avifParser])!;
   assertEquals(parser.format, 'AVIF');
   assertEquals(parser.canParse(new Uint8Array(11)), false);
   const notFtyp = concat(buildBox('moov', new Uint8Array(8)), new Uint8Array(4));
@@ -89,7 +90,7 @@ test('avif canParse rejects short buffers, wrong box, unknown brand', () => {
 test('avif ftyp compatible brands collected, null brands skipped', async () => {
   const data = encoder.encode('avifmif1\0\0\0\0avis');
   const bytes = concat(buildBox('ftyp', data), buildBox('mdat', new Uint8Array(4)));
-  const result = detectParser(bytes)!.parse(bytes, 'brands.avif');
+  const result = detectParser(bytes, [avifParser])!.parse(bytes, 'brands.avif');
   assertEquals((await result).tags['CompatibleBrands'], ['mif1', 'avis']);
 });
 
@@ -103,7 +104,7 @@ test('avif extended-size box (size==1 + largesize) is traversed', async () => {
   new DataView(ext.buffer).setBigUint64(8, BigInt(ext.length), false);
   ext.set(inner, 16);
   const bytes = concat(buildFtyp(), ext);
-  const result = await detectParser(bytes)!.parse(bytes, 'ext.avif');
+  const result = await detectParser(bytes, [avifParser])!.parse(bytes, 'ext.avif');
   assertEquals(result.tags['XMP'], '<x:xmpmeta>ext</x:xmpmeta>');
 });
 
@@ -112,7 +113,7 @@ test('avif extended-size header truncated to 8 bytes breaks the walk', async () 
   new DataView(stub.buffer).setUint32(0, 1, false);
   stub.set(encoder.encode('abcd'), 4); // largesize bytes missing
   const bytes = concat(buildFtyp(), stub);
-  const result = await detectParser(bytes)!.parse(bytes, 'trunc-ext.avif');
+  const result = await detectParser(bytes, [avifParser])!.parse(bytes, 'trunc-ext.avif');
   assertEquals(result.tags['FileTypeBrand'], 'avif');
 });
 
@@ -124,7 +125,7 @@ test('avif size==0 box extends to end of stream', async () => {
   last.set(encoder.encode('xml '), 4);
   last.set(payload, 8);
   const bytes = concat(buildFtyp(), last);
-  const result = await detectParser(bytes)!.parse(bytes, 'toend.avif');
+  const result = await detectParser(bytes, [avifParser])!.parse(bytes, 'toend.avif');
   assertEquals(result.tags['XMP'], '<x:xmpmeta>tail</x:xmpmeta>');
 });
 
@@ -133,7 +134,7 @@ test('avif box claiming size beyond the limit stops the walk', async () => {
   new DataView(bogus.buffer).setUint32(0, 0x7fffffff, false);
   bogus.set(encoder.encode('huge'), 4);
   const bytes = concat(buildFtyp(), bogus);
-  const result = await detectParser(bytes)!.parse(bytes, 'huge.avif');
+  const result = await detectParser(bytes, [avifParser])!.parse(bytes, 'huge.avif');
   assertEquals(result.tags['FileTypeBrand'], 'avif');
 });
 
@@ -144,18 +145,18 @@ test('avif Exif box extracts TIFF tags; bad tiffOffset skipped', async () => {
   withOffset.set(tiff, 4);
 
   const okBytes = concat(buildFtyp(), buildBox('Exif', withOffset));
-  const ok = await detectParser(okBytes)!.parse(okBytes, 'exif.avif', undefined, { coordFormat: '%.6f' });
+  const ok = await detectParser(okBytes, [avifParser])!.parse(okBytes, 'exif.avif', undefined, { coordFormat: '%.6f' });
   assertEquals(ok.tags['Make'], 'Cam');
 
   const badOffset = new Uint8Array(4);
   new DataView(badOffset.buffer).setUint32(0, 9999, false);
   const badBytes = concat(buildFtyp(), buildBox('Exif', badOffset));
-  const bad = await detectParser(badBytes)!.parse(badBytes, 'bad.avif');
+  const bad = await detectParser(badBytes, [avifParser])!.parse(badBytes, 'bad.avif');
   assertEquals('Make' in bad.tags, false);
 });
 test('avif tiny Exif box (<=4 bytes payload) is ignored safely', async () => {
   const bytes = concat(buildFtyp(), buildBox('Exif', new Uint8Array([1, 2, 3, 4])));
-  const result = await detectParser(bytes)!.parse(bytes, 'tiny.avif');
+  const result = await detectParser(bytes, [avifParser])!.parse(bytes, 'tiny.avif');
   assertEquals('Make' in result.tags, false);
 });
 
@@ -168,7 +169,7 @@ test('avif colr nclx exposes color metadata; rICC/prof expose ICC blob', async (
   nclx[8] = 6; // matrix
   nclx[9] = 0x80; // full range flag
   const nclxBytes = concat(buildFtyp(), buildBox('colr', nclx));
-  const r1 = await detectParser(nclxBytes)!.parse(nclxBytes, 'nclx.avif');
+  const r1 = await detectParser(nclxBytes, [avifParser])!.parse(nclxBytes, 'nclx.avif');
   assertEquals(r1.tags['ColorPrimaries'], 1);
   assertEquals(r1.tags['TransferCharacteristics'], 13);
   assertEquals(r1.tags['MatrixCoefficients'], 6);
@@ -177,7 +178,7 @@ test('avif colr nclx exposes color metadata; rICC/prof expose ICC blob', async (
   for (const kind of ['rICC', 'prof']) {
     const payload = concat(encoder.encode(kind), new Uint8Array([1, 2, 3]));
     const b = concat(buildFtyp(), buildBox('colr', payload));
-    const r = await detectParser(b)!.parse(b, `${kind}.avif`);
+    const r = await detectParser(b, [avifParser])!.parse(b, `${kind}.avif`);
     assertEquals([...(r.tags['ICC_Profile'] as Uint8Array)], [1, 2, 3]);
   }
 });
@@ -185,7 +186,7 @@ test('avif colr nclx exposes color metadata; rICC/prof expose ICC blob', async (
 
 test('avif colr with unrecognized color type stores nothing', async () => {
   const bytes = concat(buildFtyp(), buildBox('colr', encoder.encode('xxxx1234')));
-  const result = await detectParser(bytes)!.parse(bytes, 'colr-x.avif');
+  const result = await detectParser(bytes, [avifParser])!.parse(bytes, 'colr-x.avif');
   assertEquals('ICC_Profile' in result.tags, false);
   assertEquals('ColorPrimaries' in result.tags, false);
 });
@@ -194,7 +195,7 @@ test('avif colr nclx with clear full-range flag reports 0', async () => {
   const nclx = new Uint8Array(10);
   nclx.set(encoder.encode('nclx'), 0);
   const bytes = concat(buildFtyp(), buildBox('colr', nclx));
-  const result = await detectParser(bytes)!.parse(bytes, 'nclx0.avif');
+  const result = await detectParser(bytes, [avifParser])!.parse(bytes, 'nclx0.avif');
   assertEquals(result.tags['VideoFullRange'], 0);
 });
 test('avif pixi and ispe carry bit depth and dimensions', async () => {
@@ -204,14 +205,14 @@ test('avif pixi and ispe carry bit depth and dimensions', async () => {
   new DataView(ispeDims.buffer).setUint32(0, 640, false);
   new DataView(ispeDims.buffer).setUint32(4, 480, false);
   const bytes = concat(buildFtyp(), pixiFull, pixiEmpty, buildBox('ispe', ispeDims));
-  const result = await detectParser(bytes)!.parse(bytes, 'dims.avif');
+  const result = await detectParser(bytes, [avifParser])!.parse(bytes, 'dims.avif');
   assertEquals(result.tags['BitDepth'], 10);
   assertEquals(result.tags['ImageWidth'], 640);
   assertEquals(result.tags['ImageLength'], 480);
 });
 
 test('avif parse on sub-8-byte buffer bails via header guard', async () => {
-  const result = await detectParser(buildFtyp())!.parse(new Uint8Array(4), 'tiny.avif');
+  const result = await detectParser(buildFtyp(), [avifParser])!.parse(new Uint8Array(4), 'tiny.avif');
   assertEquals(result.format, 'AVIF');
 });
 
@@ -220,7 +221,7 @@ test('avif box smaller than its own header stops the walk', async () => {
   new DataView(stub.buffer).setUint32(0, 4, false); // size < 8-byte header
   stub.set(encoder.encode('tiny'), 4);
   const bytes = concat(buildFtyp(), stub);
-  const result = await detectParser(bytes)!.parse(bytes, 'undersized.avif');
+  const result = await detectParser(bytes, [avifParser])!.parse(bytes, 'undersized.avif');
   assertEquals(result.tags['FileTypeBrand'], 'avif');
 });
 
@@ -228,7 +229,7 @@ test('avif long xml box summarized; ispe shorter than 8 skipped', async () => {
   const longXmp = encoder.encode('<x:xmpmeta>' + 'y'.repeat(2000) + '</x:xmpmeta>');
   const shortIspe = new Uint8Array([1, 2, 3, 4]);
   const bytes = concat(buildFtyp(), buildBox('xml ', longXmp), buildBox('ispe', shortIspe));
-  const result = await detectParser(bytes)!.parse(bytes, 'long.avif');
+  const result = await detectParser(bytes, [avifParser])!.parse(bytes, 'long.avif');
   assertEquals(result.tags['XMP'], `[XML document: ${longXmp.length} chars]`);
   assertEquals('ImageWidth' in result.tags, false);
 });
@@ -241,7 +242,7 @@ test('avif nesting deeper than 20 levels terminates the recursion', async () => 
   }
   const bytes = concat(buildFtyp(), box);
   const startedAt = Date.now();
-  const result = await detectParser(bytes)!.parse(bytes, 'deep.avif');
+  const result = await detectParser(bytes, [avifParser])!.parse(bytes, 'deep.avif');
   assertEquals(result.format, 'AVIF');
   // Coverage instrumentation slows the rescan-heavy walk by orders of
   // magnitude, so only bound it generously.

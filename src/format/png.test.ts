@@ -184,5 +184,5 @@ test('png chunk claiming impossible length stops the walk cleanly', async () => 
 });
 
 test('detectParser routes PNG buffers to the png parser', () => {
-  assertEquals(detectParser(png(ihdr(1, 1)))!.format, 'PNG');
+  assertEquals(detectParser(png(ihdr(1, 1)), [pngParser])!.format, 'PNG');
 });

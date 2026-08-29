@@ -427,7 +427,7 @@ test('jpeg stat failure leaves file metadata minimal', async () => {
 });
 
 test('detectParser routes JPEG buffers', () => {
-  assertEquals(detectParser(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))!.format, 'JPEG');
+  assertEquals(detectParser(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), [jpegParser])!.format, 'JPEG');
 });
 
 test('jpeg unknown APP1 payload is skipped silently', async () => {

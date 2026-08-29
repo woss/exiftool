@@ -1,6 +1,8 @@
 import { test } from 'vitest';
 import { assertEquals } from '../src/test/asserts.js';
 import { ExifTool } from './exiftool.js';
+import { jpegParser } from './format/jpeg.js';
+import type { FormatParser } from './format/mod.js';
 import { readFile } from 'node:fs/promises';
 
 function captureConsole() {
@@ -124,4 +126,26 @@ test('readBytes returns unknown format for garbage', async () => {
   const tool = new ExifTool();
   const info = await tool.readBytes(new TextEncoder().encode('not metadata'));
   assertEquals(info.format, 'Unknown');
+});
+
+test('plugins option restricts detection to the provided set', async () => {
+  const tool = new ExifTool({ plugins: [jpegParser] });
+  const jpeg = await tool.readBytes(await readFile('assets/01.jpg'));
+  assertEquals(jpeg.format, 'JPEG');
+
+  const pngMagic = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  assertEquals((await tool.readBytes(pngMagic)).format, 'Unknown');
+});
+
+test('a custom plugin participates in detection', async () => {
+  const custom: FormatParser = {
+    format: 'TXT',
+    extensions: ['.txt'],
+    canParse: (bytes) => bytes[0] === 0x23, // '#'
+    parse: () => Promise.resolve({ path: 'x', format: 'TXT', tags: { Kind: 'hash-file' } }),
+  };
+  const tool = new ExifTool({ plugins: [custom] });
+  const info = await tool.readBytes(new TextEncoder().encode('# hello'));
+  assertEquals(info.format, 'TXT');
+  assertEquals(info.tags['Kind'], 'hash-file');
 });
