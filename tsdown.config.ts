@@ -34,7 +34,7 @@ export default defineConfig([
     platform: 'node',
     dts: false,
     outExtensions,
-    external: [TAGS_JSON],
+    outputOptions: { inlineDynamicImports: true },
     hooks: {
       'build:done': () => {
         // Bundlers never set the exec bit npm's bin shim needs.
