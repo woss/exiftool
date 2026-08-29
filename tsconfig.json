@@ -15,7 +15,6 @@
     "src/**/*.ts",
     "scripts/**/*.ts",
     "tests/**/*.ts",
-    "cli.ts",
     "mod.ts",
     "mod.test.ts",
     "debug.ts",

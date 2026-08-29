@@ -5,8 +5,7 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/*.test.ts', 'scripts/**/*.test.ts', 'tests/**/*.test.ts', 'mod.test.ts'],
     coverage: {
-      provider: 'v8',
-      include: ['src/**', 'cli.ts', 'mod.ts'],
+      include: ['src/**', 'mod.ts'],
       reporter: ['lcov', 'text'],
     },
   },

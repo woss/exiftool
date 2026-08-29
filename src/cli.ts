@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
-import { normalizeArgs, parseCliArgs, type CliOptions } from './src/cli/args.js';
-import { ExifTool } from './src/exiftool.js';
-import { formatJSON, formatCSV, formatTabular, formatXML } from './src/cli/output.js';
-import type { FormatOptions } from './src/cli/output.js';
-import { evalCondition } from './src/cli/filter.js';
-import { verboseLines } from './src/cli/verbosity.js';
-import { expandInputs } from './src/cli/glob.js';
-import { readLines, stayOpenLoop } from './src/cli/stay-open.js';
-import { extractEmbeddedJpegs, jpegParser } from './src/format/jpeg.js';
+import { normalizeArgs, parseCliArgs, type CliOptions } from './cli/args.js';
+import { ExifTool } from './exiftool.js';
+import { formatJSON, formatCSV, formatTabular, formatXML } from './cli/output.js';
+import type { FormatOptions } from './cli/output.js';
+import { evalCondition } from './cli/filter.js';
+import { verboseLines } from './cli/verbosity.js';
+import { expandInputs } from './cli/glob.js';
+import { readLines, stayOpenLoop } from './cli/stay-open.js';
+import { extractEmbeddedJpegs, jpegParser } from './format/jpeg.js';
 
-export { normalizeArgs, parseCliArgs } from './src/cli/args.js';
-export type { CliOptions } from './src/cli/args.js';
+export { normalizeArgs, parseCliArgs } from './cli/args.js';
+export type { CliOptions } from './cli/args.js';
 
 const tool = new ExifTool();
 

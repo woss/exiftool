@@ -1,7 +1,7 @@
 import { test } from 'vitest';
 import { assertEquals } from '../../src/test/asserts.js';
-import { main, normalizeArgs, runAction } from '../../cli.js';
-import type { CliOptions } from '../../cli.js';
+import { main, normalizeArgs, runAction } from '../cli.js';
+import type { CliOptions } from '../cli.js';
 import { ExifTool } from '../../src/exiftool.js';
 import { spawn } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
@@ -477,7 +477,7 @@ test('normalizeArgs — generic single-dash flag converts to long form', () => {
 test('CLI entrypoint exits nonzero on unreadable file', async () => {
   const child = spawn(
     process.execPath,
-    ['--import', 'tsx', 'cli.ts', 'definitely-missing.jpg'],
+    ['--import', 'tsx', 'src/cli.ts', 'definitely-missing.jpg'],
     { cwd: new URL('../..', import.meta.url).pathname, stdio: ['ignore', 'pipe', 'pipe'] },
   );
   let errText = '';
@@ -493,7 +493,7 @@ test('CLI entrypoint exits nonzero on unreadable file', async () => {
 test('CLI entrypoint succeeds on a real file', async () => {
   const child = spawn(
     process.execPath,
-    ['--import', 'tsx', 'cli.ts', 'assets/01.jpg'],
+    ['--import', 'tsx', 'src/cli.ts', 'assets/01.jpg'],
     { cwd: new URL('../..', import.meta.url).pathname, stdio: ['ignore', 'pipe', 'pipe'] },
   );
   let outText = '';

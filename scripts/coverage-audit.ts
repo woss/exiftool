@@ -64,7 +64,7 @@ export const COVERAGE_ALLOWLIST: Record<string, string> = {
     'MPF walk guards whose arms are exercised per mpf.test; V8 reports untaken consequence blocks against their condition lines',
   'src/write/writers.ts':
     'size-0 final-box ternary arm and malformed-meta break are exercised via writers.test fixtures',
-  'cli.ts':
+  'src/cli.ts':
     'process-entry guard and exitCode plumbing run inside a spawned subprocess during the cli.test entrypoint tests; in-process V8 coverage cannot observe them',
   'src/test/asserts.ts':
     'assert() rejection path fires only when an assertion fails, which a passing suite never does',

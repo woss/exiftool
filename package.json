@@ -10,9 +10,9 @@
   "exports": {
     ".": {
       "types": "./dist/mod.d.ts",
-      "import": "dist/mod.js"
+      "import": "./dist/mod.js"
     },
-    "./cli": "dist/cli.js"
+    "./cli": "./dist/cli.js"
   },
   "files": [
     "dist/",
@@ -26,12 +26,15 @@
     "check": "tsc -p tsconfig.json",
     "test": "vitest run",
     "coverage-audit": "vitest run --coverage && tsx scripts/coverage-audit.ts",
-    "build": "tsc -p tsconfig.build.json && node -e \"require('fs').chmodSync('dist/cli.js', 0o755)\"",
+    "build": "tsdown",
     "generate-tags": "tsx scripts/generate-tags.ts"
   },
   "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
     "@types/node": "^22.20.1",
     "@vitest/coverage-v8": "^4.1.11",
+    "publint": "^0.3.24",
+    "tsdown": "^0.22.14",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2",
     "vitest": "^4.1.11"

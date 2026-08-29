@@ -106,9 +106,9 @@ printf -- '-j\nphoto.jpg\n-execute\n-stay_open\nFalse\n' \
 ## Architecture
 
 ```
-cli.ts               → CLI entry point (arg normalization → main())
 mod.ts               → Library barrel (public API + types)
 src/
+  cli.ts             → CLI entry point (arg normalization → main())
   exiftool.ts        → ExifTool class (read / readBytes / write)
   tag-db.ts          → Tag database (name/id/group lookups)
   types.ts           → Core types (FileInfo, TagEntry, TagValue, …)
