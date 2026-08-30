@@ -47,10 +47,13 @@ export const jpegParser: FormatParser = {
           // TIFF data starts at file position: offset (payload) + 6 (skip "Exif\0\0")
           const tiffFileOffset = offset + 6;
           result['ExifByteOrder'] = tiffData[0] === 0x49 ? 'Little-endian (Intel, II)' : 'Big-endian (Motorola, MM)';
-          const tiff = parseTiff(tiffData, tagDb, hints?.coordFormat);
+          const tiff = parseTiff(tiffData, tagDb, hints);
           for (const [k, v] of Object.entries(tiff)) {
             result[k] = v;
           }
+          // Inside a JPEG the thumbnail compression is implied by the
+          // container; exiftool omits it.
+          delete result['ThumbnailCompression'];
           const thumbOff = result['ThumbnailOffset'];
           const thumbLen = result['ThumbnailLength'];
           if (typeof thumbOff === 'number' && typeof thumbLen === 'number') {

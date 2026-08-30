@@ -4,8 +4,9 @@ import type { TagDb } from '../tag-db.js';
 /** Optional per-read hints threaded from the CLI down into parsers. */
 export interface ParseHints {
   coordFormat?: string;
+  /** Keep tags repeated across IFDs (exiftool -a); default suppresses them. */
+  duplicates?: boolean;
 }
-
 /**
  * A format plugin: an adapter that recognises a container by magic bytes
  * and parses it into a FileInfo. Plugins are plain objects — registration

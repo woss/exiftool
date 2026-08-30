@@ -40,7 +40,7 @@ export const webpParser: FormatParser = {
         const tiff = parseTiff(
           chunkData.length >= 6 ? chunkData.slice(6) : chunkData,
           tagDb,
-          hints?.coordFormat,
+          hints,
         );
         for (const [k, v] of Object.entries(tiff)) {
           result[k] = v;

@@ -1,4 +1,5 @@
 import { parseIFD } from './ifd.js';
+import type { ParseHints } from '../format/mod.js';
 import { formatExifValue, getTagName, readIfdValue, EXIF_POINTER_TAGS } from './values.js';
 import type { TagValue } from '../types.js';
 import type { TagDb } from '../tag-db.js';
@@ -33,7 +34,12 @@ function resolveTagName(
   return getTagName(tag, group);
 }
 
-export function parseTiff(bytes: Uint8Array, tagDb?: TagDb, coordFormat?: string): Record<string, TagValue> {
+export function parseTiff(
+  bytes: Uint8Array,
+  tagDb?: TagDb,
+  hints?: ParseHints,
+): Record<string, TagValue> {
+  const { coordFormat, duplicates } = hints ?? {};
   const result: Record<string, TagValue> = {};
 
   if (!isTiffHeader(bytes)) return result;
@@ -127,13 +133,12 @@ export function parseTiff(bytes: Uint8Array, tagDb?: TagDb, coordFormat?: string
   if (ifd0.nextIfdOffset && ifd0.nextIfdOffset < bytes.length) {
     const ifd1 = parseIFD(view, ifd0.nextIfdOffset, littleEndian);
     for (const entry of ifd1.entries) {
-      let name = resolveTagName(entry.tag, 'ifd0', tagDb);
+      const name = resolveTagName(entry.tag, 'ifd0', tagDb);
+      if (!name || EXIF_POINTER_TAGS.has(name)) continue;
       const val = readIfdValue(entry, view, littleEndian);
-      if (name) {
-        if (EXIF_POINTER_TAGS.has(name)) continue;
-        const strippedName = name.startsWith('Thumbnail') ? name.slice('Thumbnail'.length) : name;
-        result[`Thumbnail${strippedName}`] = formatExifValue(val, name);
-      }
+      const strippedName = name.startsWith('Thumbnail') ? name.slice('Thumbnail'.length) : name;
+      if (!duplicates && strippedName in result) continue;
+      result[`Thumbnail${strippedName}`] = formatExifValue(val, name);
     }
   }
 

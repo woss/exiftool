@@ -55,7 +55,7 @@ function parseBoxTree(
       if (boxData.length > 4) {
         const tiffOffset = new DataView(boxData.buffer, boxData.byteOffset, 4).getUint32(0, false);
         if (tiffOffset < boxData.length) {
-          const tiff = parseTiff(boxData.slice(tiffOffset), tagDb, hints?.coordFormat);
+          const tiff = parseTiff(boxData.slice(tiffOffset), tagDb, hints);
           for (const [k, v] of Object.entries(tiff)) {
             result[k] = v;
           }

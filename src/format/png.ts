@@ -60,7 +60,7 @@ export const pngParser: FormatParser = {
       }
 
       if (chunk.type === 'eXIf') {
-        const tiff = parseTiff(chunk.data, tagDb, hints?.coordFormat);
+        const tiff = parseTiff(chunk.data, tagDb, hints);
         for (const [k, v] of Object.entries(tiff)) {
           result[k] = v;
         }

@@ -278,7 +278,7 @@ test('parseTiff formats GPS latitude/longitude with refs', () => {
   assertEquals(tags['GPSVersionID'], '2.3.0.0');
   assertEquals(tags['GPSSatellites'], '8');
 
-  const decimal = parseTiff(bytes, undefined, '%+.6f');
+  const decimal = parseTiff(bytes, undefined, { coordFormat: '%+.6f' });
   assertEquals(decimal['GPSLatitude'], '+43.467222');
   assertEquals(decimal['GPSLongitude'], '-11.350000');
 });
