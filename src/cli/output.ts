@@ -57,8 +57,8 @@ export function formatJSON(files: FileInfo[], options?: FormatOptions): string {
       if (value instanceof Uint8Array) {
         v = options?.binary ? toBase64(value) : binaryPlaceholder(value);
       } else if (Array.isArray(value)) {
-        // ExifTool serializes list tags as one comma-space-joined string.
-        v = value.map((item) => tagValueToString(item)).join(', ');
+        // ExifTool -j renders XMP list values as JSON arrays of strings.
+        v = value.map((item) => tagValueToString(item));
       } else {
         v = options?.dateFormat ? formatDateValue(value, options.dateFormat) : value;
       }

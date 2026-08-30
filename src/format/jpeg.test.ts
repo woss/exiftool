@@ -458,7 +458,7 @@ test('jpeg duplicate Subject is not appended twice', async () => {
     xmpApp1('dc:subject="kw1"'),
   );
   const result = await jpegParser.parse(bytes, 'dup.jpg');
-  assertEquals(result.tags['Keywords'], ['kw1']);
+  assertEquals(result.tags['Keywords'], 'kw1');
 });
 
 test('jpeg explicit DerivedFrom wins over History derivation', async () => {

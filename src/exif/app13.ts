@@ -84,6 +84,12 @@ export function parseAPP13(data: Uint8Array): Record<string, TagValue> {
   // ExifTool computes CurrentIPTCDigest as the MD5 of the IPTC block.
   if (iptcData) result['CurrentIPTCDigest'] = md5Hex(iptcData);
 
+  // A single-keyword list prints as a scalar (exiftool -j behavior).
+  if (Array.isArray(result['Keywords']) && result['Keywords'].length === 1) {
+    result['Keywords'] = result['Keywords'][0];
+  }
+
+
   // IPTC times carry compact offsets (+0100); exiftool prints +01:00.
   for (const [k, v] of Object.entries(result)) {
     if (typeof v === 'string') {

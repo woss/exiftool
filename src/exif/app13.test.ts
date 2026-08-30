@@ -107,7 +107,7 @@ test('parseAPP13 ignores datasets whose numbers are not in the lookup table', ()
     iptcField(10, 25, 'record 10 is skipped too'),
   ]);
   assertEquals(parseAPP13(photoshopResource(0x0404, iptc)), {
-    Keywords: ['kept'],
+    Keywords: 'kept',
     CurrentIPTCDigest: md5Hex(iptc),
   });
 });
@@ -174,7 +174,7 @@ test('parseAPP13 keeps fields parsed before a truncated IPTC dataset without thr
     enc.encode('su'),
   ]);
   assertEquals(parseAPP13(photoshopResource(0x0404, truncated)), {
-    Keywords: ['sun'],
+    Keywords: 'sun',
     CurrentIPTCDigest: md5Hex(truncated),
   });
 });

@@ -118,14 +118,14 @@ if (!exiftoolPath || !argvHealthy) {
       for (const [key, refValue] of Object.entries(real)) {
         if (!(key in ours)) continue;
         compared++;
-        const refStr = Array.isArray(refValue)
-          ? (refValue as unknown[]).join(', ')
-          : String(refValue);
-        const ourStr = String(ours[key]);
+        // Compare structurally: XMP list values are JSON arrays on both sides.
+        const norm = (v: unknown) => (Array.isArray(v) ? JSON.stringify(v) : String(v));
+        const refStr = norm(refValue);
+        const ourStr = norm(ours[key]);
         if (ourStr !== refStr && !(key in KNOWN_DIVERGENCES)) {
           mismatches.push(`${file} ${key}: ref=${JSON.stringify(refStr)} ours=${JSON.stringify(ourStr)}`);
         }
-      }
+    }
     }
     assertEquals(compared > 200, true, `expected broad overlap, compared ${compared}`);
     assertEquals(mismatches, []);

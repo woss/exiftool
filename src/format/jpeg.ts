@@ -165,13 +165,18 @@ export const jpegParser: FormatParser = {
       offset += segLen - 2;
     }
 
-    if (result['Subject'] && result['Keywords']) {
-      const existing = (result['Keywords'] as string[]);
+    if (result['Subject'] && result['Keywords'] !== undefined) {
+      // Keywords may be a scalar (single keyword) — merge into a list and
+      // collapse back to a scalar when only one keyword remains.
+      const existing = Array.isArray(result['Keywords'])
+        ? [...(result['Keywords'] as string[])]
+        : [result['Keywords'] as string];
       const subject = result['Subject'];
       const subArr = Array.isArray(subject) ? subject : [subject as string];
       for (const s of subArr) {
         if (typeof s === 'string' && !existing.includes(s)) existing.push(s);
       }
+      result['Keywords'] = existing.length === 1 ? existing[0] : existing;
     } else if (result['Subject'] && !result['Keywords']) {
       result['Keywords'] = result['Subject'];
     }
