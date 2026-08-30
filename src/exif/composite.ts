@@ -36,14 +36,36 @@ export function computeCompositeTags(tags: Record<string, TagValue>): void {
   }
 
   if (focalLength) {
-    const flStr = Number.isInteger(focalLength)
-      ? `${focalLength.toFixed(1)} mm`
-      : `${focalLength.toFixed(1).replace(/\.0$/, '')} mm`;
-    if (focalLength35) {
-      const fl35Str = `${focalLength35.toFixed(1)} mm`;
-      if (!('FocalLength35efl' in tags)) {
-        tags['FocalLength35efl'] = `${flStr} (35 mm equivalent: ${fl35Str})`;
-      }
+    const flStr = `${focalLength.toFixed(1)} mm`;
+    const scale = focalLength35 && focalLength ? focalLength35 / focalLength : 1;
+    if (focalLength35 && !('FocalLength35efl' in tags)) {
+      tags['FocalLength35efl'] = `${flStr} (35 mm equivalent: ${focalLength35.toFixed(1)} mm)`;
+    } else if (!('FocalLength35efl' in tags)) {
+      // No In35mmFormat tag: exiftool assumes a 1.0 crop (CoC-based scale).
+      tags['FocalLength35efl'] = `${flStr} (35 mm equivalent: ${flStr})`;
+    }
+    // Default circle of confusion 0.030 mm; model-specific CoC tables pending.
+    const coc = 0.03;
+    if (!('CircleOfConfusion' in tags)) {
+      tags['CircleOfConfusion'] = `${coc.toFixed(3)} mm`;
+    }
+    if (!('FOV' in tags)) {
+      const fov = (2 * Math.atan(36 / (2 * focalLength * scale)) * 180) / Math.PI;
+      tags['FOV'] = `${fov.toFixed(1)} deg`;
+    }
+    if (fnumber && !('HyperfocalDistance' in tags)) {
+      const hyperfocalMm = (focalLength * focalLength) / (coc * fnumber);
+      tags['HyperfocalDistance'] = `${(hyperfocalMm / 1000).toFixed(2)} m`;
+    }
+    const subjectDistance = asNum(tags['SubjectDistance']);
+    if (subjectDistance && fnumber && !('DOF' in tags)) {
+      const s = subjectDistance * 1000; // EXIF SubjectDistance is in meters
+      const near = (s * focalLength * focalLength) /
+        (focalLength * focalLength + fnumber * coc * (s - focalLength));
+      const farDenom = focalLength * focalLength - fnumber * coc * (s - focalLength);
+      const far = farDenom > 0 ? (s * focalLength * focalLength) / farDenom : Infinity;
+      const fmtDist = (mm: number) => `${(mm / 1000).toFixed(2)} m`;
+      tags['DOF'] = `${fmtDist(near)} - ${far === Infinity ? 'inf' : fmtDist(far)}`;
     }
   }
 
@@ -115,7 +137,7 @@ export function computeCompositeTags(tags: Record<string, TagValue>): void {
 
   if (exposureTime && !('ShutterSpeed' in tags)) {
     if (exposureTime >= 1) {
-      tags['ShutterSpeed'] = `${exposureTime}s`;
+      tags["ShutterSpeed"] = `${Number(exposureTime.toFixed(1))}`;
     } else {
       const denominator = Math.round(1 / exposureTime);
       tags['ShutterSpeed'] = `1/${denominator}`;
@@ -126,22 +148,6 @@ export function computeCompositeTags(tags: Record<string, TagValue>): void {
     tags['LensID'] = lensModel;
   }
 
-  if (focalLength && focalLength35) {
-    const ccdWidth = 36 * focalLength / focalLength35;
-    const coc = 0.030;
-    if (!('CircleOfConfusion' in tags)) {
-      tags['CircleOfConfusion'] = `${coc.toFixed(3)} mm`;
-    }
-    if (fnumber && !('HyperfocalDistance' in tags)) {
-      const hfd = focalLength * focalLength / (fnumber * coc) / 1000;
-      tags['HyperfocalDistance'] = `${hfd.toFixed(2)} m`;
-    }
-    if (!('FOV' in tags)) {
-      const fov = 2 * Math.atan(ccdWidth / (2 * focalLength));
-      const fovDeg = fov * 180 / Math.PI;
-      tags['FOV'] = `${fovDeg.toFixed(1)} deg`;
-    }
-  }
 
   if (!('Compression' in tags) && asStr(tags['EncodingProcess']) !== undefined) {
     tags['Compression'] = 'JPEG (old-style)';

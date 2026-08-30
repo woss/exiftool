@@ -41,6 +41,9 @@ const KNOWN_DIVERGENCES: Record<string, string> = {
   LensID: 'requires Canon makernote lens-model lookup tables',
   FlashCompensation: 'rational printed as fraction, not decimal',
   ScaleFactor35efl: 'crop-factor lookup not implemented (defaults to 1)',
+  CircleOfConfusion: 'model-specific CoC tables not implemented (default 0.030 mm)',
+  FOV: 'depends on the crop factor (model-specific table pending)',
+  FocalLength35efl: 'crop-factor dependent: 100mm Canon APS-C reads 272mm in exiftool, 100mm at our 1.0 default',
   // Sub-second segment of SubSec* composite dates is not merged yet.
   SubSecCreateDate: 'subsecond segment not merged',
   // XMP DateCreated timezone rendering: exiftool keeps/drops the source

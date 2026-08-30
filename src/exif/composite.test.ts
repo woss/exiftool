@@ -30,12 +30,24 @@ test('FocalLength35efl keeps integer focal length as N.0 mm', () => {
   );
 });
 
-test('no FocalLength35efl without 35mm equivalent', () => {
+test('FocalLength35efl defaults to the focal length at 1.0 crop', () => {
   const tags: Record<string, unknown> = { FocalLength: 4.5 };
   computeCompositeTags(tags as never);
-  assertEquals('FocalLength35efl' in tags, false);
+  assertEquals(
+    tags['FocalLength35efl'],
+    '4.5 mm (35 mm equivalent: 4.5 mm)',
+  );
 });
 
+test('DOF computed from focal, aperture and subject distance', () => {
+  const tags: Record<string, unknown> = {
+    FocalLength: 171,
+    FNumber: 2.8,
+    SubjectDistance: 2.53,
+  };
+  computeCompositeTags(tags as never);
+  assertEquals(tags['DOF'], '2.51 m - 2.55 m');
+});
 test('Megapixels and Aperture computed from dimensions and f-number', () => {
   const tags: Record<string, unknown> = {
     ImageWidth: 6000,
@@ -148,7 +160,7 @@ test('ShutterSpeed renders seconds above one and reciprocal below', () => {
 
   const slow: Record<string, unknown> = { ExposureTime: 2 };
   computeCompositeTags(slow as never);
-  assertEquals(slow['ShutterSpeed'], '2s');
+  assertEquals(slow['ShutterSpeed'], '2');
 });
 
 test('HyperfocalDistance computed when focal length and f-number present', () => {

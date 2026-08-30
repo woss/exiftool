@@ -418,7 +418,7 @@ test('jpeg file metadata reflects real temp files', async () => {
     await fh2.close();
     const hugeResult = await jpegParser.parse(await readFile(huge), huge);
     await applyFileStat(hugeResult.tags, huge);
-    assertEquals(hugeResult.tags['FileSize'], '1.6 MB');
+    assertEquals(hugeResult.tags['FileSize'], '1573 kB');
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

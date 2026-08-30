@@ -448,3 +448,10 @@ test('formatExifValue converts APEX aperture values to f-numbers', () => {
   assertEquals(formatExifValue(4, 'ApertureValue'), '4');
   assertEquals(formatExifValue(5, 'MaxApertureValue'), '5.7');
 });
+
+test('formatExifValue renders ExposureCompensation as a fraction', () => {
+  assertEquals(formatExifValue(-2 / 3, 'ExposureCompensation'), '-2/3');
+  assertEquals(formatExifValue(0.5, 'ExposureCompensation'), '1/2');
+  assertEquals(formatExifValue(0, 'ExposureCompensation'), '0');
+  assertEquals(formatExifValue(1, 'ExposureCompensation'), '1');
+});

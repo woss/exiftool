@@ -747,6 +747,11 @@ export function formatExifValue(value: TagValue, tagName: string): TagValue {
     return ENUMS.SubjectDistanceRange[value] ?? value;
   }
 
+  if (tagName === 'ExposureCompensation' && typeof value === 'number') {
+    // ExifTool prints the stored rational as a fraction (-2/3).
+    return toFraction(value);
+  }
+
   if (tagName === 'Compression' && typeof value === 'number') {
     return ENUMS.Compression[value] ?? value;
   }
@@ -760,4 +765,23 @@ export function formatExifValue(value: TagValue, tagName: string): TagValue {
   }
 
   return summarizeBulky(value, tagName);
+}
+
+/** Continued-fraction approximation; denominators capped at 100. */
+function toFraction(v: number): string {
+  const sign = v < 0 ? '-' : '';
+  let x = Math.abs(v);
+  let [n1, n0, d1, d0] = [1, 0, 0, 1];
+  for (let i = 0; i < 20; i++) {
+    const a = Math.floor(x);
+    const n2 = a * n1 + n0;
+    const d2 = a * d1 + d0;
+    if (d2 > 100) break;
+    [n1, n0] = [n2, n1];
+    [d1, d0] = [d2, d1];
+    const frac = x - a;
+    if (frac < 1e-9) break;
+    x = 1 / frac;
+  }
+  return d1 === 1 ? `${sign}${n1}` : `${sign}${n1}/${d1}`;
 }

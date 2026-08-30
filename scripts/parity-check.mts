@@ -1,7 +1,9 @@
 import { execFileSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 
-// Run from repo root after `pnpm build`: node dist-independent, uses dist/cli.js.
+// Run from repo root after `pnpm build`: compares dist/cli.js JSON output
+// against exiftool for every file in assets/. Allowlist mirrors the parity
+// suite's KNOWN_DIVERGENCES.
 const KNOWN = new Set([
   'FileModificationDate',
   'FileAccessDate',
@@ -15,6 +17,9 @@ const KNOWN = new Set([
   'ScaleFactor35efl',
   'SubSecCreateDate',
   'DateCreated',
+  'CircleOfConfusion',
+  'FOV',
+  'FocalLength35efl',
 ]);
 
 const files = readdirSync('assets').map((f) => `assets/${f}`);

@@ -3,9 +3,12 @@ import type { TagValue } from '../types.js';
 
 /** Formats a byte count the way exiftool renders FileSize. */
 export function formatFileSize(size: number): string {
-  if (size >= 1048576) return `${Number((size / 1000000).toPrecision(2))} MB`;
-  if (size >= 1024) return `${Math.round(size / 1000)} kB`;
-  return `${size} B`;
+  if (size < 1000) return `${size} B`;
+  const kb = size / 1000;
+  // ExifTool: kB below 2048 kB (1000-based), then MB at 2 significant
+  // digits ('5.0 MB', '27 MB'), matching ConvertFileSize output.
+  if (kb < 2048) return `${Math.round(kb)} kB`;
+  return `${(size / 1000000).toPrecision(2)} MB`;
 }
 
 /** Formats a timestamp as exiftool's `YYYY:MM:DD HH:MM:SS`. */
