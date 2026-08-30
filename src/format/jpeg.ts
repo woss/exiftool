@@ -101,6 +101,15 @@ export const jpegParser: FormatParser = {
         }
       }
 
+      if (marker === 0xe0 && data.length >= 5 && new TextDecoder().decode(data.slice(0, 4)) === 'JFIF') {
+        // JFIF APP0: version major.minor, density unit and X/Y densities.
+        const units = data[7];
+        result['JFIFVersion'] = `${data[5]}.${String(data[6]).padStart(2, '0')}`;
+        result['ResolutionUnit'] = units === 0 ? 'None' : units === 1 ? 'inches' : units === 2 ? 'cm' : units;
+        result['XResolution'] = (data[8] << 8) | data[9];
+        result['YResolution'] = (data[10] << 8) | data[11];
+      }
+
       if (marker === 0xee && data.length >= 12) {
         const adobeId = new TextDecoder().decode(data.slice(0, 5));
         if (adobeId === 'Adobe') {

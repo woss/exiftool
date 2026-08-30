@@ -83,11 +83,21 @@ test('parseXMP resolves lang-alt arrays via x-default', () => {
   assertEquals(result['CopyrightNotice'], '© 2026 Acme Corp');
 });
 
-test('parseXMP passes character entities through literally in attribute values', () => {
-  // Although one internal pass decodes &#x..; sequences, a later attribute pass
-  // overwrites every value with its raw text, so entities survive verbatim.
+test('parseXMP decodes character entities in attribute values', () => {
+  // Conformant XML parsing decodes numeric and named entities; exiftool
+  // (real XML parser) yields the decoded value, matching ours.
   const xml = xmpDoc(`<rdf:Description tiff:Software="&#x41;pple Photos"></rdf:Description>`);
-  assertEquals(parseXMP(xml)['Software'], '&#x41;pple Photos');
+  assertEquals(parseXMP(xml)['Software'], 'Apple Photos');
+});
+
+test('parseXMP decodes named and decimal entities', () => {
+  const xml = xmpDoc(`<rdf:Description dc:rights="&lt;b&gt; &amp; &quot;fine&quot; &#65;"></rdf:Description>`);
+  assertEquals(parseXMP(xml)['Rights'], '<b> & "fine" A');
+});
+
+test('parseXMP skips empty rdf:about values', () => {
+  const xml = xmpDoc(`<rdf:Description rdf:about=""></rdf:Description>`);
+  assertEquals('About' in parseXMP(xml), false);
 });
 
 test('parseXMP falls back to the local name for unmapped tags', () => {

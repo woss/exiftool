@@ -3,6 +3,7 @@ import { pngWriter } from '../write/writers.js';
 import type { FileInfo, TagValue } from '../types.js';
 import type { TagDb } from '../tag-db.js';
 import { parseTiff } from '../exif/tiff.js';
+import { parseXMP } from '../exif/xmp.js';
 import { computeCompositeTags } from '../exif/composite.js';
 
 const PNG_HEADER = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -106,9 +107,17 @@ export const pngParser: FormatParser = {
         const text = compression === 0
           ? new TextDecoder().decode(data.slice(pos))
           : `[compressed:${compression}]`;
-        result[`PNG_${keyword}`] = text;
+        if (keyword === 'XML:com.adobe.xmp') {
+          // Adobe writes the XMP document here; surface its parsed tags
+          // instead of storing the raw blob (exiftool behavior).
+          const xmpTags = parseXMP(text);
+          for (const [k, v] of Object.entries(xmpTags)) {
+            if (!(k in result)) result[k] = v;
+          }
+          continue;
+        }
+        result[keyword] = text;
       }
-
       if (chunk.type === 'gAMA') {
         const view = new DataView(chunk.data.buffer, chunk.data.byteOffset, chunk.data.byteLength);
         result['Gamma'] = view.getUint32(0, false) / 100000;

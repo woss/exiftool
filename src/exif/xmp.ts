@@ -389,6 +389,25 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
 
   // ExifTool prints XMP booleans lowercase, trims numeric tails and
   // renders ISO dates in EXIF style; normalize to match.
+  // XML entities are decoded once here, after tag collection — attributes
+  // and element text are assigned raw by the regex passes above.
+  const decodeEntities = (s: string): string =>
+    s
+      .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCodePoint(parseInt(h, 16)))
+      .replace(/&#(\d+);/g, (_, d) => String.fromCodePoint(parseInt(d, 10)))
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&amp;/g, '&');
+
+  for (const [k, v] of Object.entries(result)) {
+    if (typeof v === 'string') {
+      result[k] = decodeEntities(v);
+    } else if (Array.isArray(v)) {
+      result[k] = v.map((item) => (typeof item === 'string' ? decodeEntities(item) : item));
+    }
+  }
   for (const [k, v] of Object.entries(result)) {
     if (typeof v === 'string') {
       if (v === 'True' || v === 'False') {

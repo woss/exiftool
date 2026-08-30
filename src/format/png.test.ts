@@ -116,7 +116,7 @@ test('png iTXt uncompressed text extracted', async () => {
     encoder.encode('world text'),
   );
   const result = await pngParser.parse(png(chunk('iTXt', payload), chunk('IEND', new Uint8Array(0))), 'itxt.png');
-  assertEquals(result.tags['PNG_Comment'], 'world text');
+  assertEquals(result.tags['Comment'], 'world text');
 });
 
 test('png iTXt compressed flag summarized instead of decoded', async () => {
@@ -127,7 +127,7 @@ test('png iTXt compressed flag summarized instead of decoded', async () => {
     new Uint8Array([0xde, 0xad]),
   );
   const result = await pngParser.parse(png(chunk('iTXt', payload), chunk('IEND', new Uint8Array(0))), 'ztxt.png');
-  assertEquals(result.tags['PNG_Comment'], '[compressed:1]');
+  assertEquals(result.tags['Comment'], '[compressed:1]');
 });
 
 test('png iTXt malformed truncations bail out without throwing', async () => {
