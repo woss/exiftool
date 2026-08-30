@@ -82,3 +82,12 @@ test('parseCliArgs — absolute paths are operands even when the second char nam
     files: ['-Artist=smoke', '/var/folders/x/in.jpg'],
   });
 });
+
+test('parseCliArgs — -h and --help set the help flag', () => {
+  assertEquals(parseCliArgs(['-h']).options.help, true);
+  assertEquals(parseCliArgs(['--help']).options.help, true);
+  assertEquals(parseCliArgs(['-h', 'photo.jpg']), {
+    options: { help: true },
+    files: ['photo.jpg'],
+  });
+});

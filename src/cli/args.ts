@@ -26,6 +26,7 @@ export interface CliOptions {
   extractEmbedded?: boolean;
   overwriteOriginal?: boolean;
   stayOpen?: string | boolean;
+  help?: boolean;
   version?: boolean;
 }
 
@@ -55,6 +56,7 @@ const SPECS: Record<string, OptionSpec> = {
   'overwrite-original': { arity: 'flag' },
   'stay-open': { arity: 'optional' },
   version: { arity: 'flag' },
+  help: { arity: 'flag' },
 };
 
 /** Single-character short flags (multi-char shorts are pre-normalized). */
@@ -65,6 +67,7 @@ const SHORTS: Record<string, string> = {
   G: 'group-prefix',
   c: 'coord-format',
   j: 'json',
+  h: 'help',
   v: 'verbose',
   q: 'quiet',
   X: 'xml',

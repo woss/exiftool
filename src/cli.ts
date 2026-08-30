@@ -177,6 +177,10 @@ export async function main(
   files: string[],
   input: AsyncIterable<Uint8Array> = process.stdin,
 ): Promise<number> {
+  if (options.help) {
+    tool.printHelp();
+    return 0;
+  }
   if (options.version) {
     console.log('0.1.0');
     return 0;

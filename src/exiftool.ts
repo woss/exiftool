@@ -48,7 +48,7 @@ export class ExifTool extends ExifToolCore {
     return 1;
   }
 
-  private printHelp(): void {
+  printHelp(): void {
     console.log(`
 exiftool-ts 0.1.0 — metadata read/write tool
 
