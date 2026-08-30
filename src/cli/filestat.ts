@@ -45,9 +45,19 @@ export async function applyFileStat(
   } catch {
     return;
   }
+  const tz = localTz(new Date(statInfo.mtime));
   tags['FileSize'] = formatFileSize(statInfo.size);
-  tags['FileModifyDate'] = formatFileDate(new Date(statInfo.mtime));
-  tags['FileAccessDate'] = formatFileDate(new Date(statInfo.atime));
-  tags['FileInodeChangeDate'] = formatFileDate(new Date(statInfo.ctime || statInfo.birthtime));
+  tags['FileModifyDate'] = formatFileDate(new Date(statInfo.mtime)) + tz;
+  tags['FileAccessDate'] = formatFileDate(new Date(statInfo.atime)) + tz;
+  tags['FileInodeChangeDate'] = formatFileDate(new Date(statInfo.ctime || statInfo.birthtime)) + tz;
   tags['FilePermissions'] = formatFilePermissions(statInfo.mode);
+}
+
+/** Local UTC offset as +HH:MM / -HH:MM (exiftool appends it to file dates). */
+function localTz(d: Date): string {
+  const total = -d.getTimezoneOffset();
+  const sign = total >= 0 ? '+' : '-';
+  const abs = Math.abs(total);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return ` ${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
 }

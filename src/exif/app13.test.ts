@@ -1,6 +1,7 @@
 import { test } from 'vitest';
 import { assertEquals } from '../../src/test/asserts.js';
 import { parseAPP13 } from './app13.js';
+import { md5Hex } from '../utils/md5.js';
 
 const enc = new TextEncoder();
 
@@ -55,10 +56,11 @@ test('parseAPP13 decodes record 2 keywords, object name and caption', () => {
     iptcField(2, 120, 'A sunset over water'), // Caption-Abstract
   ]);
   assertEquals(parseAPP13(photoshopResource(0x0404, iptc)), {
-    ApplicationRecordVersion: '\u0000\u0004',
+    ApplicationRecordVersion: '4',
     ObjectName: 'Scene',
     Keywords: ['sunset', 'beach'],
     'Caption-Abstract': 'A sunset over water',
+    CurrentIPTCDigest: md5Hex(iptc),
   });
 });
 
@@ -72,20 +74,31 @@ test('parseAPP13 decodes by-line, copyright notice and coded character set', () 
     CodedCharacterSet: 'UTF8',
     'By-line': 'Jane Doe',
     CopyrightNotice: '© 2026 Acme Corp',
+    CurrentIPTCDigest: md5Hex(iptc),
   });
 });
 
-test('parseAPP13 keeps date/time created records under their raw names', () => {
+test('parseAPP13 renders IIM dates and times in exiftool format', () => {
   const iptc = concatBytes([
-    iptcField(2, 55, '2026:08:25'), // DateCreated
+    iptcField(2, 55, '2026:08:25'), // DateCreated (already formatted)
     iptcField(2, 60, '12:34:56'), // TimeCreated
+    iptcField(2, 62, '20260825'), // DigitalCreationDate (compact digits)
   ]);
   assertEquals(parseAPP13(photoshopResource(0x0404, iptc)), {
-    _IPTCDateCreated: '2026:08:25',
-    _IPTCTimeCreated: '12:34:56',
+    DateCreated: '2026:08:25',
+    TimeCreated: '12:34:56',
+    DigitalCreationDate: '2026:08:25',
+    CurrentIPTCDigest: md5Hex(iptc),
   });
 });
 
+test('parseAPP13 expands the 19-digit DateCreated form', () => {
+  const iptc = concatBytes([iptcField(2, 55, '20260825123456+0200')]);
+  assertEquals(parseAPP13(photoshopResource(0x0404, iptc)), {
+    DateCreated: '2026:08:25 12:34:56',
+    CurrentIPTCDigest: md5Hex(iptc),
+  });
+});
 test('parseAPP13 ignores datasets whose numbers are not in the lookup table', () => {
   // Dataset 45 (0x2D) has no mapping in IPTC_LOOKUP, so it is skipped entirely.
   const iptc = concatBytes([
@@ -93,7 +106,10 @@ test('parseAPP13 ignores datasets whose numbers are not in the lookup table', ()
     iptcField(2, 45, '2026:08:25 12:00:00'),
     iptcField(10, 25, 'record 10 is skipped too'),
   ]);
-  assertEquals(parseAPP13(photoshopResource(0x0404, iptc)), { Keywords: ['kept'] });
+  assertEquals(parseAPP13(photoshopResource(0x0404, iptc)), {
+    Keywords: ['kept'],
+    CurrentIPTCDigest: md5Hex(iptc),
+  });
 });
 
 test('parseAPP13 decodes Photoshop display units resources', () => {
@@ -115,8 +131,14 @@ test('parseAPP13 skips unknown resources and survives odd-length padding', () =>
 
 test('parseAPP13 handles non-empty Pascal names in resources', () => {
   const iptc = iptcField(2, 5, 'Named');
-  assertEquals(parseAPP13(photoshopResource(0x0404, iptc, 'AB')), { ObjectName: 'Named' });
-  assertEquals(parseAPP13(photoshopResource(0x0404, iptc, 'ABC')), { ObjectName: 'Named' });
+  assertEquals(parseAPP13(photoshopResource(0x0404, iptc, 'AB')), {
+    ObjectName: 'Named',
+    CurrentIPTCDigest: md5Hex(iptc),
+  });
+  assertEquals(parseAPP13(photoshopResource(0x0404, iptc, 'ABC')), {
+    ObjectName: 'Named',
+    CurrentIPTCDigest: md5Hex(iptc),
+  });
 });
 
 test('parseAPP13 returns empty for buffers shorter than one resource header', () => {
@@ -151,12 +173,15 @@ test('parseAPP13 keeps fields parsed before a truncated IPTC dataset without thr
     u16(50),
     enc.encode('su'),
   ]);
-  assertEquals(parseAPP13(photoshopResource(0x0404, truncated)), { Keywords: ['sun'] });
+  assertEquals(parseAPP13(photoshopResource(0x0404, truncated)), {
+    Keywords: ['sun'],
+    CurrentIPTCDigest: md5Hex(truncated),
+  });
 });
 
 test('parseAPP13 ignores IPTC payloads that do not start with a dataset marker', () => {
   const data = photoshopResource(0x0404, b(0x00, 0x01, 0x02, 0x03, 0x04));
-  assertEquals(parseAPP13(data), {});
+  assertEquals(parseAPP13(data), { CurrentIPTCDigest: md5Hex(b(0x00, 0x01, 0x02, 0x03, 0x04)) });
 });
 
 test('parseAPP13 maps non-inch display unit codes to centimetres', () => {
@@ -178,17 +203,24 @@ test('parseAPP13 maps inch codes for both display unit axes', () => {
 test('parseAPP13 keeps earlier fields when an IPTC dataset length overruns the buffer', () => {
   const truncated = concatBytes([b(0x1c, 2, 120), u16(5)]); // declares 5 bytes that never arrive
   const data = photoshopResource(0x0404, concatBytes([iptcField(2, 120, 'Caption'), truncated]));
-  assertEquals(parseAPP13(data), { 'Caption-Abstract': 'Caption' });
+  assertEquals(parseAPP13(data), {
+    'Caption-Abstract': 'Caption',
+    CurrentIPTCDigest: md5Hex(concatBytes([iptcField(2, 120, 'Caption'), truncated])),
+  });
 });
 
 test('parseAPP13 stops cleanly when the buffer ends right after an 8BIM signature', () => {
   assertEquals(parseAPP13(concatBytes([enc.encode('8BIM'), b(0x04)])), {});
 });
 
-test('parseAPP13 skips Photoshop thumbnail resources and keeps walking', () => {
+test('parseAPP13 emits PhotoshopThumbnail without its 28-byte header', () => {
+  const header = new Uint8Array(28);
+  const jpeg = b(0xff, 0xd8, 0xff, 0xd9);
   const data = concatBytes([
-    photoshopResource(0x040c, b(1, 2, 3, 4)),
-    photoshopResource(0x0417, b(2)),
+    photoshopResource(0x040c, concatBytes([header, jpeg])),
+    photoshopResource(0x0417, b(2)), // walk continues past the thumbnail
   ]);
-  assertEquals(parseAPP13(data), { DisplayedUnitsX: 'inches' });
+  const r = parseAPP13(data);
+  assertEquals([...(r['PhotoshopThumbnail'] as Uint8Array)], [0xff, 0xd8, 0xff, 0xd9]);
+  assertEquals(r['DisplayedUnitsX'], 'inches');
 });

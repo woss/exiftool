@@ -13,6 +13,7 @@ import { test } from 'vitest';
  */
 import { assertEquals } from '../../src/test/asserts.js';
 import { ExifTool } from '../exiftool.js';
+import { formatJSON } from '../cli/output.js';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { readFile, rm, stat, writeFile } from 'node:fs/promises';
@@ -33,32 +34,18 @@ const KNOWN_DIVERGENCES: Record<string, string> = {
   FileAccessDate: 'missing timezone offset',
   FileModifyDate: 'missing timezone offset',
   FileInodeChangeDate: 'missing timezone offset',
-  // Flash print-conv wording differs for the suppressed bit combination.
-  Flash: 'suppressed-bit wording',
   // IPTC ApplicationRecordVersion is stored raw (bytes) instead of numeric.
   ApplicationRecordVersion: 'raw bytes not converted to number',
-  // LensInfo/LensID need makernote and lens-model lookups not yet built.
-  LensInfo: 'composite lens formatting not implemented',
-  LensID: 'lens-model lookup table not implemented',
-  // Composite tags that depend on camera model / CoC tables.
-  ScaleFactor35efl: 'crop-factor lookup not implemented (defaults to 1)',
   HyperfocalDistance: 'circle-of-confusion lookup not implemented',
   ApproximateFocusDistance: 'rational printed as fraction, not decimal',
+  LensID: 'requires Canon makernote lens-model lookup tables',
   FlashCompensation: 'rational printed as fraction, not decimal',
+  ScaleFactor35efl: 'crop-factor lookup not implemented (defaults to 1)',
   // Sub-second segment of SubSec* composite dates is not merged yet.
   SubSecCreateDate: 'subsecond segment not merged',
-  // ExifTool keeps the bare integer for FocalLengthIn35mmFormat.
-  FocalLengthIn35mmFormat: 'trailing .0 kept on our side',
-  // JSON default mode: exiftool summarizes binary; ours still inlines arrays.
-  ThumbnailImage: 'binary summarized only with -b on our side',
-  // HistoryWhen strings pass through a different XMP extraction path.
-  HistoryWhen: 'array date normalization not applied on this path',
-  // PerspectiveUpright enum 0 maps to 'Off' in exiftool; we print the number.
-  PerspectiveUpright: 'enum Off mapping not implemented',
-  // TRC byte count includes the 12-byte curv header on the exiftool side.
-  RedTRC: 'byte count excludes the 12-byte curv header',
-  GreenTRC: 'byte count excludes the 12-byte curv header',
-  BlueTRC: 'byte count excludes the 12-byte curv header',
+  // XMP DateCreated timezone rendering: exiftool keeps/drops the source
+  // offset depending on which group wins its per-file priority.
+  DateCreated: 'xmp date tz rendering varies with group priority',
 };
 
 let exiftoolPath: string | null = null;
@@ -123,19 +110,18 @@ if (!exiftoolPath || !argvHealthy) {
     const mismatches: string[] = [];
     let compared = 0;
     for (const file of ASSETS) {
-      const [{ stdout }] = [await spawnExifTool(['-j', file]).then((r) => r)];
-      const real = JSON.parse(stdout)[0] as Record<string, unknown>;
-      const ours = await tool.read(file);
+      const real = JSON.parse((await spawnExifTool(['-j', file])).stdout)[0] as Record<string, unknown>;
+      const info = await tool.read(file);
+      // Compare through the actual JSON formatter so binary placeholders and
+      // date renderings match what users receive.
+      const ours = JSON.parse(formatJSON([info]))[0] as Record<string, unknown>;
       for (const [key, refValue] of Object.entries(real)) {
-        if (!(key in ours.tags)) continue;
+        if (!(key in ours)) continue;
         compared++;
-        const ourValue = ours.tags[key];
         const refStr = Array.isArray(refValue)
           ? (refValue as unknown[]).join(', ')
           : String(refValue);
-        const ourStr = Array.isArray(ourValue)
-          ? (ourValue as unknown[]).map(String).join(', ')
-          : String(ourValue);
+        const ourStr = String(ours[key]);
         if (ourStr !== refStr && !(key in KNOWN_DIVERGENCES)) {
           mismatches.push(`${file} ${key}: ref=${JSON.stringify(refStr)} ours=${JSON.stringify(ourStr)}`);
         }

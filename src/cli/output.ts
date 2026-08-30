@@ -56,6 +56,9 @@ export function formatJSON(files: FileInfo[], options?: FormatOptions): string {
       let v: TagValue;
       if (value instanceof Uint8Array) {
         v = options?.binary ? toBase64(value) : binaryPlaceholder(value);
+      } else if (Array.isArray(value)) {
+        // ExifTool serializes list tags as one comma-space-joined string.
+        v = value.map((item) => tagValueToString(item)).join(', ');
       } else {
         v = options?.dateFormat ? formatDateValue(value, options.dateFormat) : value;
       }

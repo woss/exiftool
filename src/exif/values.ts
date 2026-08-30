@@ -294,20 +294,38 @@ function formatExifVersion(value: TagValue): string {
   return String(value);
 }
 
+/**
+ * ExifTool's exact Flash PrintConv, captured empirically from exiftool 13.55
+ * (scripts/flash-table.mts). Unknown combinations render as Unknown (0xNN).
+ */
+const FLASH_TABLE: Record<number, string> = {
+  0x00: 'No Flash',
+  0x01: 'Fired',
+  0x05: 'Fired, Return not detected',
+  0x07: 'Fired, Return detected',
+  0x08: 'On, Did not fire',
+  0x09: 'On, Fired',
+  0x10: 'Off, Did not fire',
+  0x14: 'Off, Did not fire, Return not detected',
+  0x18: 'Auto, Did not fire',
+  0x19: 'Auto, Fired',
+  0x1d: 'Auto, Fired, Return not detected',
+  0x20: 'No flash function',
+  0x30: 'Off, No flash function',
+  0x41: 'Fired, Red-eye reduction',
+  0x45: 'Fired, Red-eye reduction, Return not detected',
+  0x47: 'Fired, Red-eye reduction, Return detected',
+  0x49: 'On, Red-eye reduction',
+  0x4d: 'On, Red-eye reduction, Return not detected',
+  0x4f: 'On, Red-eye reduction, Return detected',
+  0x50: 'Off, Red-eye reduction',
+  0x58: 'Auto, Did not fire, Red-eye reduction',
+  0x59: 'Auto, Fired, Red-eye reduction',
+  0x5d: 'Auto, Fired, Red-eye reduction, Return not detected',
+};
+
 function formatFlash(value: number): string {
-  const parts: string[] = [];
-  if (value & 0x01) parts.push('Fired');
-  else parts.push('Off, Did not fire');
-
-  if ((value & 0x06) === 0x02) parts.push('Return not detected');
-  else if ((value & 0x06) === 0x04) parts.push('Return detected');
-
-  if ((value & 0x18) === 0x08) parts.push('Compulsory');
-  else if ((value & 0x18) === 0x10) parts.push('Suppressed');
-  else if ((value & 0x18) === 0x18) parts.push('Auto');
-
-  if (value & 0x40) parts.push('Red-eye');
-  return parts.join(', ');
+  return FLASH_TABLE[value] ?? `Unknown (0x${value.toString(16)})`;
 }
 
 const ENUMS: Record<string, Record<number | string, string>> = {
@@ -496,10 +514,10 @@ function formatComponentsConfiguration(value: TagValue): string {
     6: 'B',
   };
   if (value instanceof Uint8Array) {
-    return [...value].map((b) => COMP_MAP[b] ?? `?`).join('');
+    return [...value].map((b) => COMP_MAP[b] ?? '?').join(', ');
   }
   if (Array.isArray(value)) {
-    return value.map((v) => COMP_MAP[Number(v)] ?? `?`).join('');
+    return value.map((v) => COMP_MAP[Number(v)] ?? '?').join(', ');
   }
   return String(value);
 }
@@ -532,10 +550,7 @@ export function formatExifValue(value: TagValue, tagName: string): TagValue {
     return formatExifVersion(value);
   }
 
-  if (
-    tagName === 'FocalLength' ||
-    tagName === 'FocalLengthIn35mmFormat'
-  ) {
+  if (tagName === 'FocalLength') {
     if (typeof value === 'number') {
       return `${value.toFixed(1)} mm`;
     }
@@ -545,8 +560,22 @@ export function formatExifValue(value: TagValue, tagName: string): TagValue {
       typeof value[0] === 'number' &&
       typeof value[1] === 'number'
     ) {
-      const mm = value[0] / value[1];
-      return `${mm.toFixed(1)} mm`;
+      return `${(value[0] / value[1]).toFixed(1)} mm`;
+    }
+  }
+
+  if (tagName === 'FocalLengthIn35mmFormat') {
+    if (typeof value === 'number') {
+      // exiftool trims the trailing .0 here: 50 -> '50 mm'.
+      return `${Number(value.toFixed(1))} mm`;
+    }
+    if (
+      Array.isArray(value) &&
+      value.length === 2 &&
+      typeof value[0] === 'number' &&
+      typeof value[1] === 'number'
+    ) {
+      return `${Number((value[0] / value[1]).toFixed(1))} mm`;
     }
   }
 
@@ -618,6 +647,45 @@ export function formatExifValue(value: TagValue, tagName: string): TagValue {
     return ENUMS.GPSDifferential[value] ?? value;
   }
 
+  if (
+    (tagName === 'GPSLatitudeRef' || tagName === 'GPSDestLatitudeRef') &&
+    typeof value === 'string'
+  ) {
+    return value === 'N' ? 'North' : value === 'S' ? 'South' : value;
+  }
+
+  if (
+    (tagName === 'GPSLongitudeRef' || tagName === 'GPSDestLongitudeRef') &&
+    typeof value === 'string'
+  ) {
+    return value === 'E' ? 'East' : value === 'W' ? 'West' : value;
+  }
+
+  if (tagName === 'YCbCrPositioning' && typeof value === 'number') {
+    return value === 1 ? 'Centered' : value === 2 ? 'Co-sited' : value;
+  }
+
+  if (tagName === 'LensInfo' && Array.isArray(value)) {
+    // ExifTool renders the focal/aperture quartet as '28-75mm f/2.8',
+    // deduping equal apertures and rendering 0/unknown as '?'.
+    const [min, max, amin, amax] = value.map((v) => Number(v));
+    const mm = !min || !max
+      ? '?mm'
+      : min === max
+        ? `${min}mm`
+        : `${min}-${max}mm`;
+    const ap = !amin || !amax
+      ? 'f/?'
+      : amin === amax
+        ? `f/${amin}`
+        : `f/${amin}-${amax}`;
+    return `${mm} ${ap}`;
+  }
+
+  if (tagName === 'LightSource' && typeof value === 'number') {
+    return ENUMS.LightSource[value] ?? value;
+  }
+
   if (tagName === 'ExposureProgram' && typeof value === 'number') {
     return ENUMS.ExposureProgram[value] ?? value;
   }
@@ -626,9 +694,6 @@ export function formatExifValue(value: TagValue, tagName: string): TagValue {
     return ENUMS.MeteringMode[value] ?? value;
   }
 
-  if (tagName === 'LightSource' && typeof value === 'number') {
-    return ENUMS.LightSource[value] ?? value;
-  }
 
   if (tagName === 'ColorSpace' && typeof value === 'number') {
     return ENUMS.ColorSpace[value] ?? value;

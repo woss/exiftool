@@ -50,8 +50,14 @@ export function computeCompositeTags(tags: Record<string, TagValue>): void {
   if (typeof lat === 'string' && typeof lon === 'string') {
     const latClean = lat.replace(/\s+[NS]$/, '');
     const lonClean = lon.replace(/\s+[EW]$/, '');
-    const latDir = typeof latRef === 'string' ? latRef.trim() : '';
-    const lonDir = typeof lonRef === 'string' ? lonRef.trim() : '';
+    // The parsed refs may carry PrintConv wording ('North'); the composite
+    // uses exiftool's single-letter form.
+    const latDir = typeof latRef === 'string'
+      ? latRef.trim().replace('North', 'N').replace('South', 'S')
+      : '';
+    const lonDir = typeof lonRef === 'string'
+      ? lonRef.trim().replace('East', 'E').replace('West', 'W')
+      : '';
     if (!('GPSPosition' in tags)) {
       tags['GPSPosition'] = `${latClean} ${latDir}, ${lonClean} ${lonDir}`;
     }

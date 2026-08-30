@@ -159,9 +159,9 @@ export function parseICCProfile(data: Uint8Array): Record<string, TagValue> {
         if (curveCount === 0) {
           result[tagName] = '(Linear)';
         } else {
-          const dataLen = Math.max(tagSize - 8, 0);
-          result[tagName] =
-            `(Binary data ${dataLen} bytes, use -b option to extract)`;
+          // ExifTool reports the full tag-data block (including the 'curv'
+          // signature and count) and keeps the bytes extractable via -b.
+          result[tagName] = data.slice(tagDataOffset, tagDataOffset + tagSize);
         }
       } else if (tagType === 'sig ') {
         // Technology-style tags: data = 'sig ' + reserved + actual signature.

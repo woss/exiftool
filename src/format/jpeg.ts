@@ -185,33 +185,26 @@ export const jpegParser: FormatParser = {
       result['DerivedFromOriginalDocumentID'] = result['OriginalDocumentID'];
     }
 
-    function fmtIPTCtime(raw: string): string {
-      const h = raw.slice(0, 2);
-      const m = raw.slice(2, 4);
-      const rest = raw.slice(4);
-      return `${h}:${m}:${rest}`;
+    // ExifTool appends the capture timezone (EXIF OffsetTimeOriginal) to the
+    // IIM times and composes the DateTimeCreated pairs.
+    const tz = typeof result['OffsetTimeOriginal'] === 'string' ? result['OffsetTimeOriginal'] : '';
+    const hasTz = (s: string) => /[+-]\d{2}:\d{2}$/.test(s);
+    if (typeof result['TimeCreated'] === 'string' && tz && !hasTz(result['TimeCreated'])) {
+      result['TimeCreated'] += tz;
     }
-    function fmtIPTCDate(raw: string): string {
-      return `${raw.slice(0, 4)}:${raw.slice(4, 6)}:${raw.slice(6, 8)}`;
+    if (typeof result['DigitalCreationTime'] === 'string' && tz && !hasTz(result['DigitalCreationTime'])) {
+      result['DigitalCreationTime'] += tz;
     }
-    const rawDTDate = result['_IPTCDateCreated'] as string | undefined;
-    const rawDTTime = result['_IPTCTimeCreated'] as string | undefined;
-    if (rawDTDate && rawDTTime) {
-      result['DateTimeCreated'] = `${fmtIPTCDate(rawDTDate)} ${fmtIPTCtime(rawDTTime)}`;
-      result['TimeCreated'] = fmtIPTCtime(rawDTTime);
+    if (typeof result['DateCreated'] === 'string' && typeof result['TimeCreated'] === 'string') {
+      result['DateTimeCreated'] = `${result['DateCreated']} ${result['TimeCreated']}`;
     }
-    delete result['_IPTCDateCreated'];
-    delete result['_IPTCTimeCreated'];
-    const rawDDDate = result['_IPTCDigitalCreationDate'] as string | undefined;
-    const rawDDTime = result['_IPTCDigitalCreationTime'] as string | undefined;
-    if (rawDDDate && rawDDTime) {
-      result['DigitalCreationDateTime'] = `${fmtIPTCDate(rawDDDate)} ${fmtIPTCtime(rawDDTime)}`;
-      result['DigitalCreationDate'] = fmtIPTCDate(rawDDDate);
-      result['DigitalCreationTime'] = fmtIPTCtime(rawDDTime);
+    if (
+      typeof result['DigitalCreationDate'] === 'string' &&
+      typeof result['DigitalCreationTime'] === 'string'
+    ) {
+      result['DigitalCreationDateTime'] =
+        `${result['DigitalCreationDate']} ${result['DigitalCreationTime']}`;
     }
-    delete result['_IPTCDigitalCreationDate'];
-    delete result['_IPTCDigitalCreationTime'];
-
     computeCompositeTags(result);
     addFileMetadata(result, filePath);
     result['ExifToolVersion'] = 13.55;

@@ -307,7 +307,7 @@ test('parseICCProfile parses all supported tag types', () => {
   assertEquals(r['ProfileCopyright'], 'public domain');
   assertEquals(r['MediaWhitePoint'], '0.9642 1 0.82491');
   assertEquals(r['RedTRC'], '(Linear)');
-  assertEquals(r['GreenTRC'], '(Binary data 4 bytes, use -b option to extract)');
+  assertEquals([...(r['GreenTRC'] as Uint8Array)], [...curvBody(2)]);
   assertEquals(r['PostScript2CRD0'] instanceof Uint8Array, true);
   assertEquals(r['MeasurementBacking'], '0.9642 1 0.82491');
   assertEquals(r['MeasurementGeometry'], '45/0');

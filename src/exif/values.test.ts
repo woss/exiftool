@@ -163,8 +163,8 @@ test('formatExifValue formats ExifVersion from bytes, array, and string', () => 
 });
 
 test('formatExifValue formats ComponentsConfiguration from bytes, array, other', () => {
-  assertEquals(formatExifValue(new Uint8Array([1, 2, 3, 0]), 'ComponentsConfiguration'), 'YCbCr-');
-  assertEquals(formatExifValue([4, 5, 6, 9], 'ComponentsConfiguration'), 'RGB?');
+  assertEquals(formatExifValue(new Uint8Array([1, 2, 3, 0]), 'ComponentsConfiguration'), 'Y, Cb, Cr, -');
+  assertEquals(formatExifValue([4, 5, 6, 9], 'ComponentsConfiguration'), 'R, G, B, ?');
   assertEquals(formatExifValue('weird', 'ComponentsConfiguration'), 'weird');
 });
 
@@ -199,16 +199,21 @@ test('formatExifValue formats ResolutionUnit family', () => {
 
 test('formatExifValue formats all Flash bit combinations', () => {
   const cases: [number, string][] = [
-    [0x00, 'Off, Did not fire'],
+    // Table captured empirically from exiftool 13.55 (scripts/flash-table.mts).
+    [0x00, 'No Flash'],
     [0x01, 'Fired'],
-    [0x03, 'Fired, Return not detected'],
-    [0x05, 'Fired, Return detected'],
-    [0x09, 'Fired, Compulsory'],
-    [0x11, 'Fired, Suppressed'],
-    [0x19, 'Fired, Auto'],
-    [0x1f, 'Fired, Auto'],
-    [0x5b, 'Fired, Return not detected, Auto, Red-eye'],
-    [0x5d, 'Fired, Return detected, Auto, Red-eye'],
+    [0x05, 'Fired, Return not detected'],
+    [0x07, 'Fired, Return detected'],
+    [0x08, 'On, Did not fire'],
+    [0x09, 'On, Fired'],
+    [0x10, 'Off, Did not fire'],
+    [0x14, 'Off, Did not fire, Return not detected'],
+    [0x18, 'Auto, Did not fire'],
+    [0x19, 'Auto, Fired'],
+    [0x20, 'No flash function'],
+    [0x41, 'Fired, Red-eye reduction'],
+    [0x50, 'Off, Red-eye reduction'],
+    [0x0c, 'Unknown (0xc)'],
   ];
   for (const [value, expected] of cases) {
     assertEquals(formatExifValue(value, 'Flash'), expected, value.toString(16));
@@ -422,15 +427,19 @@ test('formatExifValue summarizes unknown large values by shape', () => {
   const small = new Uint8Array([1, 2, 3]);
   assertEquals(formatExifValue(small, 'CFAPattern'), '[1, 2, 3]');
   assertEquals(formatExifValue(Array.from({ length: 51 }, (_, i) => i), 'SubjectArea'), '[51 entries]');
-  assertEquals(formatExifValue('x'.repeat(1025), 'UserComment'), '[string: 1025 chars]');
-  assertEquals(formatExifValue(42, 'PixelXDimension'), 42);
+  assertEquals(formatExifValue('x'.repeat(1100), 'UnknownTag'), '[string: 1100 chars]');
 });
 
 test('formatExifValue renders focal length with unit and one decimal', () => {
   assertEquals(formatExifValue(100, 'FocalLength'), '100.0 mm');
   assertEquals(formatExifValue(4.5, 'FocalLength'), '4.5 mm');
   assertEquals(formatExifValue([171, 1], 'FocalLength'), '171.0 mm');
-  assertEquals(formatExifValue(171, 'FocalLengthIn35mmFormat'), '171.0 mm');
+  assertEquals(formatExifValue(171, 'FocalLengthIn35mmFormat'), '171 mm');
+});
+
+test('formatExifValue renders Co-sited YCbCr positioning', () => {
+  assertEquals(formatExifValue(2, 'YCbCrPositioning'), 'Co-sited');
+  assertEquals(formatExifValue([5000, 100], 'FocalLengthIn35mmFormat'), '50 mm');
 });
 
 test('formatExifValue converts APEX aperture values to f-numbers', () => {
