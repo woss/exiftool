@@ -99,6 +99,7 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     'photoshop:CaptionWriter': 'CaptionWriter',
     'photoshop:DisplayedUnitsX': 'DisplayedUnitsX',
     'photoshop:DisplayedUnitsY': 'DisplayedUnitsY',
+    'Iptc4xmpCore:hierarchicalSubject': 'HierarchicalSubject',
     'Iptc4xmpCore:CreatorContactInfo': 'CreatorContactInfo',
     'plus:CopyrightOwner': 'CopyrightOwnerName',
     'plus:Version': 'PLUSVersion',
