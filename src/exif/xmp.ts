@@ -101,6 +101,12 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     'photoshop:DisplayedUnitsY': 'DisplayedUnitsY',
     'Iptc4xmpCore:hierarchicalSubject': 'HierarchicalSubject',
     'Iptc4xmpCore:CreatorContactInfo': 'CreatorContactInfo',
+    'Iptc4xmpCore:Country-PrimaryLocationCode': 'Country-PrimaryLocationCode',
+    'Iptc4xmpCore:Country-PrimaryLocationName': 'Country-PrimaryLocationName',
+    'Iptc4xmpCore:Province-State': 'Province-State',
+    'Iptc4xmpCore:CreatorWorkURL': 'CreatorWorkURL',
+    'crs:LookCopyright': 'LookCopyright',
+    'photoshop:About': 'About',
     'plus:CopyrightOwner': 'CopyrightOwnerName',
     'plus:Version': 'PLUSVersion',
     'crs:Name': 'LookName',
@@ -208,12 +214,15 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
   let docMatch: RegExpExecArray | null;
   while ((docMatch = docPattern.exec(xml)) !== null) {
     const openTag = docMatch[0].slice(0, docMatch[0].indexOf('>') + 1);
-    const attrPattern = /(\w+:\w+)\s*=\s*"([^"]*)"/g;
+    const attrPattern = /([\w-]+:[\w-]+)\s*=\s*"([^"]*)"/g;
     let attrMatch: RegExpExecArray | null;
     while ((attrMatch = attrPattern.exec(openTag)) !== null) {
       const [_, fullName, value] = attrMatch;
+      if (fullName === 'rdf:about') {
+        if (value) result['About'] = value;
+        continue;
+      }
       if (fullName.startsWith('xmlns:')) continue;
-      if (fullName.startsWith('rdf:')) continue;
       if (fullName.startsWith('x:')) continue;
 
       const parsed = lookupPrefix(fullName);
@@ -275,7 +284,7 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
   const structPattern = /<rdf:Description\s+([^>]*)\/>/g;
   let structMatch: RegExpExecArray | null;
   while ((structMatch = structPattern.exec(xml)) !== null) {
-    const attrPattern2 = /(\w+:\w+)\s*=\s*"([^"]*)"/g;
+    const attrPattern2 = /([\w-]+:[\w-]+)\s*=\s*"([^"]*)"/g;
     let attrMatch2: RegExpExecArray | null;
     while ((attrMatch2 = attrPattern2.exec(structMatch[1])) !== null) {
       const [_, fullName, value] = attrMatch2;
@@ -302,7 +311,7 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
   const allDescPattern = /<rdf:Description\s+([^>]*?)>/g;
   let allDescMatch: RegExpExecArray | null;
   while ((allDescMatch = allDescPattern.exec(xml)) !== null) {
-    const attrPatternDesc = /(\w+:\w+)\s*=\s*"([^"]*)"/g;
+    const attrPatternDesc = /([\w-]+:[\w-]+)\s*=\s*"([^"]*)"/g;
     let attrDescMatch: RegExpExecArray | null;
     while ((attrDescMatch = attrPatternDesc.exec(allDescMatch[1])) !== null) {
       const [_, fullName, value] = attrDescMatch;
@@ -320,7 +329,7 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
   const liAttrPattern = /<rdf:li\s+([^>]*?)\/>/g;
   let liMatch: RegExpExecArray | null;
   while ((liMatch = liAttrPattern.exec(xml)) !== null) {
-    const attrPattern3 = /(\w+:\w+)\s*=\s*"([^"]*)"/g;
+    const attrPattern3 = /([\w-]+:[\w-]+)\s*=\s*"([^"]*)"/g;
     let attrMatch3: RegExpExecArray | null;
     while ((attrMatch3 = attrPattern3.exec(liMatch[1])) !== null) {
       const [_, fullName, value] = attrMatch3;
