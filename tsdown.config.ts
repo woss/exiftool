@@ -32,7 +32,7 @@ export default defineConfig([
     entry: ['src/cli.ts'],
     format: 'esm',
     platform: 'node',
-    dts: false,
+    dts: true,
     external: [TAGS_JSON],
     outputOptions: { inlineDynamicImports: true },
     outExtensions,

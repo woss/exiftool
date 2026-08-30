@@ -2,8 +2,8 @@
   "name": "exiftool-ts",
   "version": "0.1.0",
   "description": "ExifTool rewrite in TypeScript",
-  "license": "MIT",
   "type": "module",
+  "sideEffects": false,
   "bin": "dist/cli.js",
   "main": "dist/mod.js",
   "types": "dist/mod.d.ts",
@@ -17,7 +17,10 @@
       "types": "./dist/plugins.d.ts",
       "import": "./dist/plugins.js"
     },
-    "./cli": "./dist/cli.js"
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.js"
+    }
   },
   "files": [
     "dist/",

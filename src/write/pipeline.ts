@@ -1,20 +1,10 @@
 import { copyFile, readFile, rename, rm, writeFile } from 'node:fs/promises';
-import type { TagValue } from '../types.js';
+import type { TagValue, WriteOptions, WriteResult } from '../types.js';
 import { builtinPlugins, detectParser } from '../format/mod.js';
 import type { FormatParser } from '../format/mod.js';
 import { UnsupportedFormatError } from './writers.js';
 
-export interface WriteOptions {
-  /** Skip creating a `<file>_original` backup copy. */
-  overwriteOriginal?: boolean;
-}
-
-export interface WriteResult {
-  file: string;
-  written: string[];
-  skipped: string[];
-  backup?: string;
-}
+export type { WriteOptions, WriteResult };
 
 
 export async function supportedWriteFormats(): Promise<string[]> {

@@ -13,5 +13,4 @@ export {
   webpParser,
 } from './plugins.js';
 export type { FormatParser, ParseHints } from './format/mod.js';
-export type { FileInfo, TagValue, WriteOptions } from './types.js';
-export type { WriteResult } from './write/pipeline.js';
+export type { FileInfo, TagValue, WriteOptions, WriteResult } from './types.js';

@@ -67,6 +67,13 @@ export interface WriteOptions {
   preserveTime?: boolean;
 }
 
+export interface WriteResult {
+  file: string;
+  written: string[];
+  skipped: string[];
+  backup?: string;
+}
+
 export type OutputFormat = 'json' | 'xml' | 'html' | 'csv' | 'tabular' | 'arg';
 
 export interface FileInfo {
