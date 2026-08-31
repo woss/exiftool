@@ -1,14 +1,14 @@
 # exiftool-ts — Parity Divergence Register
 
-**Last updated:** 2026-08-31 · HEAD `6b45741` · Library: 218 files, 65,995 comparisons · Asset parity: 0 NEW (allowlist 3)
+**Last updated:** 2026-08-31 · HEAD `21a71b5` · Library: 218 files, 66,003 comparisons · Asset parity: 0 NEW (allowlist 3)
 
 ## Summary
 
 | Metric | Count |
 |---|---|
-| **NEW divergences** | **99** |
+| **NEW divergences** | **62** |
 | **Allowlisted** | 240 |
-| **Shared tag comparisons** | 65,995 |
+| **Shared tag comparisons** | 66,003 |
 
 ---
 
@@ -70,14 +70,11 @@ Fixed in `199ccef`: DateTimeCreated subsec (18), SubjectDistance/GPSAltitude ` m
 - ✅ `DateCreated` truncation, `DateTimeCreated` duplication, SubSec composites
 - ✅ `HierarchicalSubject` composite, XMP hyphenated prefixes, simple XMP elements
 - ✅ XMP rationals (`39/100` → `0.39`) — fixes FlashCompensation/ApproximateFocusDistance rendering
-- ✅ **Quick PrintConv wins (39 pairs → 0)** — SubjectDistance/GPSAltitude ` m` units, DateTimeCreated subsec strip, IPTC Province-State/Country datasets 95/100/101
-- ✅ IPTC_LOOKUP restored (ObjectName, Keywords, By-line were accidentally dropped)
+- ✅ **PrintConv precision ports (37 pairs → 0)** — `21a71b5`: IPTC 1:90/2:90 record-collision (City no longer overwrites CodedCharacterSet), ExposureCompensation PrintFraction port, GPS ToDMS decimal-degrees round-trip, GPSAltitudeRef sea-level PrintConv, Look-struct Clarity2012 rename
 
 ---
 
 ## Priority for Next Work
 
-1. **MaskGroup deep recursion** — ~110 file-tag pairs (the dominant remaining category), same struct pattern now proven three times
-2. **CodedCharacterSet** — 7 files, IPTC rendering
-3. **LookParametersClarity2012** — deeper Parameters struct recursion (6)
-4. **Misc formatting** — ExposureCompensation/FileSize edge cases (1-7 each)
+1. **MaskGroup deep AI-mask level** — ~60 pairs, element-form third-nesting (see section 4)
+2. **Misc formatting** — FileSize/CodedCharacterSet edge cases (1-7 each)
