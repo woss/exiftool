@@ -1,5 +1,13 @@
 import type { TagValue } from '../types.js';
 
+/**
+ * Rewrites crs struct-internal property names to their unique flattened
+ * forms BEFORE any parsing. Both <crs:Look> and <crs:CorrectionMasks> reuse
+ * generic names (crs:Version, crs:What, ...) for different concepts; exiftool
+ * disambiguates them by context (LookParametersVersion vs
+ * MaskGroupBasedCorrMaskVersion). Renaming the XML up front lets the
+ * attribute/element passes stay context-free.
+ */
 function renameContextProperties(xml: string): string {
   let r = xml;
   r = r.replace(/<crs:Look[\s\S]*?<\/crs:Look>/g, (m) => {
@@ -26,6 +34,38 @@ function renameContextProperties(xml: string): string {
   return r;
 }
 
+/**
+ * Parses an XMP packet into exiftool-named tags.
+ *
+ * XMP has no fixed binary layout, so this is a layered regex scan over the
+ * XML text (browsers and Node share no streaming XML DOM we can rely on, and
+ * the packets are small). The passes run in this order — LATER passes DO NOT
+ * overwrite values set by EARLIER ones except where a tag is in xmpPriority:
+ *
+ *  1. renameContextProperties: scoped rewrites inside crs:Look /
+ *     crs:CorrectionMasks structs (crs:Version -> crs:LookVersion etc.) so
+ *     nested names map to their flattened exiftool names.
+ *  2. docPattern attributes: attributes on <rdf:Description> open tags.
+ *  3. listPattern elements: child elements of rdf:Description; rdf:Bag/Seq/Alt
+ *     -> arrays (lang-alts resolved via x-default), simple text -> scalars,
+ *     struct elements -> their ATTRIBUTES mapped as tags (self-closing ones
+ *     handled by a dedicated pass — this is how <xmpMM:DerivedFrom
+ *     stRef:documentID="..."> and <Iptc4xmpCore:CreatorContactInfo
+ *     Iptc4xmpCore:CiUrlWork="..."> flatten).
+ *  4. structPattern / allDescPattern: attributes on every rdf:Description
+ *     (self-closing and open), catching values written as properties.
+ *  5. childElPattern / liAttrPattern: orphan simple elements and attributed
+ *     rdf:li items anywhere in the document.
+ *
+ * Normalization at the end: XML entities decoded once (&amp; last), booleans
+ * lower-cased, numeric strings trimmed of trailing zeros, XMP rationals
+ * ("39/100") rendered as floats, ISO dates rewritten to EXIF "YYYY:MM:DD
+ * HH:MM:SS[±tz]" form. Namespace prefixes with hyphens (XMP-lr, XMP-iptcCore)
+ * are matched throughout.
+ *
+ * Names: TAG_REMAP maps "prefix:local" to exiftool's tag name; unmapped tags
+ * fall back to their local name.
+ */
 export function parseXMP(_xml: string): Record<string, TagValue> {
   const xml = renameContextProperties(_xml);
   const result: Record<string, TagValue> = {};
@@ -458,6 +498,10 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
         result[k] = v.toLowerCase();
       } else if (/^-?\d+\.\d+$/.test(v)) {
         result[k] = String(Number(v));
+      } else if (/^(-?\d+)\/(\d+)$/.test(v)) {
+        // XMP rationals ("39/100"): exiftool renders them as plain floats.
+        const [, num, den] = v.match(/^(-?\d+)\/(\d+)$/) as RegExpMatchArray;
+        if (Number(den) !== 0) result[k] = String(Number(num) / Number(den));
       } else if (/^\d{4}-\d{2}-\d{2}T[0-9:+.-]+$/.test(v)) {
         result[k] = v.replace(/^([\d-]+)T/, (_, d) => d.replaceAll('-', ':') + ' ');
       }

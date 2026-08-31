@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import { assertEquals } from '../../src/test/asserts.js';
-import { computeCompositeTags } from './composite.js';
+import { computeCompositeTags, canonSensorDiag } from './composite.js';
 
 test('FocalLength35efl renders fractional focal length without trailing zero', () => {
   const tags: Record<string, unknown> = {
@@ -30,23 +30,22 @@ test('FocalLength35efl keeps integer focal length as N.0 mm', () => {
   );
 });
 
-test('FocalLength35efl defaults to the focal length at 1.0 crop', () => {
+test('FocalLength35efl omitted when no scale source exists (exiftool never fakes 1.0)', () => {
   const tags: Record<string, unknown> = { FocalLength: 4.5 };
   computeCompositeTags(tags as never);
-  assertEquals(
-    tags['FocalLength35efl'],
-    '4.5 mm (35 mm equivalent: 4.5 mm)',
-  );
+  assertEquals('FocalLength35efl' in tags, false);
 });
 
-test('DOF computed from focal, aperture and subject distance', () => {
+test('DOF uses exiftool format and CoC from the 35mm scale factor', () => {
   const tags: Record<string, unknown> = {
     FocalLength: 171,
+    FocalLengthIn35mmFormat: 257,
     FNumber: 2.8,
     SubjectDistance: 2.53,
   };
   computeCompositeTags(tags as never);
-  assertEquals(tags['DOF'], '2.51 m - 2.55 m');
+  // format: "dof m (near - far m)"; depth > 0.02 m -> two decimals
+  assertEquals(tags['DOF'], '0.02 m (2.52 - 2.54 m)');
 });
 test('Megapixels and Aperture computed from dimensions and f-number', () => {
   const tags: Record<string, unknown> = {
@@ -163,25 +162,42 @@ test('ShutterSpeed renders seconds above one and reciprocal below', () => {
   assertEquals(slow['ShutterSpeed'], '2');
 });
 
-test('HyperfocalDistance computed when focal length and f-number present', () => {
-  // 50mm at f/2.8: 50*50/(2.8*0.030)/1000 = 29.76 m
+test('HyperfocalDistance computed from scale-derived CoC', () => {
+  // scale = 75/50 = 1.5 -> CoC = 43.2666/(1.5*1440) = 0.020 mm
+  // hyperfocal = 50*50/(2.8*0.020033*1000) = 44.57 m
   const tags: Record<string, unknown> = {
     FocalLength: 50,
     FocalLengthIn35mmFormat: 75,
     FNumber: 2.8,
   };
   computeCompositeTags(tags as never);
-  assertEquals(tags['CircleOfConfusion'], '0.030 mm');
-  assertEquals(tags['HyperfocalDistance'], '29.76 m');
+  assertEquals(tags['CircleOfConfusion'], '0.020 mm');
+  assertEquals(tags['HyperfocalDistance'], '44.57 m');
 });
-
-test('ScaleFactor35efl omitted when the crop factor is below one', () => {
+test('ScaleFactor35efl below one is still emitted as a number (exiftool computes it)', () => {
   const tags: Record<string, unknown> = {
     FocalLength: 100,
     FocalLengthIn35mmFormat: 50,
   };
   computeCompositeTags(tags as never);
-  assertEquals('ScaleFactor35efl' in tags, false);
+  assertEquals(tags['ScaleFactor35efl'], 0.5);
+});
+
+test('Canon raw rationals drive the sensor-diagonal scale (700D case)', () => {
+  // 5184000/894 px-per-inch -> 27.30 mm diagonal -> 1.585 (prints 1.6)
+  const tags: Record<string, unknown> = {
+    Make: 'Canon',
+    FocalLength: 100,
+    FocalPlaneXResolution: 5798.657718,
+    FocalPlaneYResolution: 5788.944724,
+    FocalPlaneXResolutionRaw: '5184000/894',
+    FocalPlaneYResolutionRaw: '3456000/597',
+    FocalPlaneResolutionUnit: 'inches',
+  };
+  computeCompositeTags(tags as never);
+  assertEquals(tags['ScaleFactor35efl'], 1.6);
+  assertEquals(tags['CircleOfConfusion'], '0.019 mm');
+  assertEquals(tags['FocalPlaneXResolutionRaw'], undefined); // consumed
 });
 
 test('EncodingProcess implies legacy JPEG Compression', () => {
@@ -211,4 +227,56 @@ test('DerivedFromInstanceID falls back to HistoryInstanceID with doc-id conversi
   computeCompositeTags(tags as never);
   assertEquals(tags['DerivedFromInstanceID'], 'xmp.iid:AAA');
   assertEquals(tags['DerivedFromDocumentID'], 'xmp.did:AAA');
+});
+
+test('Scale factor falls back to focal-plane size when no Canon rationals', () => {
+  // 36 mm wide sensor at 1600 px/in: 5760/1600*25.4 = 91.44 mm? No —
+  // unit inches (default): w = 5760*25.4/1600 = 91.44 mm is out of the
+  // 1-100 window... use cm unit to get a plausible full-frame diagonal.
+  const tags: Record<string, unknown> = {
+    Make: 'Sony',
+    FocalLength: 50,
+    FocalPlaneXResolution: 1600,
+    FocalPlaneYResolution: 1600,
+    FocalPlaneResolutionUnit: 'cm',
+    ExifImageWidth: 5760,
+    ExifImageHeight: 3840,
+  };
+  computeCompositeTags(tags as never);
+  // w = 5760*10/1600 = 36 mm, h = 24 mm -> diag = 43.2666 -> scale 1.0
+  assertEquals(tags['ScaleFactor35efl'], 1);
+});
+
+test('Scale factor undefined when focal-plane diagonal exceeds the 100 mm window', () => {
+  // 57600 px at 16000/in = 91.44 mm wide, 60.96 high -> diag 109.9 > 100
+  const tags: Record<string, unknown> = {
+    FocalLength: 50,
+    FocalPlaneXResolution: 16000,
+    FocalPlaneYResolution: 16000,
+    ExifImageWidth: 57600,
+    ExifImageHeight: 38400,
+  };
+  computeCompositeTags(tags as never);
+  assertEquals(tags['ScaleFactor35efl'], undefined);
+  assertEquals('FocalLength35efl' in tags, false);
+});
+
+test('Absurd image aspect ratio skips the dimension pair', () => {
+  const tags: Record<string, unknown> = {
+    FocalLength: 50,
+    FocalPlaneXResolution: 1600,
+    FocalPlaneYResolution: 1600,
+    FocalPlaneResolutionUnit: 'cm',
+    ExifImageWidth: 5760,
+    ExifImageHeight: 576, // 10:1 -> implausible, no fallback pair
+  };
+  computeCompositeTags(tags as never);
+  assertEquals(tags['ScaleFactor35efl'], undefined);
+});
+
+test('canonSensorDiag rejects non-Canon-style rationals', () => {
+  // numerators not divisible by 1000 -> not the Canon convention
+  assertEquals(canonSensorDiag('5184123/894', '3456789/597'), undefined);
+  // square denominators (reduced rationals) -> rejected
+  assertEquals(canonSensorDiag('5184000/894', '3456000/894'), undefined);
 });

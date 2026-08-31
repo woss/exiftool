@@ -2,6 +2,25 @@ import { getExifTypeSize } from './types.js';
 import type { IfdEntry } from './types.js';
 import type { TagValue } from '../types.js';
 
+/**
+ * Reads a RATIONAL/SRATIONAL field as its raw "numerator/denominator" string.
+ *
+ * ExifTool keeps raw rationals in TAG_EXTRA for a handful of tags because the
+ * numerator/denominator pair carries information the quotient loses. The one
+ * case we rely on is Canon FocalPlaneX/YResolution, where the denominator
+ * encodes the physical sensor size (see CalcSensorDiag in Canon.pm).
+ */
+export function readRationalRaw(
+  view: DataView,
+  offset: number,
+  littleEndian: boolean,
+  signed = false,
+): string {
+  const num = signed ? view.getInt32(offset, littleEndian) : view.getUint32(offset, littleEndian);
+  const den = signed ? view.getInt32(offset + 4, littleEndian) : view.getUint32(offset + 4, littleEndian);
+  return `${num}/${den}`;
+}
+
 export function readIfdValue(entry: IfdEntry, view: DataView, littleEndian: boolean): TagValue {
   const { type, count, offset } = entry;
   const typeSize = getExifTypeSize(type);

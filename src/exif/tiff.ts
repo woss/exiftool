@@ -1,6 +1,6 @@
 import { parseIFD } from './ifd.js';
 import type { ParseHints } from '../format/mod.js';
-import { formatExifValue, getTagName, readIfdValue, EXIF_POINTER_TAGS } from './values.js';
+import { formatExifValue, getTagName, readIfdValue, readRationalRaw, EXIF_POINTER_TAGS } from './values.js';
 import type { TagValue } from '../types.js';
 import type { TagDb } from '../tag-db.js';
 
@@ -99,6 +99,13 @@ export function parseTiff(
         continue;
       }
       const val = readIfdValue(entry, view, littleEndian);
+      // Canon's sensor-diagonal algorithm needs the raw rational pair
+      // (numerator = pixels * 1000, denominator = sensor size in inches *
+      // 1000) — the quotient we normally store loses that information.
+      if (entry.type === 5 && (entry.tag === 0xa20e || entry.tag === 0xa20f)) {
+        result[entry.tag === 0xa20e ? 'FocalPlaneXResolutionRaw' : 'FocalPlaneYResolutionRaw'] =
+          readRationalRaw(view, entry.offset, littleEndian);
+      }
       if (name) {
         if (EXIF_POINTER_TAGS.has(name)) continue;
         result[name] = formatExifValue(val, name);
