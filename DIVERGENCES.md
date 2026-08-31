@@ -1,14 +1,14 @@
 # exiftool-ts — Parity Divergence Register
 
-**Last updated:** 2026-08-31 · HEAD `199ccef` · Library: 218 files, 65,977 comparisons · Asset parity: 0 NEW (allowlist 3)
+**Last updated:** 2026-08-31 · HEAD `6b45741` · Library: 218 files, 65,995 comparisons · Asset parity: 0 NEW (allowlist 3)
 
 ## Summary
 
 | Metric | Count |
 |---|---|
-| **NEW divergences** | **167** |
+| **NEW divergences** | **99** |
 | **Allowlisted** | 240 |
-| **Shared tag comparisons** | 65,977 |
+| **Shared tag comparisons** | 65,995 |
 
 ---
 
@@ -40,16 +40,14 @@ Fixed in `e2f6222` — root cause was NOT multi-block XMP (investigation showed 
 
 ---
 
-## 4. MaskGroup Deep Structs (~110 file-tag pairs) — largest remaining
+## 4. MaskGroup Structs — top level FIXED (`6b45741`), deep AI-mask level remains (~60 pairs)
 
-Lightroom masking metadata nests several levels deep (`crs:CorrectionMasks` → per-mask structs → inner `Masks` arrays). ExifTool emits the flattened names per struct level; we comma-join arrays or miss the deepest levels.
+Fixed in `6b45741` (verified against exiftool on multi-mask edits):
+- `CorrectionName`/`CorrectionSyncID` + `RangeMask*` → arrays, one value per correction
+- per-mask fields (`MaskGroupBasedCorrMask*`) → **last mask wins** (sequential assignment, not comma-joined arrays)
+- `CorrectionRangeMask` scoped renames + TAG_REMAP entries
 
-| Shape | Example tags | Files |
-|---|---|---|
-| Array joined vs per-struct | MaskSyncID, MaskWhat, MaskVersion, MaskActive, MaskValue, MaskBlendMode | 12-14 each |
-| Deep levels missing entirely | `Mask*InputDigest`, `Mask*ModelVersion`, `Mask*ReferencePoint`, `Mask*WholeImageArea`, `Mask*Origin`, inner `Masks*` | 8-9 each |
-
-**Fix:** extend the struct-attribute machinery to recurse into nested struct arrays — same pattern as DerivedFrom/CreatorContactInfo, but with arrays.
+**Remaining deep level (~9 files × ~10 tags):** AI-subject masks nest a THIRD level — the mask `rdf:li` is element-form (no attrs) containing a nested Description plus an inner `crs:Masks` Seq. Tags: `Mask*InputDigest(Version)`, `Mask*ModelVersion`, `Mask*MaskVersion/SubType/Digest`, `Mask*ReferencePoint`, `Mask*WholeImageArea`, `Mask*Origin`, inner `Masks*` (Dabs, What, Value, Radius, Flow, CenterWeight...). Also element-form masks leave `Mask*ZeroX/ZeroY` missing (5 files) and MaskWhat/MaskSyncID diverging (8).
 
 ---
 
