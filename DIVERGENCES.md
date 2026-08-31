@@ -1,14 +1,14 @@
 # exiftool-ts — Parity Divergence Register
 
-**Last updated:** 2026-08-31 · HEAD `21a71b5` · Library: 218 files, 66,003 comparisons · Asset parity: 0 NEW (allowlist 3)
+**Last updated:** 2026-08-31 · HEAD `8c68358` · Library: 218 files, 66,156 comparisons · Asset parity: 0 NEW (allowlist 3)
 
 ## Summary
 
 | Metric | Count |
 |---|---|
-| **NEW divergences** | **62** |
+| **NEW divergences** | **47** |
 | **Allowlisted** | 240 |
-| **Shared tag comparisons** | 66,003 |
+| **Shared tag comparisons** | 66,156 |
 
 ---
 
@@ -40,41 +40,33 @@ Fixed in `e2f6222` — root cause was NOT multi-block XMP (investigation showed 
 
 ---
 
-## 4. MaskGroup Structs — top level FIXED (`6b45741`), deep AI-mask level remains (~60 pairs)
+## 4. MaskGroup Structs — top level + inner sub-masks FIXED (`6b45741`, `8c68358`)
 
-Fixed in `6b45741` (verified against exiftool on multi-mask edits):
-- `CorrectionName`/`CorrectionSyncID` + `RangeMask*` → arrays, one value per correction
-- per-mask fields (`MaskGroupBasedCorrMask*`) → **last mask wins** (sequential assignment, not comma-joined arrays)
-- `CorrectionRangeMask` scoped renames + TAG_REMAP entries
+- Correction arrays, per-mask last-wins, RangeMask renames, inner `crs:Masks` sub-mask fields (`MaskMasks*` incl. comma-joined Dabs), document-order resolution across both mask forms (`8c68358`)
+- **Remaining (~23 pairs):** `MasksValue` (8) — sub-mask value attr not reached in some element-form li's; `ZeroX/ZeroY` (5+5) — gradient attrs on element-form li's; to be finished with the same machinery
 
-**Remaining deep level (~9 files × ~10 tags):** AI-subject masks nest a THIRD level — the mask `rdf:li` is element-form (no attrs) containing a nested Description plus an inner `crs:Masks` Seq. Tags: `Mask*InputDigest(Version)`, `Mask*ModelVersion`, `Mask*MaskVersion/SubType/Digest`, `Mask*ReferencePoint`, `Mask*WholeImageArea`, `Mask*Origin`, inner `Masks*` (Dabs, What, Value, Radius, Flow, CenterWeight...). Also element-form masks leave `Mask*ZeroX/ZeroY` missing (5 files) and MaskWhat/MaskSyncID diverging (8).
+## 5. New families surfaced (5 files each — Lightroom heal/retouch edits)
 
----
-
-## 5. Minor / Remaining (~35 file-tag pairs)
-
-| Tag | Files | Issue |
-|---|---|---|
-| CodedCharacterSet | 7 | IPTC `UTF8` rendering |
-| ExposureCompensation / FileSize / misc | 1-7 each | formatting edge cases |
-
-Fixed in `199ccef`: DateTimeCreated subsec (18), SubjectDistance/GPSAltitude ` m` units (21), Province-State / Country-\* IPTC datasets 95/100/101 (21).
+- `RetouchArea*` (~13 tags × 5 files): `photoshop:RetouchArea` structs — same struct-attribute pattern, unfetched
+- `GPSAltitude` (5): exiftool's composite appends the ref — `26.9 m Below Sea Level`
+- ExposureTime/ShutterSpeed(Value)/Title/FileSize singles (1-4 each): formatting edges
 
 ---
 
 ## Fixed This Session
 
-- ✅ **Optical composites (191 files → 0)** — ported from Exif.pm/Canon.pm source: crop-factor pipeline, CoC, FOV, DOF, HyperfocalDistance
+- ✅ **Optical composites (191 files → 0)** — ported from Exif.pm/Canon.pm source
 - ✅ **DerivedFrom\* (146 files → 0)** — struct-attribute parsing + group priority
-- ✅ **Creator\* ContactInfo flatten + LookCopyright (52 files → 0)** — Ci\* remap + scoped rename
-- ✅ `DateCreated` truncation, `DateTimeCreated` duplication, SubSec composites
-- ✅ `HierarchicalSubject` composite, XMP hyphenated prefixes, simple XMP elements
-- ✅ XMP rationals (`39/100` → `0.39`) — fixes FlashCompensation/ApproximateFocusDistance rendering
-- ✅ **PrintConv precision ports (37 pairs → 0)** — `21a71b5`: IPTC 1:90/2:90 record-collision (City no longer overwrites CodedCharacterSet), ExposureCompensation PrintFraction port, GPS ToDMS decimal-degrees round-trip, GPSAltitudeRef sea-level PrintConv, Look-struct Clarity2012 rename
+- ✅ **Creator\* ContactInfo flatten + LookCopyright (52 files → 0)**
+- ✅ **PrintConv precision ports (37 pairs → 0)** — IPTC record-collision, PrintFraction, GPS ToDMS, GPSAltitudeRef, Look Clarity2012 (`21a71b5`)
+- ✅ **MaskGroup flattening (top level + inner sub-masks)** — correction arrays, per-mask last-wins, inner `Masks*`, document-order resolution (`6b45741`, `8c68358`)
+- ✅ IPTC location datasets, distance units, DateTimeCreated subsec, XMP rationals, HierarchicalSubject composite
 
 ---
 
 ## Priority for Next Work
 
-1. **MaskGroup deep AI-mask level** — ~60 pairs, element-form third-nesting (see section 4)
-2. **Misc formatting** — FileSize/CodedCharacterSet edge cases (1-7 each)
+1. **RetouchArea\* family** — ~65 pairs (5 files × 13 tags), same struct-attribute pattern
+2. **GPSAltitude composite ref suffix** — 5 pairs
+3. **Remaining mask attr reach** — MasksValue/ZeroX/ZeroY (~18 pairs)
+4. **Misc formatting** — ExposureTime/ShutterSpeed/Title/FileSize singles
