@@ -90,20 +90,29 @@ export function computeCompositeTags(tags: Record<string, TagValue>): void {
     if (!('GPSDateTime' in tags)) tags['GPSDateTime'] = dt;
   }
 
-  function fmtDateTime(dt: string | undefined, offset: string | undefined): string | undefined {
+  function fmtDateTime(dt: string | undefined, offset: string | undefined, subsec: string | undefined): string | undefined {
     if (!dt) return undefined;
     const parts = dt.split(' ');
     if (parts.length === 2) {
-      if (offset) return `${parts[0]} ${parts[1]}${offset}`;
-      return `${parts[0]} ${parts[1]}`;
+      let timePart = parts[1];
+      if (subsec) timePart += `.${subsec}`;
+      if (offset) timePart += offset;
+      return `${parts[0]} ${timePart}`;
     }
     return dt;
   }
 
-  const subSecCreate = fmtDateTime(createDate, offsetTimeDigitized);
-  const subSecOrig = fmtDateTime(dateTimeOriginal, offsetTimeOriginal);
-  const subSecMod = fmtDateTime(modifyDate, offsetTime);
+  const subSecCreate = fmtDateTime(createDate, offsetTimeDigitized, tags['SubSecTimeDigitized']);
+  const subSecOrig = fmtDateTime(dateTimeOriginal, offsetTimeOriginal, tags['SubSecTimeOriginal']);
+  const subSecMod = fmtDateTime(modifyDate, offsetTime, tags['SubSecTime']);
 
+  // HierarchicalSubject: exiftool derives from IPTC Keywords or XMP Subject
+  const kw = tags['Keywords'];
+  const subj = tags['Subject'];
+  const source = Array.isArray(kw) ? kw : Array.isArray(subj) ? subj : null;
+  if (source && source.length > 0 && !('HierarchicalSubject' in tags)) {
+    tags['HierarchicalSubject'] = source.join(',');
+  }
   if (subSecCreate && !('SubSecCreateDate' in tags)) tags['SubSecCreateDate'] = subSecCreate;
   if (subSecOrig && !('SubSecDateTimeOriginal' in tags)) tags['SubSecDateTimeOriginal'] = subSecOrig;
   if (subSecMod && !('SubSecModifyDate' in tags)) tags['SubSecModifyDate'] = subSecMod;

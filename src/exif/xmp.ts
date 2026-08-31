@@ -100,11 +100,9 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     'photoshop:DisplayedUnitsX': 'DisplayedUnitsX',
     'photoshop:DisplayedUnitsY': 'DisplayedUnitsY',
     'Iptc4xmpCore:hierarchicalSubject': 'HierarchicalSubject',
-    'Iptc4xmpCore:CreatorContactInfo': 'CreatorContactInfo',
-    'Iptc4xmpCore:Country-PrimaryLocationCode': 'Country-PrimaryLocationCode',
-    'Iptc4xmpCore:Country-PrimaryLocationName': 'Country-PrimaryLocationName',
-    'Iptc4xmpCore:Province-State': 'Province-State',
     'Iptc4xmpCore:CreatorWorkURL': 'CreatorWorkURL',
+    'XMP-lr:HierarchicalSubject': 'HierarchicalSubject',
+    'XMP-iptcCore:CreatorWorkURL': 'CreatorWorkURL',
     'crs:LookCopyright': 'LookCopyright',
     'photoshop:About': 'About',
     'plus:CopyrightOwner': 'CopyrightOwnerName',
@@ -234,7 +232,7 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     }
 
     const childContent = docMatch[1];
-    const listPattern = /<(\w+:\w+)[^>]*>[\s\S]*?<\/\1>/g;
+    const listPattern = /<([\w-]+:\w+)[^>]*>[\s\S]*?<\/\1>/g;
     let listMatch: RegExpExecArray | null;
     while ((listMatch = listPattern.exec(childContent)) !== null) {
       const [childXml, childName] = listMatch;
@@ -350,7 +348,7 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     }
   }
 
-  const childElPattern = /<(\w+:\w+)\b[^>]*>([^<]+)<\/\1>/g;
+  const childElPattern = /<([\w-]+:\w+)\b[^>]*>([^<]+)<\/\1>/g;
   let childElMatch: RegExpExecArray | null;
   while ((childElMatch = childElPattern.exec(xml)) !== null) {
     const [_, fullName, value] = childElMatch;
