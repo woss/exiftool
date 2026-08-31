@@ -1,14 +1,14 @@
 # exiftool-ts — Parity Divergence Register
 
-**Last updated:** 2026-08-31 · HEAD `92fa63e` · Library: 218 files, 65,956 comparisons · Asset parity: 0 NEW (allowlist 3)
+**Last updated:** 2026-08-31 · HEAD `199ccef` · Library: 218 files, 65,977 comparisons · Asset parity: 0 NEW (allowlist 3)
 
 ## Summary
 
 | Metric | Count |
 |---|---|
-| **NEW divergences** | **201** |
+| **NEW divergences** | **167** |
 | **Allowlisted** | 240 |
-| **Shared tag comparisons** | 65,956 |
+| **Shared tag comparisons** | 65,977 |
 
 ---
 
@@ -53,16 +53,14 @@ Lightroom masking metadata nests several levels deep (`crs:CorrectionMasks` → 
 
 ---
 
-## 5. Minor / Remaining (~60 file-tag pairs)
+## 5. Minor / Remaining (~35 file-tag pairs)
 
 | Tag | Files | Issue |
 |---|---|---|
-| DateTimeCreated | 18 | ours keeps `.00` subsec from XMP DateCreated; exiftool's composite drops it |
-| SubjectDistance | 11 | PrintConv: exiftool renders `0 m` (units appended) |
-| GPSAltitude | 10 | PrintConv: exiftool renders `48.9 m` |
 | CodedCharacterSet | 7 | IPTC `UTF8` rendering |
-| Province-State / Country-\* | 7+7+7 | Iptc4xmpCore location attrs on 7 files (likely element-form or second struct) |
-| ExposureCompensation / Clarity2012 / FileSize / misc | 1-7 each | formatting edge cases |
+| ExposureCompensation / FileSize / misc | 1-7 each | formatting edge cases |
+
+Fixed in `199ccef`: DateTimeCreated subsec (18), SubjectDistance/GPSAltitude ` m` units (21), Province-State / Country-\* IPTC datasets 95/100/101 (21).
 
 ---
 
@@ -74,13 +72,14 @@ Lightroom masking metadata nests several levels deep (`crs:CorrectionMasks` → 
 - ✅ `DateCreated` truncation, `DateTimeCreated` duplication, SubSec composites
 - ✅ `HierarchicalSubject` composite, XMP hyphenated prefixes, simple XMP elements
 - ✅ XMP rationals (`39/100` → `0.39`) — fixes FlashCompensation/ApproximateFocusDistance rendering
+- ✅ **Quick PrintConv wins (39 pairs → 0)** — SubjectDistance/GPSAltitude ` m` units, DateTimeCreated subsec strip, IPTC Province-State/Country datasets 95/100/101
 - ✅ IPTC_LOOKUP restored (ObjectName, Keywords, By-line were accidentally dropped)
 
 ---
 
 ## Priority for Next Work
 
-1. **MaskGroup deep recursion** — ~110 file-tag pairs, same struct pattern now proven three times
-2. **Quick PrintConv wins** — SubjectDistance/GPSAltitude ` m` suffix, DateTimeCreated subsec drop (~39 pairs)
-3. **Province-State/Country-\* element form** — 21 pairs on 7 files
-4. **LookParametersClarity2012** — deeper Parameters struct recursion (6)
+1. **MaskGroup deep recursion** — ~110 file-tag pairs (the dominant remaining category), same struct pattern now proven three times
+2. **CodedCharacterSet** — 7 files, IPTC rendering
+3. **LookParametersClarity2012** — deeper Parameters struct recursion (6)
+4. **Misc formatting** — ExposureCompensation/FileSize edge cases (1-7 each)
