@@ -394,6 +394,43 @@ test('parseXMP MaskGroup: corrections list, masks last-wins', () => {
   });
 });
 
+test('parseXMP MaskGroup: element-form paint mask with inner sub-mask', () => {
+  // DSC00889 shape: the mask rdf:li is element-form (only MaskValue as an
+  // attribute) and carries an inner crs:Masks Seq describing the AI-paint
+  // sub-mask. Dabs render comma-joined like exiftool.
+  const xml = xmpDoc(`<rdf:Description rdf:about="">
+  <crs:MaskGroupBasedCorrections>
+   <rdf:Seq>
+    <rdf:li crs:MaskValue="1">
+     <crs:Masks>
+      <rdf:Seq>
+       <rdf:li>
+        <rdf:Description crs:What="Mask/Paint" crs:MaskActive="true"
+         crs:MaskSyncID="SUB1" crs:Radius="0.020213" crs:Flow="1"
+         crs:CenterWeight="0">
+         <crs:Dabs><rdf:Seq>
+          <rdf:li>d 0.402173 0.689457</rdf:li>
+          <rdf:li>d 0.342484 0.608694</rdf:li>
+         </rdf:Seq></crs:Dabs>
+        </rdf:Description>
+       </rdf:li>
+      </rdf:Seq>
+     </crs:Masks>
+    </rdf:li>
+   </rdf:Seq>
+  </crs:MaskGroupBasedCorrections>
+</rdf:Description>`);
+  assertEquals(parseXMP(xml), {
+    MaskGroupBasedCorrMaskValue: '1',
+    MaskGroupBasedCorrMaskMasksWhat: 'Mask/Paint',
+    MaskGroupBasedCorrMaskMasksMaskActive: 'true',
+    MaskGroupBasedCorrMaskMasksMaskSyncID: 'SUB1',
+    MaskGroupBasedCorrMaskMasksRadius: '0.020213',
+    MaskGroupBasedCorrMaskMasksFlow: '1',
+    MaskGroupBasedCorrMaskMasksCenterWeight: '0',
+    MaskGroupBasedCorrMaskMasksDabs: 'd 0.402173 0.689457,d 0.342484 0.608694',
+  });
+});
 test('parseXMP maps attributes on struct child elements with closing tags', () => {
   const xml = xmpDoc(`<rdf:Description rdf:about="">
   <xmpMM:DerivedFrom stRef:documentID="HEXDOC">

@@ -25,9 +25,35 @@ function renameContextProperties(xml: string): string {
     s = s.replace(/\bcrs:ToneCurvePV2012Red\b/g, 'crs:LookToneCurvePV2012Red');
     return s;
   });
+  // Inner sub-mask structs (crs:Masks inside an element-form mask li) must
+  // be renamed BEFORE the CorrectionMasks pass — otherwise the generic
+  // bare-crs:What rename swallows their fields and they collide with the
+  // outer mask's names. ExifTool flattens them with an extra "Masks" infix:
+  // MaskGroupBasedCorrMaskMasksWhat, ...MasksDabs, ...MasksMaskActive, ...
+  r = r.replace(/<crs:Masks>[\s\S]*?<\/crs:Masks>/g, (m) => {
+    let s = m;
+    const innerRenames: Array<[RegExp, string]> = [
+      [/\bcrs:What\b/g, 'crs:InnerMaskWhat'],
+      [/\bcrs:MaskActive\b/g, 'crs:InnerMaskMaskActive'],
+      [/\bcrs:MaskSyncID\b/g, 'crs:InnerMaskMaskSyncID'],
+      [/\bcrs:MaskBlendMode\b/g, 'crs:InnerMaskMaskBlendMode'],
+      [/\bcrs:MaskInverted\b/g, 'crs:InnerMaskMaskInverted'],
+      [/\bcrs:Dabs\b/g, 'crs:InnerMaskDabs'],
+      [/\bcrs:Value\b/g, 'crs:InnerMaskValue'],
+      [/\bcrs:Radius\b/g, 'crs:InnerMaskRadius'],
+      [/\bcrs:Flow\b/g, 'crs:InnerMaskFlow'],
+      [/\bcrs:CenterWeight\b/g, 'crs:InnerMaskCenterWeight'],
+      [/\bcrs:Version\b/g, 'crs:InnerMaskVersion'],
+    ];
+    for (const [re, to] of innerRenames) s = s.replace(re, to);
+    return s;
+  });
   r = r.replace(/<crs:CorrectionMasks[\s\S]*?<\/crs:CorrectionMasks>/g, (m) => {
     let s = m;
-    s = s.replace(/\bcrs:Version\b/g, 'crs:MaskVersion');
+    // Bare crs:Version (older masks) vs literal crs:MaskVersion (AI masks)
+    // are DIFFERENT exiftool tags (MaskGroupBasedCorrMaskVersion vs
+    // ...MaskMaskVersion) — give bare Version a distinct internal name.
+    s = s.replace(/\bcrs:Version\b/g, 'crs:MaskCoreVersion');
     s = s.replace(/\bcrs:What\b/g, 'crs:MaskWhat');
     return s;
   });
@@ -239,6 +265,19 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     'crs:MaskName': 'MaskGroupBasedCorrMaskMaskName',
     'crs:MaskSyncID': 'MaskGroupBasedCorrMaskMaskSyncID',
     'crs:MaskValue': 'MaskGroupBasedCorrMaskValue',
+    // Inner sub-mask fields (crs:Masks Seq inside an element-form mask):
+    // "Masks" infix — MaskGroupBasedCorrMaskMasksWhat etc.
+    'crs:InnerMaskWhat': 'MaskGroupBasedCorrMaskMasksWhat',
+    'crs:InnerMaskMaskActive': 'MaskGroupBasedCorrMaskMasksMaskActive',
+    'crs:InnerMaskMaskSyncID': 'MaskGroupBasedCorrMaskMasksMaskSyncID',
+    'crs:InnerMaskMaskBlendMode': 'MaskGroupBasedCorrMaskMasksMaskBlendMode',
+    'crs:InnerMaskMaskInverted': 'MaskGroupBasedCorrMaskMasksMaskInverted',
+    'crs:InnerMaskDabs': 'MaskGroupBasedCorrMaskMasksDabs',
+    'crs:InnerMaskValue': 'MaskGroupBasedCorrMaskMasksValue',
+    'crs:InnerMaskRadius': 'MaskGroupBasedCorrMaskMasksRadius',
+    'crs:InnerMaskFlow': 'MaskGroupBasedCorrMaskMasksFlow',
+    'crs:InnerMaskCenterWeight': 'MaskGroupBasedCorrMaskMasksCenterWeight',
+    'crs:InnerMaskVersion': 'MaskGroupBasedCorrMaskMasksVersion',
     'crs:Top': 'MaskGroupBasedCorrMaskTop',
     'crs:Left': 'MaskGroupBasedCorrMaskLeft',
     'crs:Bottom': 'MaskGroupBasedCorrMaskBottom',
@@ -253,7 +292,19 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     'crs:Radius': 'MaskGroupBasedCorrMaskRadius',
     'crs:FullX': 'MaskGroupBasedCorrMaskFullX',
     'crs:FullY': 'MaskGroupBasedCorrMaskFullY',
-    'crs:MaskVersion': 'MaskGroupBasedCorrMaskVersion',
+    // AI-mask fields: the flattened exiftool name is always
+    // MaskGroupBasedCorrMask + the attribute's local name (crs:MaskVersion
+    // -> ...MaskMaskVersion, double Mask — verified on DSC06980-Enhanced-NR).
+    'crs:MaskVersion': 'MaskGroupBasedCorrMaskMaskVersion',
+    'crs:MaskSubType': 'MaskGroupBasedCorrMaskMaskSubType',
+    'crs:MaskDigest': 'MaskGroupBasedCorrMaskMaskDigest',
+    'crs:ReferencePoint': 'MaskGroupBasedCorrMaskReferencePoint',
+    'crs:InputDigest': 'MaskGroupBasedCorrMaskInputDigest',
+    'crs:InputDigestVersion': 'MaskGroupBasedCorrMaskInputDigestVersion',
+    'crs:WholeImageArea': 'MaskGroupBasedCorrMaskWholeImageArea',
+    'crs:Origin': 'MaskGroupBasedCorrMaskOrigin',
+    'crs:ModelVersion': 'MaskGroupBasedCorrMaskModelVersion',
+    'crs:MaskCoreVersion': 'MaskGroupBasedCorrMaskVersion',
     'crs:LookVersion': 'LookParametersVersion',
     'crs:LookProcessVersion': 'LookParametersProcessVersion',
     'crs:LookConvertToGrayscale': 'LookParametersConvertToGrayscale',
@@ -298,6 +349,32 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
       result[tagName] = value;
     }
   }
+
+  /**
+   * Absolute offsets of child ELEMENTS already mapped — nested Descriptions
+   * are visible through several truncated spans, and this is what keeps each
+   * element's tags (especially accumulating lists) from being assigned twice.
+   */
+  const processedElements = new Set<number>();
+
+  /**
+   * Per-mask scalar fields (MaskGroupBasedCorrMask*) follow DOCUMENT order
+   * across BOTH mask forms — attribute-carrying rdf:li items and
+   * element-form structs. The passes that see them run in a fixed order
+   * unrelated to the document, so each assignment records its source offset
+   * here; the maskScalarsApply step (after all passes) writes the value with
+   * the greatest offset.
+   */
+  const maskScalars = new Map<string, { idx: number; value: string }>();
+  const isMaskScalar = (tagName: string): boolean =>
+    tagName.startsWith('MaskGroupBasedCorrMask') && !isCorrectionArrayList(tagName);
+  function noteMaskScalar(tagName: string, value: string, idx: number): boolean {
+    if (!isMaskScalar(tagName)) return false;
+    const prev = maskScalars.get(tagName);
+    if (!prev || idx >= prev.idx) maskScalars.set(tagName, { idx, value });
+    return true;
+  }
+
   function lookupPrefix(attrName: string): { prefix: string; local: string } {
     const colonIdx = attrName.indexOf(':');
     return { prefix: attrName.slice(0, colonIdx), local: attrName.slice(colonIdx + 1) };
@@ -309,41 +386,30 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     return local;
   }
 
-  const docPattern = /<rdf:Description[^>]*>([\s\S]*?)<\/rdf:Description>/g;
-  let docMatch: RegExpExecArray | null;
-  while ((docMatch = docPattern.exec(xml)) !== null) {
-    const openTag = docMatch[0].slice(0, docMatch[0].indexOf('>') + 1);
-    const attrPattern = /([\w-]+:[\w-]+)\s*=\s*"([^"]*)"/g;
-    let attrMatch: RegExpExecArray | null;
-    while ((attrMatch = attrPattern.exec(openTag)) !== null) {
-      const [_, fullName, value] = attrMatch;
-      if (fullName === 'rdf:about') {
-        if (value) result['About'] = value;
-        continue;
-      }
-      if (fullName.startsWith('xmlns:')) continue;
-      if (fullName.startsWith('x:')) continue;
-
-      const parsed = lookupPrefix(fullName);
-      const tagName = mapTagName(parsed.prefix, parsed.local);
-      // Correction array lists are owned by the allDesc pass; a scalar
-      // assignment here would precede (and duplicate) the collected array.
-      if (isCorrectionArrayList(tagName)) continue;
-      const cleanValue = value.replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>
-        String.fromCodePoint(parseInt(hex, 16))
-      );
-      result[tagName] = cleanValue;
-    }
-
-    const childContent = docMatch[1];
+  /**
+   * Processes the CHILD ELEMENTS of one rdf:Description: Bag/Seq lists
+   * (lang-alts resolved via x-default), simple text elements, and struct
+   * elements whose payload rides on their open-tag attributes. Used for the
+   * top-level Description contents AND for Descriptions nested inside struct
+   * li's (element-form masks) — the outer non-greedy docPattern scan consumes
+   * those, so without this second call their children would be lost.
+   */
+  function processListElements(content: string, baseIdx: number): void {
     const listPattern = /<([\w-]+:\w+)[^>]*>[\s\S]*?<\/\1>/g;
     let listMatch: RegExpExecArray | null;
-    while ((listMatch = listPattern.exec(childContent)) !== null) {
+    while ((listMatch = listPattern.exec(content)) !== null) {
       const [childXml, childName] = listMatch;
       const parsed = lookupPrefix(childName);
       if (parsed.prefix === 'rdf') continue;
 
       const tagName = mapTagName(parsed.prefix, parsed.local);
+
+      // Truncated parent spans can expose the same nested element multiple
+      // times (root -> A -> B chains). Each ELEMENT INSTANCE is identified
+      // by its absolute offset and processed exactly once.
+      const elemIdx = baseIdx + listMatch.index;
+      if (processedElements.has(elemIdx)) continue;
+      processedElements.add(elemIdx);
 
       const textContent = childXml.replace(/<[^>]*>/g, '').trim();
 
@@ -393,10 +459,48 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
           if (attrFullName.startsWith('rdf:')) continue;
           const structParsed = lookupPrefix(attrFullName);
           const structTagName = mapTagName(structParsed.prefix, structParsed.local);
-          result[structTagName] = attrValue;
+          const absIdx = baseIdx + listMatch.index + attrStructMatch.index;
+          if (!noteMaskScalar(structTagName, attrValue, absIdx)) {
+            result[structTagName] = attrValue;
+          }
         }
       }
     }
+  }
+
+  const docPattern = /<rdf:Description[^>]*>([\s\S]*?)<\/rdf:Description>/g;
+  let docMatch: RegExpExecArray | null;
+  const docStarts = new Set<number>();
+  while ((docMatch = docPattern.exec(xml)) !== null) {
+    docStarts.add(docMatch.index);
+    const openTagLen = docMatch[0].indexOf('>') + 1;
+    const openTag = docMatch[0].slice(0, openTagLen);
+    const attrPattern = /([\w-]+:[\w-]+)\s*=\s*"([^"]*)"/g;
+    let attrMatch: RegExpExecArray | null;
+    while ((attrMatch = attrPattern.exec(openTag)) !== null) {
+      const [_, fullName, value] = attrMatch;
+      if (fullName === 'rdf:about') {
+        if (value) result['About'] = value;
+        continue;
+      }
+      if (fullName.startsWith('xmlns:')) continue;
+      if (fullName.startsWith('x:')) continue;
+
+      const parsed = lookupPrefix(fullName);
+      const tagName = mapTagName(parsed.prefix, parsed.local);
+      // Correction array lists are owned by the allDesc pass; a scalar
+      // assignment here would precede (and duplicate) the collected array.
+      if (isCorrectionArrayList(tagName)) continue;
+      const cleanValue = value.replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>
+        String.fromCodePoint(parseInt(hex, 16))
+      );
+      result[tagName] = cleanValue;
+    }
+
+
+    processListElements(docMatch[1], docMatch.index + openTagLen);
+
+    const childContent = docMatch[1];
 
     // Self-closing child elements carry attributes only
     // (e.g. <xmpMM:DerivedFrom stRef:documentID="..."/>).
@@ -413,15 +517,31 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
         if (attrFullName.startsWith('rdf:')) continue;
         const selfParsed = lookupPrefix(attrFullName);
         const selfTagName = mapTagName(selfParsed.prefix, selfParsed.local);
+        const absIdx = docMatch.index + openTagLen + selfCloseMatch.index + attrSelfMatch.index;
         if (isCorrectionArrayList(selfTagName)) {
           // One correction = one RangeMask value; corrections accumulate.
           appendArray(result, selfTagName, attrValue);
-        } else {
+        } else if (!noteMaskScalar(selfTagName, attrValue, absIdx)) {
           result[selfTagName] = attrValue;
         }
       }
     }
-   }
+  }
+
+  // Descriptions NESTED inside struct li's (element-form masks): the outer
+  // non-greedy docPattern scan consumed their open tags, so allDesc maps
+  // their attributes but their CHILD ELEMENTS (crs:InnerMask* lists) are
+  // only reachable here. Skip Description start offsets the docPattern loop
+  // already processed.
+  const innerOpen = /<rdf:Description\b[^>]*>/g;
+  let innerOpenMatch: RegExpExecArray | null;
+  while ((innerOpenMatch = innerOpen.exec(xml)) !== null) {
+    if (docStarts.has(innerOpenMatch.index)) continue;
+    const contentStart = innerOpenMatch.index + innerOpenMatch[0].length;
+    const close = xml.indexOf('</rdf:Description>', contentStart);
+    if (close < 0) continue;
+    processListElements(xml.slice(contentStart, close), contentStart);
+  }
 
   const structPattern = /<rdf:Description\s+([^>]*)\/>/g;
   let structMatch: RegExpExecArray | null;
@@ -467,14 +587,18 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
           // Corrections accumulate for these lists (allDesc sees every
           // Description in document order, self-closing included).
           appendArray(result, tagName, value);
-        } else {
+        } else if (!noteMaskScalar(tagName, value, allDescMatch.index + attrDescMatch.index)) {
           result[tagName] = value;
         }
       }
     }
   }
 
-  const liAttrPattern = /<rdf:li\s+([^>]*?)\/>/g;
+  // Attributed rdf:li OPEN tags — self-closing (`/>`) and element-form
+  // (`>` with children, e.g. the outer li of an element-form mask carrying
+  // crs:MaskValue). Plain text li's have no `attr="..."` matches and pass
+  // through harmlessly (xml:lang lands in the deleted 'lang' bucket).
+  const liAttrPattern = /<rdf:li\s+([^>]*?)>/g;
   let liMatch: RegExpExecArray | null;
   while ((liMatch = liAttrPattern.exec(xml)) !== null) {
     const attrPattern3 = /([\w-]+:[\w-]+)\s*=\s*"([^"]*)"/g;
@@ -485,12 +609,10 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
       const parsed = lookupPrefix(fullName);
       const tagName = mapTagName(parsed.prefix, parsed.local);
 
-      if (/^MaskGroupBasedCorrMask/.test(tagName)) {
-        // Per-mask fields flatten to a SCALAR: exiftool processes masks
-        // sequentially, so the last mask's value stands (real multi-mask
-        // files confirmed: MaskWhat/MaskSyncID are single values).
-        result[tagName] = value;
-      } else {
+      // Per-mask fields flatten to a SCALAR in document order: masks from
+      // BOTH forms (attribute li's here, element structs in allDesc) compete
+      // through the offset map.
+      if (!noteMaskScalar(tagName, value, liMatch.index + attrMatch3.index)) {
         const existing = result[tagName];
         if (existing) {
           const arr = Array.isArray(existing) ? existing : [existing];
@@ -526,6 +648,12 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     }
   }
 
+  // Document order has been established for every per-mask scalar; write
+  // the winning values now (see the maskScalars note).
+  for (const [tagName, entry] of maskScalars) {
+    result[tagName] = entry.value;
+  }
+
   const xmptkMatch = /x:xmptk="([^"]+)"/.exec(xml);
   if (xmptkMatch) result['XMPToolkit'] = xmptkMatch[1];
 
@@ -535,7 +663,11 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
   if ('Version' in result) result['Version'] = Number(result['Version']);
   if ('Pick' in result) result['Pick'] = Number(result['Pick']);
   if ('ExifToolVersion' in result) result['ExifToolVersion'] = Number(result['ExifToolVersion']);
-
+  // Paint-mask dab coordinates: exiftool renders the crs:Dabs list as ONE
+  // comma-joined string, not a JSON array.
+  if (Array.isArray(result['MaskGroupBasedCorrMaskMasksDabs'])) {
+    result['MaskGroupBasedCorrMaskMasksDabs'] = (result['MaskGroupBasedCorrMaskMasksDabs'] as string[]).join(',');
+  }
   for (const key of Object.keys(result)) {
     if (key === 'XMP' || key === 'action' || key === 'changed' || key === 'instanceID' || key === 'parameters' || key === 'softwareAgent' || key === 'when' || key === 'lang' || key === 'pick' || key === 'Parameters' || key === 'Look') {
       delete result[key];
