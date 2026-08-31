@@ -205,11 +205,16 @@ export const jpegParser: FormatParser = {
     }
     if (typeof result['DateCreated'] === 'string' && typeof result['TimeCreated'] === 'string') {
       const dateCreated = result['DateCreated'];
-      // If DateCreated already includes time (XMP photoshop:DateCreated), don't duplicate
       if (!/\s\d{2}:\d{2}:\d{2}/.test(dateCreated)) {
+        // Date-only form (IPTC 2:55): pair with the IIM time.
         result['DateTimeCreated'] = `${dateCreated} ${result['TimeCreated']}`;
       } else {
-        result['DateTimeCreated'] = dateCreated;
+        // XMP photoshop:DateCreated carries the time (and possibly a subsec
+        // tail). ExifTool's DateTimeCreated composite is built from the IPTC
+        // group specifically (IPTC.pm: Require IPTC:DateCreated +
+        // IPTC:TimeCreated, ValueConv "$val[0] $val[1]") and the IIM has no
+        // subseconds — so the subsec tail must not leak through.
+        result['DateTimeCreated'] = dateCreated.replace(/\.\d+$/, '');
       }
     }
     if (

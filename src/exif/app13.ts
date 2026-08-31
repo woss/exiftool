@@ -13,6 +13,9 @@ const IPTC_LOOKUP: Record<number, string> = {
   85: 'OriginalDocumentID',
   86: 'OriginalInstanceID',
   90: 'CodedCharacterSet',
+  95: 'Province-State',
+  100: 'Country-PrimaryLocationCode',
+  101: 'Country-PrimaryLocationName',
   116: 'CopyrightNotice',
   120: 'Caption-Abstract',
 };

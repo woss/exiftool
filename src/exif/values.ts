@@ -742,6 +742,13 @@ export function formatExifValue(value: TagValue, tagName: string): TagValue {
     return ENUMS.WhiteBalance[value] ?? value;
   }
 
+  // ExifTool appends " m" to distance tags (Exif.pm 0x9206 / GPS.pm 0x0006
+  // PrintConv: '"${val} m"'). 'inf'/'undef' pass through unchanged there;
+  // we never emit those here.
+  if ((tagName === 'SubjectDistance' || tagName === 'GPSAltitude') && typeof value === 'number') {
+    return `${value} m`;
+  }
+
   if (tagName === 'SceneCaptureType' && typeof value === 'number') {
     return ENUMS.SceneCaptureType[value] ?? value;
   }

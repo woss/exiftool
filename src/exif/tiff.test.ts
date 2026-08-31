@@ -273,7 +273,7 @@ test('parseTiff formats GPS latitude/longitude with refs', () => {
   const tags = parseTiff(bytes);
   assertEquals(tags['GPSLatitude'], `43 deg 28' 2.00" N`);
   assertEquals(tags['GPSLongitude'], `11 deg 21.0000' W`);
-  assertEquals(tags['GPSAltitude'], 12);
+  assertEquals(tags['GPSAltitude'], '12 m'); // GPS.pm 0x0006 PrintConv: '"$val m"'
   assertEquals(tags['GPSTimeStamp'], '10:30:15');
   assertEquals(tags['GPSVersionID'], '2.3.0.0');
   assertEquals(tags['GPSSatellites'], '8');
