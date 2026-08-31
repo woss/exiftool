@@ -8,6 +8,7 @@ function renameContextProperties(xml: string): string {
     s = s.replace(/\bcrs:ProcessVersion\b/g, 'crs:LookProcessVersion');
     s = s.replace(/\bcrs:ConvertToGrayscale\b/g, 'crs:LookConvertToGrayscale');
     s = s.replace(/\bcrs:CameraProfile\b/g, 'crs:LookCameraProfile');
+    s = s.replace(/\bcrs:Copyright\b/g, 'crs:LookCopyright');
     s = s.replace(/\bcrs:LookTable\b/g, 'crs:LookLookTable');
     s = s.replace(/\bcrs:ToneCurvePV2012\b(?!Blue|Green|Red)/g, 'crs:LookToneCurvePV2012');
     s = s.replace(/\bcrs:ToneCurvePV2012Blue\b/g, 'crs:LookToneCurvePV2012Blue');
@@ -101,6 +102,16 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     'photoshop:DisplayedUnitsY': 'DisplayedUnitsY',
     'Iptc4xmpCore:hierarchicalSubject': 'HierarchicalSubject',
     'Iptc4xmpCore:CreatorWorkURL': 'CreatorWorkURL',
+    // CreatorContactInfo struct: exiftool flattens its fields into
+    // standalone Creator* tags (the container itself is never emitted).
+    'Iptc4xmpCore:CiAdrCity': 'CreatorCity',
+    'Iptc4xmpCore:CiAdrCtry': 'CreatorCountry',
+    'Iptc4xmpCore:CiAdrExtadr': 'CreatorAddress',
+    'Iptc4xmpCore:CiAdrPcode': 'CreatorPostalCode',
+    'Iptc4xmpCore:CiAdrRegion': 'CreatorRegion',
+    'Iptc4xmpCore:CiEmailWork': 'CreatorWorkEmail',
+    'Iptc4xmpCore:CiTelWork': 'CreatorWorkTelephone',
+    'Iptc4xmpCore:CiUrlWork': 'CreatorWorkURL',
     'XMP-lr:HierarchicalSubject': 'HierarchicalSubject',
     'XMP-iptcCore:CreatorWorkURL': 'CreatorWorkURL',
     'crs:LookCopyright': 'LookCopyright',
