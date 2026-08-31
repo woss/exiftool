@@ -1,14 +1,14 @@
 # exiftool-ts — Parity Divergence Register
 
-**Last updated:** 2026-08-31 · HEAD `e2f6222` · Library: 218 files, 65,905 comparisons · Asset parity: 0 NEW
+**Last updated:** 2026-08-31 · HEAD `92fa63e` · Library: 218 files, 65,956 comparisons · Asset parity: 0 NEW (allowlist 3)
 
 ## Summary
 
 | Metric | Count |
 |---|---|
-| **NEW divergences** | **342** |
-| **Allowlisted** | 546 |
-| **Shared tag comparisons** | 65,905 |
+| **NEW divergences** | **201** |
+| **Allowlisted** | 240 |
+| **Shared tag comparisons** | 65,956 |
 
 ---
 
@@ -21,18 +21,13 @@ Fixed in `d321888`. Root cause was structural, not priority:
 
 ---
 
-## 2. Optical Composites — Per-Model Tables Missing (191 files) — TOP PRIORITY
+## 2. ~~Optical Composites~~ FIXED (was 191 files → 0)
 
-| Tag | Files | Ref example | Ours example |
-|---|---|---|---|
-| DOF | 53 | `0.001 m (0.300 - 0.300 m)` | MISSING |
-| CircleOfConfusion | 52 | `0.019 mm` | `0.030 mm` (default) |
-| FocalLength35efl | 44 | `100.0 mm (35 mm equivalent: 158.5 mm)` | `100.0 mm (35 mm equivalent: 100.0 mm)` |
-| FOV | 42 | `13.0 deg` | `20.4 deg` |
-
-**Cause:** Composites exist but use defaults: crop factor 1.0, CoC 0.030 mm. exiftool has per-model tables (Canon APS-C = 1.6, Nikon APS-C = 1.5, full-frame = 1.0) and per-model CoC values. Also ~53 files missing DOF need SubjectDistance from makernotes.
-
-**Fix:** Per-model crop-factor + CoC tables keyed on Make/Model. Canon/Nikon/Sony cover most of the 218-file library.
+Fixed in `92fa63e` — ported from the exiftool Perl source (`exiftool-repo/lib/Image/ExifTool/{Exif,Canon}.pm`), NOT from output diffing:
+- `calcScaleFactor35efl`: ① `FocalLengthIn35mmFormat/FocalLength` → ② **Canon raw-rational sensor diagonal** (FocalPlaneX/YResolution rationals encode sensor size in the denominators; e.g. `5184000/894` px/in → 27.30 mm diag → scale 1.585) → ③ focal-plane size from image dims ÷ resolution with aspect + 1–100 mm sanity windows
+- `CircleOfConfusion = D/(scale×1440)`, `FOV` uses exiftool's **literal 3.14159** divisor, DOF renders `inf` and 3-decimal macro depths exactly like exiftool's PrintConv
+- `ScaleFactor35efl` emitted as a JSON number; the whole optical chain is omitted when no scale source exists (exiftool never fakes 1.0)
+- All formulas documented in `src/exif/composite.ts` with Exif.pm references and quirk notes
 
 ---
 
@@ -45,49 +40,47 @@ Fixed in `e2f6222` — root cause was NOT multi-block XMP (investigation showed 
 
 ---
 
-## 4. MaskGroup Struct Flattening (~25 files)
+## 4. MaskGroup Deep Structs (~110 file-tag pairs) — largest remaining
 
-| Tag | Files | Ref | Ours |
-|---|---|---|---|
-| MaskGroupBasedCorrMaskVersion | 2 | `2` | `2,2` |
-| MaskGroupBasedCorrMaskFeather | 1 | `100` | `0.507812,100,100` |
-| MaskGroupBasedCorrMaskFlipped | 1 | `true` | `true,true` |
+Lightroom masking metadata nests several levels deep (`crs:CorrectionMasks` → per-mask structs → inner `Masks` arrays). ExifTool emits the flattened names per struct level; we comma-join arrays or miss the deepest levels.
 
-**Cause:** Nested `crs:Masks`/`crs:CorrectionMasks` arrays — each mask is a struct; we flatten all values into comma-joined strings.
+| Shape | Example tags | Files |
+|---|---|---|
+| Array joined vs per-struct | MaskSyncID, MaskWhat, MaskVersion, MaskActive, MaskValue, MaskBlendMode | 12-14 each |
+| Deep levels missing entirely | `Mask*InputDigest`, `Mask*ModelVersion`, `Mask*ReferencePoint`, `Mask*WholeImageArea`, `Mask*Origin`, inner `Masks*` | 8-9 each |
 
-**Fix:** Same struct-attribute + array-of-struct recursion as DerivedFrom fix. Emit one flattened struct per mask index.
+**Fix:** extend the struct-attribute machinery to recurse into nested struct arrays — same pattern as DerivedFrom/CreatorContactInfo, but with arrays.
 
 ---
 
-## 5. Minor / Remaining (~70 files)
+## 5. Minor / Remaining (~60 file-tag pairs)
 
 | Tag | Files | Issue |
 |---|---|---|
-| FileSize | 26 | boundary formatting (exiftool kB < 2048 kB, MB 2 sig digits) — fix exists, needs verification on edge values |
-| GPSAltitude | 10 | formatting (`123 m` vs `123.45`) |
-| SubjectDistance | 10 | makernote-sourced (blocked on makernotes) |
+| DateTimeCreated | 18 | ours keeps `.00` subsec from XMP DateCreated; exiftool's composite drops it |
+| SubjectDistance | 11 | PrintConv: exiftool renders `0 m` (units appended) |
+| GPSAltitude | 10 | PrintConv: exiftool renders `48.9 m` |
 | CodedCharacterSet | 7 | IPTC `UTF8` rendering |
-| HierarchicalSubject | 2 | files with no Keywords/Subject |
-| Misc single-file | ~15 | crs ToneCurve separators, stEvt joins, etc. |
+| Province-State / Country-\* | 7+7+7 | Iptc4xmpCore location attrs on 7 files (likely element-form or second struct) |
+| ExposureCompensation / Clarity2012 / FileSize / misc | 1-7 each | formatting edge cases |
 
 ---
 
 ## Fixed This Session
 
+- ✅ **Optical composites (191 files → 0)** — ported from Exif.pm/Canon.pm source: crop-factor pipeline, CoC, FOV, DOF, HyperfocalDistance
 - ✅ **DerivedFrom\* (146 files → 0)** — struct-attribute parsing + group priority
-- ✅ `DateCreated` truncation — full datetime with tz now
-- ✅ `DateTimeCreated` duplication
-- ✅ SubSec composites — subseconds + tz
-- ✅ `HierarchicalSubject` — composite from Keywords/Subject (19 → 2)
-- ✅ XMP hyphenated prefixes (`XMP-lr`, `XMP-iptcCore`)
-- ✅ Simple XMP element parsing
+- ✅ **Creator\* ContactInfo flatten + LookCopyright (52 files → 0)** — Ci\* remap + scoped rename
+- ✅ `DateCreated` truncation, `DateTimeCreated` duplication, SubSec composites
+- ✅ `HierarchicalSubject` composite, XMP hyphenated prefixes, simple XMP elements
+- ✅ XMP rationals (`39/100` → `0.39`) — fixes FlashCompensation/ApproximateFocusDistance rendering
 - ✅ IPTC_LOOKUP restored (ObjectName, Keywords, By-line were accidentally dropped)
 
 ---
 
 ## Priority for Next Work
 
-1. **Per-model crop/CoC tables** — fixes 191 optical divergences at once (biggest single win)
-2. **Multi-block XMP extraction** — fixes ~35 missing tag mappings
-3. **crs:Look struct recursion** — fixes ~19×5 Look* tags (same pattern as DerivedFrom fix)
-4. **MaskGroup struct output** — fixes ~25 structural divergences (same pattern)
+1. **MaskGroup deep recursion** — ~110 file-tag pairs, same struct pattern now proven three times
+2. **Quick PrintConv wins** — SubjectDistance/GPSAltitude ` m` suffix, DateTimeCreated subsec drop (~39 pairs)
+3. **Province-State/Country-\* element form** — 21 pairs on 7 files
+4. **LookParametersClarity2012** — deeper Parameters struct recursion (6)
