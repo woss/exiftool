@@ -277,6 +277,8 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
             }
           }
         }
+      } else if (textContent && !/<[^/][^>]*>/.test(childXml.slice(childXml.indexOf('>') + 1, childXml.lastIndexOf('<')))) {
+        result[tagName] = textContent;
       }
     }
   }
@@ -424,12 +426,6 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
           : item,
       );
     }
-  }
-  // photoshop:DateCreated is a date-type field: exiftool prints the date
-  // portion only, colon-separated.
-  if (typeof result['DateCreated'] === 'string') {
-    const m = result['DateCreated'].match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (m) result['DateCreated'] = `${m[1]}:${m[2]}:${m[3]}`;
   }
   // PerspectiveUpright: exiftool renders the crs enum with words.
   if (result['PerspectiveUpright'] !== undefined) {

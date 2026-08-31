@@ -46,9 +46,6 @@ const KNOWN_DIVERGENCES: Record<string, string> = {
   FocalLength35efl: 'crop-factor dependent: 100mm Canon APS-C reads 272mm in exiftool, 100mm at our 1.0 default',
   // Sub-second segment of SubSec* composite dates is not merged yet.
   SubSecCreateDate: 'subsecond segment not merged',
-  // XMP DateCreated timezone rendering: exiftool keeps/drops the source
-  // offset depending on which group wins its per-file priority.
-  DateCreated: 'xmp date tz rendering varies with group priority',
 };
 
 let exiftoolPath: string | null = null;

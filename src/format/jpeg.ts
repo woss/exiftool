@@ -66,8 +66,9 @@ export const jpegParser: FormatParser = {
           const xmpStart = data.length > 29 && new TextDecoder().decode(data.slice(0, 29)) === xmpIdent ? 29 : 0;
           const xmpStr = new TextDecoder().decode(data.slice(xmpStart));
           const xmpTags = parseXMP(xmpStr);
+          const xmpPriority = new Set(['DateCreated', 'TimeCreated', 'DigitalCreationDate', 'DigitalCreationTime']);
           for (const [k, v] of Object.entries(xmpTags)) {
-            if (!(k in result)) {
+            if (xmpPriority.has(k) || !(k in result)) {
               result[k] = v;
             }
           }
@@ -95,7 +96,9 @@ export const jpegParser: FormatParser = {
         const psId = new TextDecoder().decode(data.slice(0, 14));
         if (psId === 'Photoshop 3.0\0') {
           const app13 = parseAPP13(data.slice(14));
+          const xmpPriority = new Set(['DateCreated', 'TimeCreated', 'DigitalCreationDate', 'DigitalCreationTime']);
           for (const [k, v] of Object.entries(app13)) {
+            if (xmpPriority.has(k) && k in result) continue;
             result[k] = v;
           }
         }
@@ -213,7 +216,13 @@ export const jpegParser: FormatParser = {
       result['DigitalCreationTime'] += tz;
     }
     if (typeof result['DateCreated'] === 'string' && typeof result['TimeCreated'] === 'string') {
-      result['DateTimeCreated'] = `${result['DateCreated']} ${result['TimeCreated']}`;
+      const dateCreated = result['DateCreated'];
+      // If DateCreated already includes time (XMP photoshop:DateCreated), don't duplicate
+      if (!/\s\d{2}:\d{2}:\d{2}/.test(dateCreated)) {
+        result['DateTimeCreated'] = `${dateCreated} ${result['TimeCreated']}`;
+      } else {
+        result['DateTimeCreated'] = dateCreated;
+      }
     }
     if (
       typeof result['DigitalCreationDate'] === 'string' &&

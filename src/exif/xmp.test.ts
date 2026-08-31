@@ -199,6 +199,19 @@ test('parseXMP renames crs:Look and crs:CorrectionMasks context properties', () 
   });
 });
 
+test('parseXMP parses simple (non-list) elements like photoshop:DateCreated', () => {
+  const xml = xmpDoc(`<rdf:Description rdf:about="">
+  <photoshop:DateCreated>2023-09-15T14:30:00</photoshop:DateCreated>
+  <dc:title>Test Image</dc:title>
+  <crs:Rating>80</crs:Rating>
+</rdf:Description>`);
+  assertEquals(parseXMP(xml), {
+    DateCreated: '2023:09:15 14:30:00',
+    Title: 'Test Image',
+    Rating: '80',
+  });
+});
+
 test('parseXMP skips x-prefixed description attributes and strips history bookkeeping keys', () => {
   const xml = `<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="XMP Core 6.0">
 <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
