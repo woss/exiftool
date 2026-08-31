@@ -12,7 +12,10 @@ const IPTC_LOOKUP: Record<number, string> = {
   80: 'By-line',
   85: 'OriginalDocumentID',
   86: 'OriginalInstanceID',
-  90: 'CodedCharacterSet',
+  // Dataset 90 is record-dependent: 1:90 CodedCharacterSet (handled in the
+  // parse loop before the recNum check), 2:90 City.
+  90: 'City',
+  92: 'Sub-location',
   95: 'Province-State',
   100: 'Country-PrimaryLocationCode',
   101: 'Country-PrimaryLocationName',

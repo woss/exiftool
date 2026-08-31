@@ -495,15 +495,24 @@ const ENUMS: Record<string, Record<number | string, string>> = {
   },
 };
 
+/**
+ * Port of Image::ExifTool::GPS::ToDMS: the stored (deg, min, sec) rationals
+ * are first ValueConv'd to decimal degrees, then decomposed back — the
+ * round-trip through decimal degrees is what makes our second-rounding match
+ * exiftool's sprintf("%.2f") bit for bit (recomputing seconds from fractional
+ * minutes lands on a different double).
+ */
 function formatGPSRationalArray(value: TagValue, ref?: string): string {
   if (!Array.isArray(value) || value.length < 2) return String(value);
   const deg = Number(value[0]);
   const min = Number(value[1]);
   const sec = value.length > 2 ? Number(value[2]) : 0;
-  const secRounded = Math.round(sec * 100) / 100;
+  const decimal = deg + min / 60 + sec / 3600;
+  const secondsTotal = Math.abs(decimal) * 3600;
+  const secOut = secondsTotal - deg * 3600 - min * 60;
   const dir = ref === 'N' ? 'N' : ref === 'S' ? 'S' : ref === 'E' ? 'E' : ref === 'W' ? 'W' : '';
-  if (secRounded > 0) {
-    return `${deg} deg ${min}' ${secRounded.toFixed(2)}"${dir ? ` ${dir}` : ''}`;
+  if (secOut > 0.005) {
+    return `${deg} deg ${min}' ${secOut.toFixed(2)}"${dir ? ` ${dir}` : ''}`;
   }
   return `${deg} deg ${min.toFixed(4)}'${dir ? ` ${dir}` : ''}`;
 }
@@ -749,6 +758,11 @@ export function formatExifValue(value: TagValue, tagName: string): TagValue {
     return `${value} m`;
   }
 
+  // GPS.pm 0x0005 PrintConv: 0 = Above Sea Level, 1 = Below Sea Level.
+  if (tagName === 'GPSAltitudeRef' && typeof value === 'number') {
+    return value === 1 ? 'Below Sea Level' : 'Above Sea Level';
+  }
+
   if (tagName === 'SceneCaptureType' && typeof value === 'number') {
     return ENUMS.SceneCaptureType[value] ?? value;
   }
@@ -793,21 +807,22 @@ export function formatExifValue(value: TagValue, tagName: string): TagValue {
   return summarizeBulky(value, tagName);
 }
 
-/** Continued-fraction approximation; denominators capped at 100. */
+/**
+ * Port of Image::ExifTool::Exif::PrintFraction: exposure compensations
+ * render as integers or halves/thirds when the value is within 0.1% of one,
+ * otherwise as "%+.3g" (three significant digits, explicit sign).
+ * The 1.00001 multiplier avoids binary round-off (exiftool does the same).
+ */
 function toFraction(v: number): string {
-  const sign = v < 0 ? '-' : '';
-  let x = Math.abs(v);
-  let [n1, n0, d1, d0] = [1, 0, 0, 1];
-  for (let i = 0; i < 20; i++) {
-    const a = Math.floor(x);
-    const n2 = a * n1 + n0;
-    const d2 = a * d1 + d0;
-    if (d2 > 100) break;
-    [n1, n0] = [n2, n1];
-    [d1, d0] = [d2, d1];
-    const frac = x - a;
-    if (frac < 1e-9) break;
-    x = 1 / frac;
-  }
-  return d1 === 1 ? `${sign}${n1}` : `${sign}${n1}/${d1}`;
+  const val = v * 1.00001;
+  if (val === 0) return '0';
+  const int = Math.trunc(val);
+  const sign = val < 0 ? '-' : '+';
+  const abs = Math.abs(val);
+  const intAbs = Math.abs(int);
+  if (intAbs / abs > 0.999) return `${sign}${intAbs}`;
+  if ((Math.trunc(abs * 2)) / (abs * 2) > 0.999) return `${sign}${Math.trunc(abs * 2)}/2`;
+  if ((Math.trunc(abs * 3)) / (abs * 3) > 0.999) return `${sign}${Math.trunc(abs * 3)}/3`;
+  const g = Number(abs.toPrecision(3)).toString();
+  return `${sign}${g}`;
 }

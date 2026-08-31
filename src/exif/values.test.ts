@@ -449,9 +449,20 @@ test('formatExifValue converts APEX aperture values to f-numbers', () => {
   assertEquals(formatExifValue(5, 'MaxApertureValue'), '5.7');
 });
 
-test('formatExifValue renders ExposureCompensation as a fraction', () => {
+test('formatExifValue renders ExposureCompensation as a fraction (PrintFraction port)', () => {
   assertEquals(formatExifValue(-2 / 3, 'ExposureCompensation'), '-2/3');
-  assertEquals(formatExifValue(0.5, 'ExposureCompensation'), '1/2');
+  // PrintFraction uses "%+d/2": positive fractions carry an explicit plus.
+  assertEquals(formatExifValue(0.5, 'ExposureCompensation'), '+1/2');
   assertEquals(formatExifValue(0, 'ExposureCompensation'), '0');
-  assertEquals(formatExifValue(1, 'ExposureCompensation'), '1');
+  // Even whole stops carry the sign ("%+d"): exiftool prints "+1".
+  assertEquals(formatExifValue(1, 'ExposureCompensation'), '+1');
+  // -2.3 hits the "%+.3g" fallback (three significant digits).
+  assertEquals(formatExifValue(-2.3, 'ExposureCompensation'), '-2.3');
+});
+
+test('formatExifValue renders GPSAltitudeRef with sea-level PrintConv', () => {
+  // GPS.pm 0x0005: 0 = Above, 1 = Below; unknown values fall back to Above.
+  assertEquals(formatExifValue(0, 'GPSAltitudeRef'), 'Above Sea Level');
+  assertEquals(formatExifValue(1, 'GPSAltitudeRef'), 'Below Sea Level');
+  assertEquals(formatExifValue(2, 'GPSAltitudeRef'), 'Above Sea Level');
 });

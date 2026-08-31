@@ -17,6 +17,7 @@ function renameContextProperties(xml: string): string {
     s = s.replace(/\bcrs:ConvertToGrayscale\b/g, 'crs:LookConvertToGrayscale');
     s = s.replace(/\bcrs:CameraProfile\b/g, 'crs:LookCameraProfile');
     s = s.replace(/\bcrs:Copyright\b/g, 'crs:LookCopyright');
+    s = s.replace(/\bcrs:Clarity2012\b/g, 'crs:LookClarity2012');
     s = s.replace(/\bcrs:LookTable\b/g, 'crs:LookLookTable');
     s = s.replace(/\bcrs:ToneCurvePV2012\b(?!Blue|Green|Red)/g, 'crs:LookToneCurvePV2012');
     s = s.replace(/\bcrs:ToneCurvePV2012Blue\b/g, 'crs:LookToneCurvePV2012Blue');
@@ -188,6 +189,7 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     'crs:ConvertToGrayscale': 'ConvertToGrayscale',
     'crs:LookTable': 'LookTable',
     'crs:Clarity2012': 'Clarity2012',
+    'crs:LookClarity2012': 'LookParametersClarity2012',
     'crs:Texture': 'Texture',
     'crs:Temperature': 'ColorTemperature',
     'crs:CorrectionName': 'MaskGroupBasedCorrCorrectionName',

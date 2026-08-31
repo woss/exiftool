@@ -213,16 +213,16 @@ export function formatGPSWithRef(value: TagValue, ref: string, coordFormat?: str
     if (rendered !== undefined) return rendered;
   }
   if (!Array.isArray(value) || value.length < 2) return String(value);
+  // ExifTool ToDMS round-trip: decimal degrees first, then decompose —
+  // see the matching comment in values.ts formatGPSRationalArray.
   const deg = Number(value[0]);
   const min = Number(value[1]);
   const sec = value.length > 2 ? Number(value[2]) : 0;
-  const totalSec = min * 60 + sec;
-  const secVal = totalSec;
-  const secRounded = Math.round(secVal * 100) / 100;
+  const decimal = deg + min / 60 + sec / 3600;
+  const secondsTotal = Math.abs(decimal) * 3600;
   const minInt = Math.floor(min);
-  const secFrac = min - minInt + sec / 60;
-  const secFinal = secFrac * 60;
-  if (secFinal > 0.01) {
+  const secFinal = secondsTotal - deg * 3600 - minInt * 60;
+  if (secFinal > 0.005) {
     return `${deg} deg ${minInt}' ${secFinal.toFixed(2)}"${ref ? ` ${ref}` : ''}`;
   }
   return `${deg} deg ${min.toFixed(4)}'${ref ? ` ${ref}` : ''}`;
