@@ -30,7 +30,24 @@ function renameContextProperties(xml: string): string {
     s = s.replace(/\bcrs:What\b/g, 'crs:MaskWhat');
     return s;
   });
-
+  // CorrectionRangeMask is a self-closing element per correction; its generic
+  // attribute names (crs:Version, crs:Type, ...) flatten to RangeMask* names.
+  r = r.replace(/<crs:CorrectionRangeMask\b([^>]*?)\/>/g, (_m, attrs: string) => {
+    const renames: Array<[RegExp, string]> = [
+      [/\bcrs:Version\b/g, 'crs:RangeMaskVersion'],
+      [/\bcrs:Type\b/g, 'crs:RangeMaskType'],
+      [/\bcrs:ColorAmount\b/g, 'crs:RangeMaskColorAmount'],
+      [/\bcrs:LumMin\b/g, 'crs:RangeMaskLumMin'],
+      [/\bcrs:LumMax\b/g, 'crs:RangeMaskLumMax'],
+      [/\bcrs:LumFeather\b/g, 'crs:RangeMaskLumFeather'],
+      [/\bcrs:DepthMin\b/g, 'crs:RangeMaskDepthMin'],
+      [/\bcrs:DepthMax\b/g, 'crs:RangeMaskDepthMax'],
+      [/\bcrs:DepthFeather\b/g, 'crs:RangeMaskDepthFeather'],
+    ];
+    let s = attrs;
+    for (const [re, to] of renames) s = s.replace(re, to);
+    return `<crs:CorrectionRangeMask${s}/>`;
+  });
   return r;
 }
 
@@ -179,6 +196,16 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     'crs:CorrectionSyncID': 'MaskGroupBasedCorrCorrectionSyncID',
     'crs:What': 'MaskGroupBasedCorrWhat',
     'crs:MaskWhat': 'MaskGroupBasedCorrMaskWhat',
+    // CorrectionRangeMask attributes (one element per correction)
+    'crs:RangeMaskVersion': 'MaskGroupBasedCorrRangeMaskVersion',
+    'crs:RangeMaskType': 'MaskGroupBasedCorrRangeMaskType',
+    'crs:RangeMaskColorAmount': 'MaskGroupBasedCorrRangeMaskColorAmount',
+    'crs:RangeMaskLumMin': 'MaskGroupBasedCorrRangeMaskLumMin',
+    'crs:RangeMaskLumMax': 'MaskGroupBasedCorrRangeMaskLumMax',
+    'crs:RangeMaskLumFeather': 'MaskGroupBasedCorrRangeMaskLumFeather',
+    'crs:RangeMaskDepthMin': 'MaskGroupBasedCorrRangeMaskDepthMin',
+    'crs:RangeMaskDepthMax': 'MaskGroupBasedCorrRangeMaskDepthMax',
+    'crs:RangeMaskDepthFeather': 'MaskGroupBasedCorrRangeMaskDepthFeather',
     'crs:LocalBlacks2012': 'MaskGroupBasedCorrBlacks2012',
     'crs:LocalBrightness': 'MaskGroupBasedCorrBrightness',
     'crs:LocalClarity': 'MaskGroupBasedCorrClarity',
@@ -248,6 +275,27 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     'stEvt:when': 'HistoryWhen',
   };
 
+  // MaskGroup flattening semantics (verified against exiftool on multi-mask
+  // Lightroom edits): each correction contributes ONE value to the
+  // CorrectionName/SyncID and RangeMask* lists, while the per-mask fields
+  // (MaskGroupBasedCorrMask*) are sequential assignments where the LAST
+  // mask wins.
+  const isCorrectionArrayList = (tagName: string): boolean =>
+    tagName === 'MaskGroupBasedCorrCorrectionName' ||
+    tagName === 'MaskGroupBasedCorrCorrectionSyncID' ||
+    tagName.startsWith('MaskGroupBasedCorrRangeMask');
+
+  /** Appends value to a list-shaped tag (creates the array on second value). */
+  function appendArray(result: Record<string, TagValue>, tagName: string, value: string): void {
+    const existing = result[tagName];
+    if (existing !== undefined) {
+      const arr = Array.isArray(existing) ? existing.slice() : [existing];
+      arr.push(value);
+      result[tagName] = arr;
+    } else {
+      result[tagName] = value;
+    }
+  }
   function lookupPrefix(attrName: string): { prefix: string; local: string } {
     const colonIdx = attrName.indexOf(':');
     return { prefix: attrName.slice(0, colonIdx), local: attrName.slice(colonIdx + 1) };
@@ -276,6 +324,9 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
 
       const parsed = lookupPrefix(fullName);
       const tagName = mapTagName(parsed.prefix, parsed.local);
+      // Correction array lists are owned by the allDesc pass; a scalar
+      // assignment here would precede (and duplicate) the collected array.
+      if (isCorrectionArrayList(tagName)) continue;
       const cleanValue = value.replace(/&#x([0-9a-fA-F]+);/g, (_, hex) =>
         String.fromCodePoint(parseInt(hex, 16))
       );
@@ -360,7 +411,12 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
         if (attrFullName.startsWith('rdf:')) continue;
         const selfParsed = lookupPrefix(attrFullName);
         const selfTagName = mapTagName(selfParsed.prefix, selfParsed.local);
-        result[selfTagName] = attrValue;
+        if (isCorrectionArrayList(selfTagName)) {
+          // One correction = one RangeMask value; corrections accumulate.
+          appendArray(result, selfTagName, attrValue);
+        } else {
+          result[selfTagName] = attrValue;
+        }
       }
     }
    }
@@ -405,7 +461,13 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
       const parsed = lookupPrefix(fullName);
       const tagName = mapTagName(parsed.prefix, parsed.local);
       if (!tagName.startsWith('rdf:')) {
-        result[tagName] = value;
+        if (isCorrectionArrayList(tagName)) {
+          // Corrections accumulate for these lists (allDesc sees every
+          // Description in document order, self-closing included).
+          appendArray(result, tagName, value);
+        } else {
+          result[tagName] = value;
+        }
       }
     }
   }
@@ -421,13 +483,20 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
       const parsed = lookupPrefix(fullName);
       const tagName = mapTagName(parsed.prefix, parsed.local);
 
-      const existing = result[tagName];
-      if (existing) {
-        const arr = Array.isArray(existing) ? existing : [existing];
-        arr.push(value);
-        result[tagName] = arr;
-      } else {
+      if (/^MaskGroupBasedCorrMask/.test(tagName)) {
+        // Per-mask fields flatten to a SCALAR: exiftool processes masks
+        // sequentially, so the last mask's value stands (real multi-mask
+        // files confirmed: MaskWhat/MaskSyncID are single values).
         result[tagName] = value;
+      } else {
+        const existing = result[tagName];
+        if (existing) {
+          const arr = Array.isArray(existing) ? existing : [existing];
+          arr.push(value);
+          result[tagName] = arr;
+        } else {
+          result[tagName] = value;
+        }
       }
     }
   }

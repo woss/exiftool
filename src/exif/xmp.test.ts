@@ -354,6 +354,46 @@ test('parseXMP maps attributes on self-closing struct child elements', () => {
   });
 });
 
+test('parseXMP MaskGroup: corrections list, masks last-wins', () => {
+  // Two corrections, each with a mask — the exact shape of multi-mask
+  // Lightroom edits. CorrectionName/SyncID and RangeMask* collect one value
+  // per correction; the per-mask fields flatten to the LAST mask's values
+  // (exiftool processes mask instances sequentially).
+  const xml = xmpDoc(`<rdf:Description rdf:about="">
+  <crs:MaskGroupBasedCorrections>
+   <rdf:Seq>
+    <rdf:li>
+     <rdf:Description crs:What="Correction" crs:CorrectionName="Mask 1"
+      crs:CorrectionSyncID="AAA1">
+      <crs:CorrectionMasks><rdf:Seq>
+       <rdf:li crs:What="Mask/Gradient" crs:MaskSyncID="M1"/>
+      </rdf:Seq></crs:CorrectionMasks>
+      <crs:CorrectionRangeMask crs:Version="2" crs:Type="0"/>
+     </rdf:Description>
+    </rdf:li>
+    <rdf:li>
+     <rdf:Description crs:What="Correction" crs:CorrectionName="Mask 2"
+      crs:CorrectionSyncID="BBB2">
+      <crs:CorrectionMasks><rdf:Seq>
+       <rdf:li crs:What="Mask/Gradient" crs:MaskSyncID="M2"/>
+      </rdf:Seq></crs:CorrectionMasks>
+      <crs:CorrectionRangeMask crs:Version="2" crs:Type="1"/>
+     </rdf:Description>
+    </rdf:li>
+   </rdf:Seq>
+  </crs:MaskGroupBasedCorrections>
+</rdf:Description>`);
+  assertEquals(parseXMP(xml), {
+    MaskGroupBasedCorrWhat: 'Correction',
+    MaskGroupBasedCorrCorrectionName: ['Mask 1', 'Mask 2'],
+    MaskGroupBasedCorrCorrectionSyncID: ['AAA1', 'BBB2'],
+    MaskGroupBasedCorrRangeMaskVersion: ['2', '2'],
+    MaskGroupBasedCorrRangeMaskType: ['0', '1'],
+    MaskGroupBasedCorrMaskWhat: 'Mask/Gradient',
+    MaskGroupBasedCorrMaskMaskSyncID: 'M2',
+  });
+});
+
 test('parseXMP maps attributes on struct child elements with closing tags', () => {
   const xml = xmpDoc(`<rdf:Description rdf:about="">
   <xmpMM:DerivedFrom stRef:documentID="HEXDOC">
