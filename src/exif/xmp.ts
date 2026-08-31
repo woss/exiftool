@@ -277,9 +277,42 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
         }
       } else if (textContent && !/<[^/][^>]*>/.test(childXml.slice(childXml.indexOf('>') + 1, childXml.lastIndexOf('<')))) {
         result[tagName] = textContent;
+      } else {
+        // Struct elements carry their payload as attributes
+        // (e.g. <xmpMM:DerivedFrom stRef:documentID="..."/>); map them.
+        const openTag = childXml.slice(0, childXml.indexOf('>') + 1);
+        const attrPatternStruct = /([\w-]+:[\w-]+)\s*=\s*"([^"]*)"/g;
+        let attrStructMatch: RegExpExecArray | null;
+        while ((attrStructMatch = attrPatternStruct.exec(openTag)) !== null) {
+          const [_, attrFullName, attrValue] = attrStructMatch;
+          if (attrFullName.startsWith('xmlns:')) continue;
+          if (attrFullName.startsWith('rdf:')) continue;
+          const structParsed = lookupPrefix(attrFullName);
+          const structTagName = mapTagName(structParsed.prefix, structParsed.local);
+          result[structTagName] = attrValue;
+        }
       }
     }
-  }
+
+    // Self-closing child elements carry attributes only
+    // (e.g. <xmpMM:DerivedFrom stRef:documentID="..."/>).
+    const selfClosePattern = /<([\w-]+:\w+)\b([^>]*?)\/>/g;
+    let selfCloseMatch: RegExpExecArray | null;
+    while ((selfCloseMatch = selfClosePattern.exec(childContent)) !== null) {
+      const parsed = lookupPrefix(selfCloseMatch[1]);
+      if (parsed.prefix === 'rdf') continue;
+      const attrPatternSelf = /([\w-]+:[\w-]+)\s*=\s*"([^"]*)"/g;
+      let attrSelfMatch: RegExpExecArray | null;
+      while ((attrSelfMatch = attrPatternSelf.exec(selfCloseMatch[2])) !== null) {
+        const [_, attrFullName, attrValue] = attrSelfMatch;
+        if (attrFullName.startsWith('xmlns:')) continue;
+        if (attrFullName.startsWith('rdf:')) continue;
+        const selfParsed = lookupPrefix(attrFullName);
+        const selfTagName = mapTagName(selfParsed.prefix, selfParsed.local);
+        result[selfTagName] = attrValue;
+      }
+    }
+   }
 
   const structPattern = /<rdf:Description\s+([^>]*)\/>/g;
   let structMatch: RegExpExecArray | null;

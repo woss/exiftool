@@ -102,9 +102,9 @@ export function computeCompositeTags(tags: Record<string, TagValue>): void {
     return dt;
   }
 
-  const subSecCreate = fmtDateTime(createDate, offsetTimeDigitized, tags['SubSecTimeDigitized']);
-  const subSecOrig = fmtDateTime(dateTimeOriginal, offsetTimeOriginal, tags['SubSecTimeOriginal']);
-  const subSecMod = fmtDateTime(modifyDate, offsetTime, tags['SubSecTime']);
+  const subSecCreate = fmtDateTime(createDate, offsetTimeDigitized, asStr(tags['SubSecTimeDigitized']));
+  const subSecOrig = fmtDateTime(dateTimeOriginal, offsetTimeOriginal, asStr(tags['SubSecTimeOriginal']));
+  const subSecMod = fmtDateTime(modifyDate, offsetTime, asStr(tags['SubSecTime']));
 
   // HierarchicalSubject: exiftool derives from IPTC Keywords or XMP Subject
   const kw = tags['Keywords'];
@@ -112,6 +112,25 @@ export function computeCompositeTags(tags: Record<string, TagValue>): void {
   const source = Array.isArray(kw) ? kw : Array.isArray(subj) ? subj : null;
   if (source && source.length > 0 && !('HierarchicalSubject' in tags)) {
     tags['HierarchicalSubject'] = source.join(',');
+  }
+  // DerivedFrom*: XMP UUIDs for DerivedFrom*, IPTC hex for Original*
+  // DerivedFromDocumentID/InstanceID already set from XMP (stRef/xmpMM)
+  // DerivedFromOriginalDocumentID = IPTC OriginalDocumentID (hex)
+  if (tags['OriginalDocumentID'] && !tags['DerivedFromOriginalDocumentID']) {
+    tags['DerivedFromOriginalDocumentID'] = tags['OriginalDocumentID'];
+  }
+  // DerivedFromInstanceID: IPTC OriginalInstanceID wins, else HistoryInstanceID fallback
+  if (tags['OriginalInstanceID'] && !tags['DerivedFromInstanceID']) {
+    tags['DerivedFromInstanceID'] = tags['OriginalInstanceID'];
+  } else if (!tags['DerivedFromInstanceID'] && tags['HistoryInstanceID']) {
+    const histIDs = tags['HistoryInstanceID'];
+    const first = Array.isArray(histIDs) ? histIDs[0] : histIDs;
+    if (typeof first === 'string') {
+      tags['DerivedFromInstanceID'] = first;
+      if (!tags['DerivedFromDocumentID']) {
+        tags['DerivedFromDocumentID'] = first.replace('xmp.iid:', 'xmp.did:');
+      }
+    }
   }
   if (subSecCreate && !('SubSecCreateDate' in tags)) tags['SubSecCreateDate'] = subSecCreate;
   if (subSecOrig && !('SubSecDateTimeOriginal' in tags)) tags['SubSecDateTimeOriginal'] = subSecOrig;

@@ -193,3 +193,22 @@ test('EncodingProcess implies legacy JPEG Compression', () => {
   computeCompositeTags(existing as never);
   assertEquals(existing['Compression'], 6);
 });
+
+test('DerivedFromInstanceID: IPTC OriginalInstanceID wins over HistoryInstanceID', () => {
+  const tags: Record<string, unknown> = {
+    OriginalDocumentID: 'IPTCHEX1',
+    OriginalInstanceID: 'IPTCHEX2',
+    HistoryInstanceID: 'xmp.iid:FALLBACK',
+  };
+  computeCompositeTags(tags as never);
+  assertEquals(tags['DerivedFromOriginalDocumentID'], 'IPTCHEX1');
+  assertEquals(tags['DerivedFromInstanceID'], 'IPTCHEX2');
+  assertEquals(tags['DerivedFromDocumentID'], undefined);
+});
+
+test('DerivedFromInstanceID falls back to HistoryInstanceID with doc-id conversion', () => {
+  const tags: Record<string, unknown> = { HistoryInstanceID: 'xmp.iid:AAA' };
+  computeCompositeTags(tags as never);
+  assertEquals(tags['DerivedFromInstanceID'], 'xmp.iid:AAA');
+  assertEquals(tags['DerivedFromDocumentID'], 'xmp.did:AAA');
+});

@@ -10,6 +10,8 @@ const IPTC_LOOKUP: Record<number, string> = {
   62: 'DigitalCreationDate',
   63: 'DigitalCreationTime',
   80: 'By-line',
+  85: 'OriginalDocumentID',
+  86: 'OriginalInstanceID',
   90: 'CodedCharacterSet',
   116: 'CopyrightNotice',
   120: 'Caption-Abstract',

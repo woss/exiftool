@@ -343,3 +343,25 @@ test('parseXMP folds self-closing history attributes into previously built lists
   // value, so the accumulated list is observable only through pass ordering.
   assertEquals(parseXMP(xml), { HistoryAction: 'converted' });
 });
+
+test('parseXMP maps attributes on self-closing struct child elements', () => {
+  const xml = xmpDoc(`<rdf:Description rdf:about="">
+  <xmpMM:DerivedFrom stRef:documentID="HEXDOC" stRef:originalDocumentID="HEXORIG"/>
+</rdf:Description>`);
+  assertEquals(parseXMP(xml), {
+    DerivedFromDocumentID: 'HEXDOC',
+    DerivedFromOriginalDocumentID: 'HEXORIG',
+  });
+});
+
+test('parseXMP maps attributes on struct child elements with closing tags', () => {
+  const xml = xmpDoc(`<rdf:Description rdf:about="">
+  <xmpMM:DerivedFrom stRef:documentID="HEXDOC">
+    <stRef:instanceID>xmp.iid:N</stRef:instanceID>
+  </xmpMM:DerivedFrom>
+</rdf:Description>`);
+  assertEquals(parseXMP(xml), {
+    DerivedFromDocumentID: 'HEXDOC',
+    DerivedFromInstanceID: 'xmp.iid:N',
+  });
+});

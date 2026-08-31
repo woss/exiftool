@@ -169,6 +169,11 @@
     },
   },
   "mcp": {
+    "codegraph": {
+      "type": "local",
+      "command": ["codegraph", "mcp"],
+      "enabled": true,
+    },
     "context7": {
       "type": "remote",
       "url": "https://mcp.context7.com/mcp",

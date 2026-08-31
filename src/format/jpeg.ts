@@ -193,18 +193,6 @@ export const jpegParser: FormatParser = {
       result['Keywords'] = result['Subject'];
     }
 
-    if (!('DerivedFromInstanceID' in result) && result['HistoryInstanceID']) {
-      const histIDs = result['HistoryInstanceID'];
-      const first = Array.isArray(histIDs) ? histIDs[0] : histIDs;
-      if (typeof first === 'string') {
-        result['DerivedFromInstanceID'] = first;
-        result['DerivedFromDocumentID'] = first.replace('xmp.iid:', 'xmp.did:');
-      }
-    }
-    if (!('DerivedFromOriginalDocumentID' in result) && result['OriginalDocumentID']) {
-      result['DerivedFromOriginalDocumentID'] = result['OriginalDocumentID'];
-    }
-
     // ExifTool appends the capture timezone (EXIF OffsetTimeOriginal) to the
     // IIM times and composes the DateTimeCreated pairs.
     const tz = typeof result['OffsetTimeOriginal'] === 'string' ? result['OffsetTimeOriginal'] : '';

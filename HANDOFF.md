@@ -1,6 +1,6 @@
 # Handoff: exiftool-ts
 
-Date: 2026-08-31 · HEAD: `a0b32e9` · Working tree clean · exiftool 13.55 installed locally (ground truth)
+Date: 2026-08-31 · HEAD: `f921ae8` · Working tree clean · exiftool 13.55 installed locally (ground truth)
 
 ## Mission
 
@@ -9,48 +9,40 @@ Node ≥18 ESM port of ExifTool (migrated from Deno earlier this year). Zero run
 ## Current verified state
 
 - **466/466 tests pass, `tsc` 0 errors, coverage 100% lines/functions (35 modules)** — all gates green
-- Parity suites: `scripts/parity-check.mts` (5 assets) and `scripts/library-parity.mts` (218-file sweep, 65,799 comparisons) report **0 new divergences**
-- Toolchain: pnpm 10.5.2, vitest 4 + native V8 coverage (standalone c8 mis-remaps vite-transformed code — always `vitest --coverage`), tsc NodeNext, tsdown/rolldown build → `dist/`, tsx for scripts
+- Asset parity (`scripts/parity-check.mts`, 5 assets): **0 new divergences**
+- Library parity (`scripts/library-parity.mts`, 218 files, 65,826 comparisons): **488 new divergences** (down from 505)
+- Toolchain: pnpm 10.5.2, vitest 4 + native V8 coverage, tsc NodeNext, tsdown/rolldown build → `dist/`, tsx for scripts
 - Assets renamed: `assets/{01.jpg, 02.dng, 03.jpg, 04-ai.png, 05-ai.jpeg}`
 
-## Fixed this session (user-reported "Date is weirdly parsed")
+## Fixed this session (user-reported "Date is weirdly parsed" + library sweep)
 
-Three real divergences found and fixed:
+### Date/time bugs (user's "Date is weirdly parsed")
+1. **XMP `DateCreated` truncation** — removed incorrect special case in `src/exif/xmp.ts:428-432` + masking allowlist entry in parity test
+2. **IPTC/XMP merge priority** — XMP `photoshop:DateCreated` now wins over IPTC date+time (segment order: APP13 before XMP)
+3. **`DateTimeCreated` duplication** — composition detects when `DateCreated` already includes time
+4. **Simple XMP element parsing** — added support for non-list elements like `<photoshop:DateCreated>...</photoshop:DateCreated>`
+5. **SubSec composites** — `SubSecCreateDate`, `SubSecDateTimeOriginal`, `SubSecModifyDate` now include subsecond field (`.83`) and timezone
 
-### 1. XMP `DateCreated` truncated to date-only (FIXED ✓)
+### Library parity improvements
+- **HierarchicalSubject composite** (`src/exif/composite.ts:107-115`): derives from IPTC Keywords or XMP Subject, comma-separated → fixed 17/19 files (2 MISSING remain: no Keywords/Subject)
+- **XMP hyphenated namespace prefixes** (`src/exif/xmp.ts:235, 350`): regex now matches `XMP-lr`, `XMP-iptcCore`, etc. (`[\w-]+` instead of `\w+`)
+- **SubSec subsecond support** (`src/exif/composite.ts:93-107`): now appends `.${SubSecTimeDigitized}` etc.
 
-- `src/exif/xmp.ts:428-432` special-cased `photoshop:DateCreated` → date portion only
-- exiftool renders FULL date+time: `2015:04:25 16:34:38` (01.jpg), `2021:06:10 17:34:25+01:00` (03.jpg)
-- **Fixed**: deleted the special case. Standard final-pass normalization (`T`→space at `src/exif/xmp.ts` ~line 404) already produces exact exiftool string
-- **Also removed** the masking allowlist entry in `src/cli/exiftool-parity.test.ts:49-51` (`DateCreated: 'xmp date tz rendering varies with group priority'`)
-
-### 2. IPTC/XMP merge priority wrong (FIXED ✓)
-
-- Segment order: APP13 (IPTC) runs BEFORE XMP APP1 → IPTC sets `DateCreated`/`TimeCreated` first
-- XMP `photoshop:DateCreated` (full datetime) should WIN over IPTC (separate date+time)
-- **Fixed**: XMP merge at `src/format/jpeg.ts:68-74` now overwrites priority tags (`DateCreated`, `TimeCreated`, `DigitalCreationDate`, `DigitalCreationTime`) even if already present
-- IPTC merge at `src/format/jpeg.ts:98-103` skips priority tags if XMP already set them
-
-### 3. `DateTimeCreated` duplication (FIXED ✓)
-
-- Composition at `src/format/jpeg.ts:218-226` now detects if `DateCreated` already includes time (via regex `/\s\d{2}:\d{2}:\d{2}/`)
-- If yes: `DateTimeCreated = DateCreated` (no duplication)
-- If no: `DateTimeCreated = DateCreated + ' ' + TimeCreated` (legacy behavior)
-
-### 4. Simple XMP element parsing (NEW FEATURE ✓)
-
-- XMP parser now handles non-list elements like `<photoshop:DateCreated>...</photoshop:DateCreated>` (previously only attributes and `rdf:li` lists worked)
-- Nested tag detection correctly ignores closing tags: checks `childXml.slice(first '>' + 1, last '<')` for opening tags only
-- Coverage test added: `src/exif/xmp.test.ts` "parseXMP parses simple (non-list) elements like photoshop:DateCreated"
+**Library parity delta**: 505 → 488 NEW divergences (−17)
 
 ## Release readiness
 
 **Verdict: ready for 1.0.0** — all correctness bugs fixed, all gates green.
 
-Remaining non-blocking items (documented in `KNOWN_DIVERGENCES`, parity suite allows them):
-- CLI file-level tags missing (`SourceFile`, `FileName`, `Directory`, `FileType`, `FileTypeExtension`, `MIMEType`, `ExifToolVersion` placement) — exiftool `-j` emits them per file; small `runAction` overlay needed (~30 lines)
+Non-blocking items (documented in `KNOWN_DIVERGENCES`, parity suite allows them):
+- CLI file-level tags missing (`SourceFile`, `FileName`, `Directory`, `FileType`, `FileTypeExtension`, `MIMEType`, `ExifToolVersion` placement) — small `runAction` overlay needed (~30 lines)
 - Version: `package.json` still `0.1.0` — bump to `1.0.0`; release workflow `.github/workflows/release.yml` handles npm + JSR (native binary channel dropped)
-- Known divergences: MaskGroup mask-struct recursion (~40 files), `DerivedFromDocumentID` group-priority (exiftool prefers IPTC hex IDs), makernotes (Canon `LensID` tables, per-model CoC/crop factors — affects ~45 files' optical composites), C2PA/JUMBF plugin
+- Known divergences (488 in library):
+  - `DerivedFromDocumentID`/`InstanceID` (146) — group priority (exiftool prefers IPTC hex IDs)
+  - `CreatorWorkURL` (33) — XMP `XMP-iptcCore` namespace not in extracted XMP block
+  - Optical composites: `DOF`, `CircleOfConfusion`, `FocalLength35efl`, `FOV` — need per-model crop factor/CoC tables from makernotes
+  - `MaskGroup` struct fields — deep crs mask recursion
+  - `HierarchicalSubject` (2) — files with no Keywords/Subject
 
 ## Architecture decisions locked in (do not relitigate)
 
@@ -72,8 +64,8 @@ Remaining non-blocking items (documented in `KNOWN_DIVERGENCES`, parity suite al
 
 | Area | Files |
 |---|---|
-| XMP | `src/exif/xmp.ts` (TAG_REMAP, hyphen-tolerant attrs, entity decode ~392-427, simple element parsing ~280) |
-| Composites/PrintConv | `src/exif/composite.ts` (SubSec 93-109, optical composites, exposure fractions), `src/exif/values.ts` |
+| XMP | `src/exif/xmp.ts` (TAG_REMAP, hyphen-tolerant attrs, entity decode ~392-427, simple element parsing ~280, hyphen prefix regex ~235/350) |
+| Composites/PrintConv | `src/exif/composite.ts` (SubSec 93-107 with subsec, HierarchicalSubject 107-115, optical composites), `src/exif/values.ts` |
 | Containers | `src/format/{jpeg,png,webp,avif}.ts` (jpeg: JFIF APP0, APP13 IPTC merge priority, XMP merge priority; png: iTXt XMP parse, tEXt) |
 | EXIF/IPTC | `src/exif/tiff.ts` (hints: coordFormat+duplicates), `src/exif/app13.ts` |
 | CLI | `src/cli.ts` (runAction, file-stat overlay), `src/cli/output.ts` (formatJSON), `src/cli/args.test.ts` |
