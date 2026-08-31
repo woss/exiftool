@@ -1,14 +1,14 @@
 # exiftool-ts — Parity Divergence Register
 
-**Last updated:** 2026-08-31 · HEAD `d321888` · Library: 218 files, 65,852 comparisons · Asset parity: 0 NEW
+**Last updated:** 2026-08-31 · HEAD `e2f6222` · Library: 218 files, 65,905 comparisons · Asset parity: 0 NEW
 
 ## Summary
 
 | Metric | Count |
 |---|---|
-| **NEW divergences** | **342** (was 488 before DerivedFrom fix) |
+| **NEW divergences** | **342** |
 | **Allowlisted** | 546 |
-| **Shared tag comparisons** | 65,852 |
+| **Shared tag comparisons** | 65,905 |
 
 ---
 
@@ -36,15 +36,12 @@ Fixed in `d321888`. Root cause was structural, not priority:
 
 ---
 
-## 3. Missing XMP Tag Mappings (52 files)
+## 3. ~~Missing XMP Tag Mappings~~ FIXED (was 52 files)
 
-| Tag | Files | Cause |
-|---|---|---|
-| CreatorWorkURL | 33 | `XMP-iptcCore:` namespace — our extraction reads only the first XMP block; these tags live in a second APP1 XMP block written by Lightroom |
-| LookCopyright / LookName / LookAmount / LookGroup / LookSupports* | 19 | `crs:Look*` struct fields — the Look struct is not recursed (similar to MaskGroup issue, fix pattern known from DerivedFrom) |
-| CreatorAddress/City/Country/PostalCode/Region/WorkEmail/WorkTelephone | 1-2 | `Iptc4xmpCore:Creator*` — likely also in second XMP block |
-
-**Fix:** (a) extract ALL APP1 XMP blocks, not just the first; (b) apply the struct-attribute pattern to crs:Look.
+Fixed in `e2f6222` — root cause was NOT multi-block XMP (investigation showed only one XMP block):
+- `CreatorWorkURL` etc. live in `<Iptc4xmpCore:CreatorContactInfo Iptc4xmpCore:CiUrlWork="..."/>` — a self-closing struct whose fields exiftool **flattens** into standalone `Creator*` tags. Same structural gap as DerivedFrom; fixed by adding `Ci*` → `Creator*` TAG_REMAP entries (the self-closing struct-attribute parser from the DerivedFrom fix picks them up).
+- `LookCopyright` lives in `crs:Copyright` attribute inside the `crs:Look` struct; fixed with a scoped rename to `crs:LookCopyright` in `renameContextProperties` (which TAG_REMAP already mapped).
+- Remaining: `LookParametersClarity2012` (6 files, deeper Parameters struct recursion).
 
 ---
 
