@@ -57,7 +57,6 @@ export function formatJSON(files: FileInfo[], options?: FormatOptions): string {
       if (value instanceof Uint8Array) {
         v = options?.binary ? toBase64(value) : binaryPlaceholder(value);
       } else if (Array.isArray(value)) {
-        // ExifTool -j renders XMP list values as JSON arrays of strings.
         v = value.map((item) => tagValueToString(item));
       } else {
         v = options?.dateFormat ? formatDateValue(value, options.dateFormat) : value;
@@ -71,7 +70,11 @@ export function formatJSON(files: FileInfo[], options?: FormatOptions): string {
     }
     arr.push(entry);
   }
-  return JSON.stringify(arr, null, 2);
+  const json = JSON.stringify(arr, null, 2);
+  // ExifTool -j emits strings that match a JSON number (or true/false) unquoted
+  // (bin/exiftool EscapeJSON). Mirror the exact regex for byte-for-byte parity.
+  return json.replace(/"(-?(?:\d|[1-9]\d{1,14})(?:\.\d{1,16})?(?:e[-+]?\d{1,3})?|(?:true|false))"/gi,
+    (m, token) => (/^(true|false)$/i.test(token) ? token.toLowerCase() : token));
 }
 
 export function formatXML(files: FileInfo[], options?: FormatOptions): string {

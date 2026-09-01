@@ -3,6 +3,7 @@
  * Implements RFC 7049 subset needed for C2PA (major types 0-7, tags 0-36, 55799).
  * Mirrors ExifTool's CBOR.pm.
  */
+import type { TagValue } from '../types.js';
 
 // CBOR major types
 const MAJOR = {
@@ -97,6 +98,11 @@ const DEFAULT_TAG_HANDLERS: Map<number, CBORTagHandler> = new Map([
     if (value instanceof Uint8Array) return decode(value);
     return value;
   }],
+  // COSE structures are arrays; ExifTool flattens them into Item0..ItemN tags
+  [TAG.COSE_ENCRYPT0, (_tag, value) => value],
+  [TAG.COSE_MAC0, (_tag, value) => value],
+  [TAG.COSE_SIGN1, (_tag, value) => value],
+  [TAG.COSE_COUNTERSIGNATURE, (_tag, value) => value],
 ]);
 
 /**
@@ -128,29 +134,33 @@ function readValue(
   const info = byte & 0x1f;
   
   let length = info;
-  if (info === 24) {
-    if (state.pos >= data.length) throw new Error('Truncated CBOR length');
-    length = data[state.pos++];
-  } else if (info === 25) {
-    if (state.pos + 2 > data.length) throw new Error('Truncated CBOR length');
-    length = (data[state.pos] << 8) | data[state.pos + 1];
-    state.pos += 2;
-  } else if (info === 26) {
-    if (state.pos + 4 > data.length) throw new Error('Truncated CBOR length');
-    length = (data[state.pos] << 24) | (data[state.pos + 1] << 16) | (data[state.pos + 2] << 8) | data[state.pos + 3];
-    state.pos += 4;
-  } else if (info === 27) {
-    if (state.pos + 8 > data.length) throw new Error('Truncated CBOR length');
-    // 64-bit length - we only support up to 32-bit for practical purposes
-    const high = (data[state.pos] << 24) | (data[state.pos + 1] << 16) | (data[state.pos + 2] << 8) | data[state.pos + 3];
-    const low = (data[state.pos + 4] << 24) | (data[state.pos + 5] << 16) | (data[state.pos + 6] << 8) | data[state.pos + 7];
-    state.pos += 8;
-    if (high !== 0) throw new Error('CBOR length exceeds 32-bit');
-    length = low;
-  } else if (info === 31) {
-    if (!opts.allowIndefinite) throw new Error('Indefinite length not supported');
-    // Indefinite length - handled per major type
-    return readIndefinite(data, state, major, opts, handlers);
+  if (major !== MAJOR.SIMPLE) {
+    // Additional-info 24-27 encode the item length for majors 0-6;
+    // for major 7 (simple/floats) they are value types, not lengths.
+    if (info === 24) {
+      if (state.pos >= data.length) throw new Error('Truncated CBOR length');
+      length = data[state.pos++];
+    } else if (info === 25) {
+      if (state.pos + 2 > data.length) throw new Error('Truncated CBOR length');
+      length = (data[state.pos] << 8) | data[state.pos + 1];
+      state.pos += 2;
+    } else if (info === 26) {
+      if (state.pos + 4 > data.length) throw new Error('Truncated CBOR length');
+      length = ((data[state.pos] << 24) | (data[state.pos + 1] << 16) | (data[state.pos + 2] << 8) | data[state.pos + 3]) >>> 0;
+      state.pos += 4;
+    } else if (info === 27) {
+      if (state.pos + 8 > data.length) throw new Error('Truncated CBOR length');
+      // 64-bit length - we only support up to 32-bit for practical purposes
+      const high = ((data[state.pos] << 24) | (data[state.pos + 1] << 16) | (data[state.pos + 2] << 8) | data[state.pos + 3]) >>> 0;
+      const low = ((data[state.pos + 4] << 24) | (data[state.pos + 5] << 16) | (data[state.pos + 6] << 8) | data[state.pos + 7]) >>> 0;
+      state.pos += 8;
+      if (high !== 0) throw new Error('CBOR length exceeds 32-bit');
+      length = low;
+    } else if (info === 31) {
+      if (!opts.allowIndefinite) throw new Error('Indefinite length not supported');
+      // Indefinite length - handled per major type
+      return readIndefinite(data, state, major, opts, handlers);
+    }
   }
   
   switch (major) {
@@ -197,38 +207,47 @@ function readValue(
       // Unknown tag - return tagged object
       return { __cborTag: length, value: taggedValue };
     case MAJOR.SIMPLE:
-      switch (length) {
-        case SIMPLE.FALSE: return false;
-        case SIMPLE.TRUE: return true;
-        case SIMPLE.NULL: return null;
-        case SIMPLE.UNDEFINED: return undefined;
-        default:
-          if (length >= 32) {
-            // Extended simple values (float16, float32, float64)
-            if (length === 25) { // float16
-              if (state.pos + 2 > data.length) throw new Error('Truncated CBOR float16');
-              const bits = (data[state.pos] << 8) | data[state.pos + 1];
-              state.pos += 2;
-              return decodeFloat16(bits);
-            } else if (length === 26) { // float32
-              if (state.pos + 4 > data.length) throw new Error('Truncated CBOR float32');
-              const view = new DataView(data.buffer, data.byteOffset + state.pos, 4);
-              state.pos += 4;
-              return view.getFloat32(0, false);
-            } else if (length === 27) { // float64
-              if (state.pos + 8 > data.length) throw new Error('Truncated CBOR float64');
-              const view = new DataView(data.buffer, data.byteOffset + state.pos, 8);
-              state.pos += 8;
-              return view.getFloat64(0, false);
-            }
-          }
-          return { __cborSimple: length };
+      // 0-19: reserved simple values; 20-23: false/true/null/undef;
+      // 24: one-byte simple value; 25-27: float16/32/64; 28-30: reserved; 31: break
+      if (length <= 19) return { __cborSimple: length };
+      if (length === SIMPLE.FALSE) return false;
+      if (length === SIMPLE.TRUE) return true;
+      if (length === SIMPLE.NULL) return null;
+      if (length === SIMPLE.UNDEFINED) return undefined;
+      if (length === 24) { // extended one-byte simple value
+        if (state.pos >= data.length) throw new Error('Truncated CBOR simple value');
+        const simple = data[state.pos++];
+        if (simple < 32) throw new Error('Invalid CBOR simple value');
+        return { __cborSimple: simple };
       }
+      if (length === 25) { // float16
+        if (state.pos + 2 > data.length) throw new Error('Truncated CBOR float16');
+        const bits = (data[state.pos] << 8) | data[state.pos + 1];
+        state.pos += 2;
+        return decodeFloat16(bits);
+      }
+      if (length === 26) { // float32
+        if (state.pos + 4 > data.length) throw new Error('Truncated CBOR float32');
+        const view = new DataView(data.buffer, data.byteOffset + state.pos, 4);
+        state.pos += 4;
+        return view.getFloat32(0, false);
+      }
+      if (length === 27) { // float64
+        if (state.pos + 8 > data.length) throw new Error('Truncated CBOR float64');
+        const view = new DataView(data.buffer, data.byteOffset + state.pos, 8);
+        state.pos += 8;
+        return view.getFloat64(0, false);
+      }
+      throw new Error(`Invalid CBOR simple value ${length}`);
     default:
       throw new Error(`Unknown CBOR major type ${major}`);
   }
 }
 
+/**
+ * Decode an indefinite-length item (major types 2-5 terminate with 0xff).
+ * Chunks are read from the current position without stepping back.
+ */
 function readIndefinite(
   data: Uint8Array,
   state: { pos: number; depth: number; sharedStrings: string[] },
@@ -240,9 +259,7 @@ function readIndefinite(
     case MAJOR.BYTE_STRING: {
       const chunks: Uint8Array[] = [];
       while (state.pos < data.length) {
-        const byte = data[state.pos];
-        if (byte === 0xff) { state.pos++; break; } // break byte
-        state.pos--; // step back to re-read the chunk header
+        if (data[state.pos] === 0xff) { state.pos++; break; }
         const chunk = readValue(data, state, opts, handlers);
         if (chunk instanceof Uint8Array) chunks.push(chunk);
         else throw new Error('Expected byte string chunk in indefinite byte string');
@@ -252,9 +269,7 @@ function readIndefinite(
     case MAJOR.TEXT_STRING: {
       const chunks: string[] = [];
       while (state.pos < data.length) {
-        const byte = data[state.pos];
-        if (byte === 0xff) { state.pos++; break; }
-        state.pos--;
+        if (data[state.pos] === 0xff) { state.pos++; break; }
         const chunk = readValue(data, state, opts, handlers);
         if (typeof chunk === 'string') chunks.push(chunk);
         else throw new Error('Expected text string chunk in indefinite text string');
@@ -263,10 +278,9 @@ function readIndefinite(
     }
     case MAJOR.ARRAY: {
       state.depth++;
-      const arr = [];
+      const arr: unknown[] = [];
       while (state.pos < data.length) {
-        const byte = data[state.pos];
-        if (byte === 0xff) { state.pos++; break; }
+        if (data[state.pos] === 0xff) { state.pos++; break; }
         arr.push(readValue(data, state, opts, handlers));
       }
       state.depth--;
@@ -274,10 +288,9 @@ function readIndefinite(
     }
     case MAJOR.MAP: {
       state.depth++;
-      const map = new Map();
+      const map = new Map<unknown, unknown>();
       while (state.pos < data.length) {
-        const byte = data[state.pos];
-        if (byte === 0xff) { state.pos++; break; }
+        if (data[state.pos] === 0xff) { state.pos++; break; }
         const key = readValue(data, state, opts, handlers);
         const value = readValue(data, state, opts, handlers);
         map.set(key, value);
@@ -323,180 +336,96 @@ function base64urlEncode(data: Uint8Array): string {
 }
 
 /**
- * Parse C2PA manifest from CBOR data.
- * Returns flattened tags matching ExifTool's output structure.
+ * C2PA tag table (mirrors ExifTool CBOR.pm %Image::ExifTool::CBOR::Main).
+ * Unlisted tags get their name from the flattened CBOR key path.
  */
-export function parseC2PAManifest(cborData: Uint8Array): Record<string, string | number | boolean | string[]> {
-  const decoded = decodeCBOR(cborData, { allowIndefinite: true }) as Map<unknown, unknown> | Record<string, unknown>;
-  const result: Record<string, string | number | boolean | string[]> = {};
-  
+const CBOR_TAG_TABLE: Record<string, string> = {
+  'dc:title': 'Title',
+  'dc:format': 'Format',
+  authorName: 'AuthorName',
+  authorIdentifier: 'AuthorIdentifier',
+  documentID: 'DocumentID',
+  instanceID: 'InstanceID',
+  thumbnailHash: 'ThumbnailHash',
+  thumbnailUrl: 'ThumbnailURL',
+  relationship: 'Relationship',
+};
+
+/**
+ * Parse C2PA manifest from CBOR data.
+ * Mirrors ExifTool's JSON::ProcessTag flattening: arrays recurse with the same
+ * tag, hash keys append ucfirst to the parent tag, characters after
+ * non-alphanumerics are capitalized, and byte strings become binary placeholders.
+ */
+export function parseC2PAManifest(cborData: Uint8Array): Record<string, TagValue> {
+  const decoded = decodeCBOR(cborData, { allowIndefinite: true }) as unknown;
+  const acc = new Map<string, unknown[]>();
+
   if (decoded instanceof Map) {
-    extractC2PATags(decoded, result, '');
+    for (const [key, value] of decoded) {
+      flattenCBOR(value, String(key), acc);
+    }
+  } else if (Array.isArray(decoded)) {
+    // ExifTool tags top-level CBOR arrays as Item0, Item1, ...
+    decoded.forEach((el, i) => flattenCBOR(el, `Item${i}`, acc));
   } else if (decoded && typeof decoded === 'object') {
-    extractC2PATagsFromObject(decoded, result, '');
+    for (const [key, value] of Object.entries(decoded as Record<string, unknown>)) {
+      flattenCBOR(value, key, acc);
+    }
   }
-  
+
+  const result: Record<string, TagValue> = {};
+  for (const [tagID, values] of acc) {
+    const name = CBOR_TAG_TABLE[tagID] ?? nameFromTagID(tagID);
+    result[name] = (values.length === 1 ? values[0] : values) as TagValue;
+  }
   return result;
 }
 
-function extractC2PATags(map: Map<unknown, unknown>, result: Record<string, unknown>, prefix: string): void {
-  for (const [key, value] of map.entries()) {
-    const keyStr = String(key);
-    const fullKey = prefix ? `${prefix}.${keyStr}` : keyStr;
-    
-    // Map C2PA claim keys to ExifTool-style tags
-    const tagName = mapC2PAKey(keyStr);
-    if (tagName) {
-      if (value instanceof Map) {
-        extractC2PATags(value, result, fullKey);
-      } else if (value instanceof Set) {
-        result[tagName] = Array.from(value);
-      } else if (Array.isArray(value)) {
-        // Handle arrays - process each element
-        for (const elem of value) {
-          if (elem instanceof Map) {
-            const elemResult: Record<string, unknown> = {};
-            extractC2PATags(elem, elemResult, '');
-            // Merge elemResult directly into result (keys already mapped)
-            Object.assign(result, elemResult);
-          } else if (elem && typeof elem === 'object' && !(elem instanceof Uint8Array)) {
-            const elemResult: Record<string, unknown> = {};
-            extractC2PATagsFromObject(elem as Record<string, unknown>, elemResult, '');
-            Object.assign(result, elemResult);
-          } else {
-            // Primitive array elements - store as string array under the tagName
-            if (!result[tagName]) result[tagName] = [];
-            (result[tagName] as string[]).push(String(elem));
-          }
-        }
-      } else if (value instanceof Map) {
-        extractC2PATags(value, result, fullKey);
-      } else if (value instanceof Uint8Array) {
-        // Convert binary data to hex string
-        result[tagName] = Buffer.from(value).toString('hex');
-      } else {
-        result[tagName] = value as string | number | boolean;
-      }
+/**
+ * Flatten one decoded CBOR value, accumulating scalar values under tag IDs
+ * exactly as ExifTool's JSON::ProcessTag does.
+ */
+function flattenCBOR(value: unknown, tag: string, acc: Map<string, unknown[]>): void {
+  if (value instanceof Map) {
+    for (const [key, v] of value) {
+      const keyStr = String(key);
+      // Perl: $tg = $tag . ((/^\d/ and $tag =~ /\d$/) ? '_' : '') . ucfirst
+      const needsUnderscore = /^\d/.test(keyStr) && /\d$/.test(tag);
+      let child = tag + (needsUnderscore ? '_' : '') + ucfirst(keyStr);
+      child = child.replace(/([^a-zA-Z])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+      flattenCBOR(v, child, acc);
     }
+  } else if (Array.isArray(value)) {
+    for (const el of value) {
+      flattenCBOR(el, tag, acc);
+    }
+  } else if (value instanceof Uint8Array) {
+    pushValue(acc, tag, `(Binary data ${value.length} bytes, use -b option to extract)`);
+  } else if (value === null) {
+    // CBOR simple value 22: ExifTool maps it to the string 'null'
+    pushValue(acc, tag, 'null');
+  } else if (value !== undefined) {
+    pushValue(acc, tag, value);
   }
 }
 
-function extractC2PATagsFromObject(obj: Record<string, unknown>, result: Record<string, unknown>, prefix: string): void {
-  for (const [key, value] of Object.entries(obj)) {
-    const fullKey = prefix ? `${prefix}.${key}` : key;
-    const tagName = mapC2PAKey(key);
-    if (tagName) {
-      if (value instanceof Map) {
-        extractC2PATags(value, result, fullKey);
-      } else if (Array.isArray(value)) {
-        // Handle arrays - process each element
-        for (const elem of value) {
-          if (elem instanceof Map) {
-            const elemResult: Record<string, unknown> = {};
-            extractC2PATags(elem, elemResult, '');
-            Object.assign(result, elemResult);
-          } else if (elem && typeof elem === 'object' && !(elem instanceof Uint8Array)) {
-            const elemResult: Record<string, unknown> = {};
-            extractC2PATagsFromObject(elem as Record<string, unknown>, elemResult, '');
-            Object.assign(result, elemResult);
-          } else {
-            if (!result[tagName]) result[tagName] = [];
-            (result[tagName] as string[]).push(String(elem));
-          }
-        }
-      } else if (value && typeof value === 'object' && !(value instanceof Uint8Array)) {
-        extractC2PATagsFromObject(value as Record<string, unknown>, result, fullKey);
-      } else if (value instanceof Uint8Array) {
-        // Convert binary data to hex string
-        result[tagName] = Buffer.from(value).toString('hex');
-      } else {
-        result[tagName] = value as string | number | boolean;
-      }
-    } else if (value instanceof Map) {
-      extractC2PATags(value, result, fullKey);
-    } else if (value && typeof value === 'object' && !(value instanceof Uint8Array)) {
-      extractC2PATagsFromObject(value as Record<string, unknown>, result, fullKey);
-    }
-  }
+function pushValue(acc: Map<string, unknown[]>, tag: string, value: unknown): void {
+  const list = acc.get(tag);
+  if (list) list.push(value);
+  else acc.set(tag, [value]);
 }
 
 /**
- * Map C2PA claim keys to ExifTool tag names.
- * Based on ExifTool's CBOR.pm tag table and C2PA spec.
+ * Derive the displayed tag name from a flattened CBOR tag ID the way
+ * ExifTool names unknown tags: capitalize first letter, strip '.' separators.
  */
-function mapC2PAKey(key: string): string | null {
-  const keyMap: Record<string, string> = {
-    // DCI (Dublin Core) tags
-    'dc:title': 'Title',
-    'dc:format': 'Format',
-    'dc:creator': 'Creator',
-    'dc:description': 'Description',
-    'dc:identifier': 'Identifier',
-    'dc:language': 'Language',
-    'dc:publisher': 'Publisher',
-    'dc:relation': 'Relation',
-    'dc:rights': 'Rights',
-    'dc:source': 'Source',
-    'dc:subject': 'Subject',
-    'dc:type': 'Type',
-    'dc:date': 'Date',
-    'dc:coverage': 'Coverage',
-    'dc:contributor': 'Contributor',
-    
-    // C2PA specific - match ExifTool tag names exactly
-    'claim_generator': 'Claim_generator',
-    'claim_generator_info': 'Claim_Generator_Info',
-    'claim_generator_info.name': 'Claim_Generator_InfoName',
-    'claim_generator_info.version': 'Claim_Generator_InfoVersion',
-    'claim_generator_info.com.adobe.build': 'Claim_Generator_InfoComAdobeBuild',
-    'actions': 'Actions',
-    'action': 'ActionsAction',
-    'software_agent': 'ActionsSoftwareAgent',
-    'softwareAgent': 'ActionsSoftwareAgent',
-    'digital_source_type': 'ActionsDigitalSourceType',
-    'digitalSourceType': 'ActionsDigitalSourceType',
-    'when': 'ActionsWhen',
-    'parameters': 'ActionsParameters',
-    'exclusions': 'Exclusions',
-    'start': 'ExclusionsStart',
-    'length': 'ExclusionsLength',
-    'assertions': 'Assertions',
-    'url': 'AssertionsUrl',
-    'hash': 'AssertionsHash',
-    'signature': 'Signature',
-    'items': 'Items',
-    
-    // Claim box fields (hdc: namespace)
-    'hdc:title': 'Title',
-    'dc:format': 'Format',
-    'instanceID': 'InstanceID',
-    
-    // Additional C2PA fields
-    'authorName': 'AuthorName',
-    'documentID': 'DocumentID',
-    'thumbnailHash': 'ThumbnailHash',
-    'thumbnailUrl': 'ThumbnailURL',
-    'relationship': 'Relationship',
-  };
-  
-  // Check exact match first
-  if (keyMap[key]) return keyMap[key];
-  
-  // Check prefix matches for nested structures
-  for (const [pattern, tag] of Object.entries(keyMap)) {
-    if (key.startsWith(pattern + '.') || key.startsWith(pattern)) {
-      return tag;
-    }
-  }
-  
-  // Handle array indices (actions[0], items[1], etc.)
-  const arrayMatch = key.match(/^(.+)\[(\d+)\]$/);
-  if (arrayMatch) {
-    const base = mapC2PAKey(arrayMatch[1]);
-    if (base) return `${base}${arrayMatch[2]}`;
-  }
-  
-  return null;
+function nameFromTagID(tagID: string): string {
+  return (tagID.charAt(0).toUpperCase() + tagID.slice(1)).replace(/\./g, '');
+}
+
+function ucfirst(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 /**

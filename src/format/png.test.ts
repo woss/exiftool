@@ -79,6 +79,30 @@ test('png eXIf chunk parses embedded TIFF', async () => {
   );
   assertEquals(result.tags['Make'], 'Cam');
 });
+test('png caBX chunk parses C2PA JUMBF content', async () => {
+  // APP11-style JUMBF payload: "JP" + jumb superbox with a c2pa jumd box
+  const jumdPayload = concat(
+    // 16-byte type UUID: 'c2pa' + bytes matching the Adobe C2PA reference file
+    new Uint8Array([0x63, 0x32, 0x70, 0x61, 0x00, 0x11, 0x00, 0x10, 0x80, 0x00, 0x00, 0xaa, 0x00, 0x38, 0x9b, 0x71]),
+    new Uint8Array([0x02]), // flags: label present
+    encoder.encode('c2pa\0'),
+  );
+  const jumdBox = new Uint8Array(8 + jumdPayload.length);
+  new DataView(jumdBox.buffer).setUint32(0, 8 + jumdPayload.length, false);
+  jumdBox.set(encoder.encode('jumd'), 4);
+  jumdBox.set(jumdPayload, 8);
+  const jumbBox = new Uint8Array(8 + jumdBox.length);
+  new DataView(jumbBox.buffer).setUint32(0, 8 + jumdBox.length, false);
+  jumbBox.set(encoder.encode('jumb'), 4);
+  jumbBox.set(jumdBox, 8);
+  const caBX = concat(encoder.encode('JP'), jumbBox);
+  const result = await pngParser.parse(
+    png(ihdr(1, 1), chunk('caBX', caBX), chunk('IEND', new Uint8Array(0))),
+    'c2pa.png',
+  );
+  assertEquals(result.tags['JUMDType'], '(c2pa)-0011-0010-800000aa00389b71');
+  assertEquals(result.tags['JUMDLabel'], 'c2pa');
+});
 
 test('png iCCP exposes profile name before the NUL', async () => {
   const payload = concat(encoder.encode('sRGB IEC61966-2.1\0\x00\x00'), new Uint8Array(8));
