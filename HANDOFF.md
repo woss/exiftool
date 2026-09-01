@@ -83,3 +83,25 @@ pnpm exec tsx scripts/parity-check.mts  # asset parity vs exiftool
 pnpm exec tsx scripts/library-parity.mts # 218-file sweep (slow)
 git add -A && git commit                # conventional commits
 ```
+
+## C2PA status (2026-09-01, WIP — uncommitted)
+
+Goal: C2PA/JUMBF content-credential parsing (`.jpg` with APP11 `JP` + C2PA boxes, `.png` caBX). ExifTool ground truth from `~/Pictures/woss-photo/DSC09033-with-ai.jpg`.
+
+### Done this session (working tree dirty: `src/format/jumbf.ts`, `src/exif/cbor.ts` rewritten; `src/format/jpeg.ts` + `src/format/png.ts` hooks committed earlier)
+- **JUMBF parser** `src/format/jumbf.ts`: sequential box walker (`parseJUMBF`/`parseJUMBFBoxes`/`parseJumbBox`), skips 8-byte pre-box header, handles `jumb` containers with `jumd` description + sibling/nested `cbor` payload boxes, C2PA JUMD layout (4-byte type, 4-byte flags, truncated-OK UUID, null-terminated label), UUID formatting without dict-0000 padding
+- **CBOR decoder** `src/exif/cbor.ts`: `decodeCBOR` with `allowIndefinite`, tag 18 cert, `parseC2PAManifest` flattening arrays of objects + Uint8Array→hex; key map now ExifTool names w/ camelCase aliases (`ActionsAction`, `Claim_generator`, …)
+- **Working CLI output on DSC09033-with-ai.jpg**: `JUMBF:cbor:ActionsAction/SoftwareAgent/DigitalSourceType`, `ExclusionsStart/Length`, `AssertionsHash`, `JUMBF:c2cl:*` (Title/Format/InstanceID/Claim_generator/Signature/AssertionsUrl/Hash), plus per-box UUID/Label/Flags/Type
+
+### Still wrong vs exiftool
+- **JUMDType format**: we emit `aa000080-3800-719b-0363327061000000`; exiftool emits `(c2pa)-0011-0010-800000aa00389b71` (GUID byte order differs; Data1 appears BE there, and flags bytes leak into display — verify against Jpeg2000.pm `ProcessJUMD`)
+- **JUMDLabel**: we emit `Tag`; exiftool emits `c2pa`; label normalization strips too much (`RnUuid...`, `Sertions`, `Aim`, `Gnature` from truncated UUID bleed)
+- **Missing fields**: `Claim_Generator_InfoName/Version/ComAdobeBuild` (nested map in `claim_generator_info` — `mapC2PAKey` uses bare key, not `fullKey`; fix `extractC2PATags`/`FromObject` to map `fullKey`), ExifTool bare tag names are un-prefixed vs our `JUMBF:` prefix (check parity script mapping)
+- **AssertionsUrl/Hash arrays**: only last element captured; `Claim_generator` naming parity unverified
+
+### Next steps
+1. `mapC2PAKey(fullKey)` in both extract functions → nested `claim_generator_info.*` tags
+2. Match `JUMDType`/`JUMDLabel` to exiftool exactly
+3. `pnpm vitest run && npx tsc --noEmit && pnpm coverage-audit` (new modules need tests for 100% gate)
+4. `node dist/cli.js ~/Pictures/woss-photo/DSC09033-with-ai.jpg -j` vs exiftool grep diff
+5. Commit; then RetouchArea family (~65 pairs) next

@@ -7,7 +7,7 @@ import { parseICCProfile } from '../exif/icc.js';
 import { parseXMP } from '../exif/xmp.js';
 import { computeCompositeTags } from '../exif/composite.js';
 import { parseAPP13 } from '../exif/app13.js';
-
+import { parseJUMBFFromSegment } from './jumbf.js';
 export const jpegParser: FormatParser = {
   writeBytes: jpegWriter,
   format: 'JPEG',
@@ -111,6 +111,14 @@ export const jpegParser: FormatParser = {
         result['ResolutionUnit'] = units === 0 ? 'None' : units === 1 ? 'inches' : units === 2 ? 'cm' : units;
         result['XResolution'] = (data[8] << 8) | data[9];
         result['YResolution'] = (data[10] << 8) | data[11];
+      }
+
+      // APP11 (0xeb) - JUMBF / C2PA
+      if (marker === 0xeb && data.length >= 2) {
+        const jumbfTags = parseJUMBFFromSegment(data);
+        for (const [k, v] of Object.entries(jumbfTags)) {
+          result[k] = v;
+        }
       }
 
       if (marker === 0xee && data.length >= 12) {

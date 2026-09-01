@@ -5,7 +5,7 @@ import type { TagDb } from '../tag-db.js';
 import { parseTiff } from '../exif/tiff.js';
 import { parseXMP } from '../exif/xmp.js';
 import { computeCompositeTags } from '../exif/composite.js';
-
+import { parseJUMBFFromSegment } from './jumbf.js';
 const PNG_HEADER = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 function readChunk(
@@ -128,6 +128,12 @@ export const pngParser: FormatParser = {
         result['XPixelsPerUnit'] = view.getUint32(0, false);
         result['YPixelsPerUnit'] = view.getUint32(4, false);
         result['UnitSpecifier'] = view.getUint8(8);
+      }
+      if (chunk.type === 'caBX') {
+        const jumbfTags = parseJUMBFFromSegment(chunk.data);
+        for (const [k, v] of Object.entries(jumbfTags)) {
+          result[k] = v;
+        }
       }
 
       if (chunk.type === 'IEND') break;
