@@ -84,24 +84,17 @@ pnpm exec tsx scripts/library-parity.mts # 218-file sweep (slow)
 git add -A && git commit                # conventional commits
 ```
 
-## C2PA status (2026-09-01, WIP — uncommitted)
+## C2PA: DONE (committed 2026-09-01, `feat(c2pa)`)
 
-Goal: C2PA/JUMBF content-credential parsing (`.jpg` with APP11 `JP` + C2PA boxes, `.png` caBX). ExifTool ground truth from `~/Pictures/woss-photo/DSC09033-with-ai.jpg`.
+**Result**: all C2PA tags **byte-exact vs exiftool 13.55** on `DSC09033-with-ai.jpg`, `assets/05-ai.jpeg`, `assets/04-ai.png` (JUMDType/JUMDLabel, Actions*, Exclusions*, Claim_generator + Claim_Generator_Info*, Signature, AssertionsUrl/Hash arrays, COSE Item0..3/Pad/SigTstTstTokensVal). Gates: 504 tests, tsc 0, coverage 100% (allowlisted unreachable lines), library parity 47 NEW (unchanged baseline), asset parity 0 NEW.
 
-### Done this session (working tree dirty: `src/format/jumbf.ts`, `src/exif/cbor.ts` rewritten; `src/format/jpeg.ts` + `src/format/png.ts` hooks committed earlier)
-- **JUMBF parser** `src/format/jumbf.ts`: sequential box walker (`parseJUMBF`/`parseJUMBFBoxes`/`parseJumbBox`), skips 8-byte pre-box header, handles `jumb` containers with `jumd` description + sibling/nested `cbor` payload boxes, C2PA JUMD layout (4-byte type, 4-byte flags, truncated-OK UUID, null-terminated label), UUID formatting without dict-0000 padding
-- **CBOR decoder** `src/exif/cbor.ts`: `decodeCBOR` with `allowIndefinite`, tag 18 cert, `parseC2PAManifest` flattening arrays of objects + Uint8Array→hex; key map now ExifTool names w/ camelCase aliases (`ActionsAction`, `Claim_generator`, …)
-- **Working CLI output on DSC09033-with-ai.jpg**: `JUMBF:cbor:ActionsAction/SoftwareAgent/DigitalSourceType`, `ExclusionsStart/Length`, `AssertionsHash`, `JUMBF:c2cl:*` (Title/Format/InstanceID/Claim_generator/Signature/AssertionsUrl/Hash), plus per-box UUID/Label/Flags/Type
+### Key algorithm facts (ground truth = exiftool source at `/opt/homebrew/Cellar/exiftool/13.55_1/libexec/...`)
+- **JUMD box** (Jpeg2000.pm `ProcessJUMD`): payload = 16-byte type UUID (first 4 = ascii type e.g. 'c2pa', then 12 bytes incl. 00 11 00 10 800000aa00389b71), byte[16] = 1-byte toggles, then optional null-terminated label (bit 0x02), 4-byte ID (0x04), 32-byte sig (0x08). NOT 4-byte+4-byte+16-byte.
+- **JUMDType** = raw hex of first 16 payload bytes split `8-4-4-16`; first 4 bytes as ASCII in parens when `[a-zA-Z0-9]{4}` → `(c2pa)-0011-0010-800000aa00389b71`. JUMDToggles hidden (Unknown=>1). Duplicate JUMDType/JUMDLabel suppressed: first box wins.
+- **CBOR flattening** (CBOR.pm `ProcessCBOR` → JSON.pm `ProcessTag`): hash key → `parent + ucfirst(key)`, regex `([^a-z])([a-z])` capitalize, dots kept in tagID then stripped from display name; arrays recurse SAME tag (AssertionsUrl as 2-value list); top-level array → `Item0..N`; byte strings → `(Binary data N bytes, use -b option to extract)`; CBOR null → the STRING `'null'`; pure-numeric strings → **unquoted JSON number** (exiftool bin `EscapeJSON` regex `^-?(\d|[1-9]\d{1,14})(\.\d{1,16})?(e[-+]?\d{1,3})?$`), true/false lowercased.
+- **CBOR tag 18 COSE Sign1** unwraps to its array (handlers for 16/17/18/19). Tag 24 decodes inner CBOR.
+- **Decoder pitfalls fixed**: 4-byte/8-byte lengths must `>>>0` (0xffffffff decoded as -1), major-7 info 24-27 are NOT lengths (0xf9 half-float read the 2 bytes as a length!), indefinite chunk read must NOT step back to re-read the header.
 
-### Still wrong vs exiftool
-- **JUMDType format**: we emit `aa000080-3800-719b-0363327061000000`; exiftool emits `(c2pa)-0011-0010-800000aa00389b71` (GUID byte order differs; Data1 appears BE there, and flags bytes leak into display — verify against Jpeg2000.pm `ProcessJUMD`)
-- **JUMDLabel**: we emit `Tag`; exiftool emits `c2pa`; label normalization strips too much (`RnUuid...`, `Sertions`, `Aim`, `Gnature` from truncated UUID bleed)
-- **Missing fields**: `Claim_Generator_InfoName/Version/ComAdobeBuild` (nested map in `claim_generator_info` — `mapC2PAKey` uses bare key, not `fullKey`; fix `extractC2PATags`/`FromObject` to map `fullKey`), ExifTool bare tag names are un-prefixed vs our `JUMBF:` prefix (check parity script mapping)
-- **AssertionsUrl/Hash arrays**: only last element captured; `Claim_generator` naming parity unverified
-
-### Next steps
-1. `mapC2PAKey(fullKey)` in both extract functions → nested `claim_generator_info.*` tags
-2. Match `JUMDType`/`JUMDLabel` to exiftool exactly
-3. `pnpm vitest run && npx tsc --noEmit && pnpm coverage-audit` (new modules need tests for 100% gate)
-4. `node dist/cli.js ~/Pictures/woss-photo/DSC09033-with-ai.jpg -j` vs exiftool grep diff
-5. Commit; then RetouchArea family (~65 pairs) next
+### Current state
+- `src/format/jumbf.ts` (rewritten), `src/exif/cbor.ts` (rewritten) + tests `jumbf.test.ts`, `cbor.test.ts`, png caBX test; `src/cli/output.ts` formatJSON numify rule; `scripts/coverage-audit.ts` allowlist += `src/exif/cbor.ts` (unreachable default-major throw + bigint epoch)
+- Pending: QuickTime/HEIC C2PA (UUID box `d8fec3d6-...` → JUMBF) hook; then RetouchArea family (~65 pairs) as the library-parity target (47 NEW unchanged)
