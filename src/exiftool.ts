@@ -5,10 +5,34 @@ import type { FileInfo, TagValue } from './types.js';
 import { writeTags, type WriteResult } from './write/pipeline.js';
 
 /**
- * Node entry: extends the platform-free core with path-based read/write
- * backed by the filesystem.
+ * Node.js entry point for exiftool-ts.
+ * Extends {@link ExifToolCore} with filesystem-based read/write operations.
+ *
+ * This is the main class for Node.js environments. For browser/edge,
+ * use {@link ExifToolCore} directly with `Uint8Array` buffers.
+ *
+ * @example
+ * ```typescript
+ * import { ExifTool } from 'exiftool-ts';
+ *
+ * const exiftool = new ExifTool();
+ * const result = await exiftool.read('photo.jpg');
+ * console.log(result.tags.Make, result.tags.Model);
+ *
+ * await exiftool.write('input.jpg', 'output.jpg', {
+ *   Title: 'My Photo',
+ *   Artist: 'John Doe',
+ * });
+ * ```
  */
 export class ExifTool extends ExifToolCore {
+  /**
+   * Reads metadata from a file path.
+   *
+   * @param filePath - Path to the image file
+   * @param hints - Optional parsing hints for format-specific behavior
+   * @returns Parsed file information with tags grouped by metadata standard
+   */
   async read(filePath: string, hints?: ParseHints): Promise<FileInfo> {
     const bytes = await readFile(filePath);
     const parser = detectParser(bytes, await this.resolvePlugins());
@@ -20,9 +44,16 @@ export class ExifTool extends ExifToolCore {
   }
 
   /**
-   * Writes the writable tag subset into the file's native metadata
-   * container (JPEG APP1, PNG eXIf, WebP EXIF, AVIF meta). Creates a
-   * `<file>_original` backup unless overwriteOriginal is set.
+   * Writes metadata tags to a file.
+   *
+   * Creates a backup file (`<file>_original`) unless `overwriteOriginal` is set.
+   * Supports JPEG (APP1), PNG (eXIf), WebP (EXIF), AVIF/HEIF (meta box).
+   *
+   * @param filePath - Path to the input file
+   * @param tags - Tags to write (normalized format, see {@link TagValue})
+   * @param opts - Write options
+   * @param opts.overwriteOriginal - Overwrite file without backup (default: false)
+   * @returns Write result with success status and any warnings
    */
   async write(
     filePath: string,
@@ -32,6 +63,12 @@ export class ExifTool extends ExifToolCore {
     return writeTags(filePath, tags, opts, await this.resolvePlugins());
   }
 
+  /**
+   * Runs CLI-style arguments programmatically.
+   *
+   * @param args - Command-line arguments (e.g., `['-j', 'photo.jpg']`)
+   * @returns Exit code (0 = success)
+   */
   async run(args: string[]): Promise<number> {
     if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
       this.printHelp();
@@ -48,6 +85,7 @@ export class ExifTool extends ExifToolCore {
     return 1;
   }
 
+  /** Prints CLI help text. */
   printHelp(): void {
     console.log(`
 exiftool-ts 0.1.0 — metadata read/write tool

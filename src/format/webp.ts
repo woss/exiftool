@@ -8,7 +8,11 @@ import { computeCompositeTags } from '../exif/composite.js';
 const RIFF_HEADER = new TextEncoder().encode('RIFF');
 const WEBP_HEADER = new TextEncoder().encode('WEBP');
 
-export const webpParser: FormatParser = {
+/**
+ * WebP format parser.
+ * Handles EXIF, ICC Profile, XMP chunks, and VP8/VP8L/VP8X/ANIM chunks.
+ */
+ export const webpParser: FormatParser = {
   writeBytes: webpWriter,
   format: 'WebP',
   extensions: ['.webp'],

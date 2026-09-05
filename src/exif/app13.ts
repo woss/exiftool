@@ -23,7 +23,21 @@ const IPTC_LOOKUP: Record<number, string> = {
   120: 'Caption-Abstract',
 };
 
-export function parseAPP13(data: Uint8Array): Record<string, TagValue> {
+/**
+ * Parses APP13 (Photoshop IRB) segment for IPTC metadata.
+ *
+ * APP13 contains Photoshop Image Resource Blocks (IRB), each with:
+ * - Signature "8BIM"
+ * - Resource ID (2 bytes)
+ * - Pascal-string name
+ * - Data size + data
+ *
+ * The IPTC/IIM data is stored in resource ID 0x0404.
+ *
+ * @param data - APP13 segment data (after APP13 marker)
+ * @returns Extracted tags
+ */
+ export function parseAPP13(data: Uint8Array): Record<string, TagValue> {
   const result: Record<string, TagValue> = {};
   let iptcData: Uint8Array | undefined;
   let offset = 0;

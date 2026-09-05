@@ -8,7 +8,12 @@ import { parseXMP } from '../exif/xmp.js';
 import { computeCompositeTags } from '../exif/composite.js';
 import { parseAPP13 } from '../exif/app13.js';
 import { parseJUMBFFromSegment } from './jumbf.js';
-export const jpegParser: FormatParser = {
+/**
+ * JPEG format parser.
+ * Handles EXIF (APP1), ICC Profile (APP2), XMP (APP1), IPTC (APP13),
+ * MPF (APP2), and JUMBF/C2PA (APP11) segments.
+ */
+ export const jpegParser: FormatParser = {
   writeBytes: jpegWriter,
   format: 'JPEG',
   extensions: ['.jpg', '.jpeg', '.jpe', '.jif', '.jfif', '.jfi'],

@@ -35,16 +35,30 @@
     "test": "vitest run",
     "coverage-audit": "vitest run --coverage && tsx scripts/coverage-audit.ts",
     "build": "tsdown",
-    "generate-tags": "tsx scripts/generate-tags.ts"
+    "generate-tags": "tsx scripts/generate-tags.ts",
+    "docs:api": "typedoc",
+    "docs:api:html": "typedoc --options typedoc.html.json",
+    "docs:build": "cd docs && pnpm build",
+    "docs:dev": "cd docs && pnpm start",
+    "docs:deploy": "cd docs && pnpm deploy"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
+    "@docusaurus/core": "^3.10.2",
+    "@docusaurus/preset-classic": "^3.10.2",
+    "@docusaurus/theme-classic": "^3.10.2",
     "@types/node": "^22.20.1",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
     "@vitest/coverage-v8": "^4.1.11",
     "publint": "^0.3.24",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "tsdown": "^0.22.14",
     "tsx": "^4.23.12",
-    "typescript": "^7.0.2",
+    "typedoc": "^0.28.20",
+    "typedoc-plugin-markdown": "^4.13.0",
+    "typescript": "^5.9.0",
     "vitest": "^4.1.11"
   }
 }

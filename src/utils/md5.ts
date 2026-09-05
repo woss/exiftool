@@ -23,8 +23,15 @@ function rotl(x: number, c: number): number {
   return ((x << c) | (x >>> (32 - c))) >>> 0;
 }
 
-/** Hex-encoded MD5 digest of the input bytes. */
-export function md5Hex(input: Uint8Array | string): string {
+/**
+ * Computes hex-encoded MD5 digest of input bytes.
+ * Pure TypeScript implementation (RFC 1321) with no platform dependencies.
+ * Used for Photoshop CurrentIPTCDigest (MD5 of IPTC block).
+ *
+ * @param input - Data to hash (Uint8Array or string)
+ * @returns 32-character lowercase hex MD5 hash
+ */
+ export function md5Hex(input: Uint8Array | string): string {
   const msg = typeof input === 'string' ? toBytes(input) : input;
   const origLen = msg.length;
 

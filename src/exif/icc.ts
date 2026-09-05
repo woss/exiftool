@@ -42,7 +42,27 @@ function readUint8Array(view: DataView, offset: number, count: number): number[]
   return result;
 }
 
-export function parseICCProfile(data: Uint8Array): Record<string, TagValue> {
+/**
+ * Parses an ICC Profile into exiftool-style tags.
+ *
+ * ICC Profiles contain color management data:
+ * - Header: profile size, CMM type, version, class, color space, PCS, date/time, etc.
+ * - Tag table: directory of tags (type, offset, size)
+ * - Tag data: various types (curve, lut, text, signature, etc.)
+ *
+ * Supports:
+ * - Profile metadata (version, class, color space, rendering intent)
+ * - Chromaticity tags (red/green/blue/white XYZ)
+ * - Tone reproduction curves (red/green/blue TRC)
+ * - Color lookup tables (A2B0, A2B1, A2B2, B2A0, B2A1, B2A2)
+ * - Profile description, copyright, manufacturer, model
+ * - Measurement info, viewing conditions
+ *
+ * @param data - ICC profile data (from APP2 segment or ICC chunk)
+ * @returns Extracted tags
+ * @see https://www.color.org/specification/ICC1v43_2010-12.pdf
+ */
+ export function parseICCProfile(data: Uint8Array): Record<string, TagValue> {
   const result: Record<string, TagValue> = {};
   if (data.length < 128) return result;
 

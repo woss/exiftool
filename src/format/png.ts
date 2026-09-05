@@ -23,7 +23,12 @@ function readChunk(
   return { length, type, data, crc };
 }
 
-export const pngParser: FormatParser = {
+/**
+ * PNG format parser.
+ * Handles eXIf (EXIF in PNG), iCCP (ICC profile), tEXt/iTXt (textual metadata),
+ * gAMA, pHYs, caBX (C2PA), and JUMBF chunks.
+ */
+ export const pngParser: FormatParser = {
   writeBytes: pngWriter,
   format: 'PNG',
   extensions: ['.png'],

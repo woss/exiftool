@@ -56,14 +56,27 @@ const SIMPLE = {
   UNDEFINED: 23,
 };
 
+/**
+ * Options for CBOR decoding.
+ * @property maxDepth - Maximum recursion depth (default 128)
+ * @property allowIndefinite - Allow indefinite-length items (default false)
+ */
 export interface CBORDecodeOptions {
   maxDepth?: number;
   allowIndefinite?: boolean;
 }
 
+/**
+ * Custom tag handler for CBOR tags not in the default table.
+ * @param tag - CBOR tag number
+ * @param value - Decoded value
+ * @param decode - Recursive decoder for nested structures
+ * @returns Transformed value
+ */
 export interface CBORTagHandler {
   (tag: number, value: unknown, decode: (data: Uint8Array) => unknown): unknown;
 }
+
 
 const DEFAULT_OPTIONS: Required<CBORDecodeOptions> = {
   maxDepth: 128,
@@ -106,9 +119,20 @@ const DEFAULT_TAG_HANDLERS: Map<number, CBORTagHandler> = new Map([
 ]);
 
 /**
- * Decode CBOR data to JavaScript values.
+ * Decodes CBOR (Concise Binary Object Representation) data to JavaScript values.
+ *
+ * Implements RFC 8949 subset needed for C2PA manifests:
+ * - Major types 0-7 (unsigned/signed ints, byte/text strings, arrays, maps, tags, simple values)
+ * - Standard tags (datetime, base64, base64url, encoded CBOR, etc.)
+ * - C2PA-specific tags (COSE structures, merkle trees)
+ * - Indefinite-length items (arrays, maps, strings)
+ *
+ * @param data - CBOR-encoded data
+ * @param options - Decoding options (max depth, indefinite handling)
+ * @param tagHandlers - Custom tag handlers (merged with defaults)
+ * @returns Decoded JavaScript value
  */
-export function decodeCBOR(data: Uint8Array, options?: CBORDecodeOptions, tagHandlers?: Map<number, CBORTagHandler>): unknown {
+ export function decodeCBOR(data: Uint8Array, options?: CBORDecodeOptions, tagHandlers?: Map<number, CBORTagHandler>): unknown {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const handlers = new Map([...DEFAULT_TAG_HANDLERS, ...(tagHandlers || new Map())]);
   const state = { pos: 0, depth: 0, sharedStrings: [] as string[] };
@@ -429,8 +453,12 @@ function ucfirst(s: string): string {
 }
 
 /**
- * Parse C2PA merkle tree (currently returns raw structure).
+ * Parses a C2PA merkle tree from CBOR data.
+ * Currently returns the raw decoded structure without further processing.
+ *
+ * @param cborData - CBOR-encoded merkle tree data
+ * @returns Decoded CBOR value
  */
-export function parseC2PAMerkle(cborData: Uint8Array): unknown {
+ export function parseC2PAMerkle(cborData: Uint8Array): unknown {
   return decodeCBOR(cborData);
 }

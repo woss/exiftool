@@ -10,8 +10,15 @@ const CRC_TABLE = (() => {
   return table;
 })();
 
-/** Standard PNG/MPEG CRC-32 (IEEE 802.3 polynomial, reflected). */
-export function crc32(data: Uint8Array): number {
+/**
+ * Computes CRC-32 checksum using the IEEE 802.3 polynomial (0xEDB88320).
+ * Standard algorithm used in PNG, ZIP, MPEG, and many other formats.
+ * Pre-computes a 256-entry lookup table for performance.
+ *
+ * @param data - Input data
+ * @returns CRC-32 checksum as unsigned 32-bit integer
+ */
+ export function crc32(data: Uint8Array): number {
   let crc = 0xFFFFFFFF;
   for (let i = 0; i < data.length; i++) {
     crc = CRC_TABLE[(crc ^ data[i]) & 0xFF] ^ (crc >>> 8);

@@ -1,0 +1,289 @@
+<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>ExifTool | exiftool-ts - v0.1.0</title><meta name="description" content="Documentation for exiftool-ts"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script><script async src="../assets/hierarchy.js" id="tsd-hierarchy-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
+<div class="tsd-toolbar-contents container"><a href="../index.html" class="title">exiftool-ts - v0.1.0</a>
+<div id="tsd-toolbar-links"><a href="https://github.com/woss/exiftool-ts">GitHub</a><a href="https://www.npmjs.com/package/exiftool-ts">npm</a></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/>
+<ul role="listbox" id="tsd-search-results"></ul>
+<div id="tsd-search-status" aria-live="polite" aria-atomic="true">
+<div>Preparing search index...</div></div></dialog><a href="#" class="tsd-widget menu" id="tsd-toolbar-menu-trigger" data-toggle="menu" aria-label="Menu"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-menu"></use></svg></a></div></header>
+<div class="container container-main">
+<div class="col-content">
+<div class="tsd-page-title">
+<ul class="tsd-breadcrumb" aria-label="Breadcrumb">
+<li><a href="../modules/exiftool.html">exiftool</a></li>
+<li><a href="" aria-current="page">ExifTool</a></li></ul>
+<h1>Class ExifTool</h1></div>
+<section class="tsd-panel tsd-comment">
+<div class="tsd-comment tsd-typography"><p>Node.js entry point for exiftool-ts.
+Extends <a href="exiftool-core.ExifToolCore.html" class="tsd-kind-class">ExifToolCore</a> with filesystem-based read/write operations.</p>
+<p>This is the main class for Node.js environments. For browser/edge,
+use <a href="exiftool-core.ExifToolCore.html" class="tsd-kind-class">ExifToolCore</a> directly with <code>Uint8Array</code> buffers.</p>
+</div>
+<div class="tsd-comment tsd-typography">
+<div class="tsd-tag-example">
+<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="typescript"><span class="hl-4">import</span><span class="hl-1"> { </span><span class="hl-5">ExifTool</span><span class="hl-1"> } </span><span class="hl-4">from</span><span class="hl-1"> </span><span class="hl-2">&#39;exiftool-ts&#39;</span><span class="hl-1">;</span><br/><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-6">exiftool</span><span class="hl-1"> = </span><span class="hl-3">new</span><span class="hl-1"> </span><span class="hl-0">ExifTool</span><span class="hl-1">();</span><br/><span class="hl-3">const</span><span class="hl-1"> </span><span class="hl-6">result</span><span class="hl-1"> = </span><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">exiftool</span><span class="hl-1">.</span><span class="hl-0">read</span><span class="hl-1">(</span><span class="hl-2">&#39;photo.jpg&#39;</span><span class="hl-1">);</span><br/><span class="hl-5">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-5">result</span><span class="hl-1">.</span><span class="hl-5">tags</span><span class="hl-1">.</span><span class="hl-5">Make</span><span class="hl-1">, </span><span class="hl-5">result</span><span class="hl-1">.</span><span class="hl-5">tags</span><span class="hl-1">.</span><span class="hl-5">Model</span><span class="hl-1">);</span><br/><br/><span class="hl-4">await</span><span class="hl-1"> </span><span class="hl-5">exiftool</span><span class="hl-1">.</span><span class="hl-0">write</span><span class="hl-1">(</span><span class="hl-2">&#39;input.jpg&#39;</span><span class="hl-1">, </span><span class="hl-2">&#39;output.jpg&#39;</span><span class="hl-1">, {</span><br/><span class="hl-1">  </span><span class="hl-5">Title:</span><span class="hl-1"> </span><span class="hl-2">&#39;My Photo&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-5">Artist:</span><span class="hl-1"> </span><span class="hl-2">&#39;John Doe&#39;</span><span class="hl-1">,</span><br/><span class="hl-1">});</span>
+</code><button type="button">Copy</button></pre>
+
+</div></div></section>
+<section class="tsd-panel tsd-hierarchy" data-refl="13">
+<h4>Hierarchy (<a href="../hierarchy.html#exiftool.ExifTool">View Summary</a>)</h4>
+<ul class="tsd-hierarchy">
+<li class="tsd-hierarchy-item"><a href="exiftool-core.ExifToolCore.html" class="tsd-signature-type tsd-kind-class">ExifToolCore</a>
+<ul class="tsd-hierarchy">
+<li class="tsd-hierarchy-item"><span class="tsd-hierarchy-target">ExifTool</span></li></ul></li></ul></section><aside class="tsd-sources">
+<ul>
+<li>Defined in src/exiftool.ts:28</li></ul></aside>
+<section class="tsd-panel-group tsd-index-group">
+<section class="tsd-panel tsd-index-panel">
+<details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h5 class="tsd-index-heading uppercase">Index</h5></summary>
+<div class="tsd-accordion-details">
+<section class="tsd-index-section">
+<h3 class="tsd-index-heading tsd-anchor-link" id="constructors">Constructors<a href="#constructors" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-index-list"><a href="#constructor" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Constructor"><use href="../assets/icons.svg#icon-512"></use></svg><span>constructor</span></a>
+</div></section>
+<section class="tsd-index-section">
+<h3 class="tsd-index-heading tsd-anchor-link" id="properties">Properties<a href="#properties" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-index-list"><a href="#tagdb" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>tag<wbr/>Db</span></a>
+<a href="#options" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>options</span></a>
+</div></section>
+<section class="tsd-index-section">
+<h3 class="tsd-index-heading tsd-anchor-link" id="methods">Methods<a href="#methods" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-index-list"><a href="#getparser" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Parser</span></a>
+<a href="#readbytes" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>read<wbr/>Bytes</span></a>
+<a href="#writebytes" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>write<wbr/>Bytes</span></a>
+<a href="#read" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>read</span></a>
+<a href="#write" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>write</span></a>
+<a href="#run" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>run</span></a>
+<a href="#printhelp" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>print<wbr/>Help</span></a>
+</div></section></div></details></section></section>
+<details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Constructors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h2 class="tsd-anchor-link" id="constructors-1">Constructors<a href="#constructors-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
+<section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="constructor"><span>constructor</span><a href="#constructor" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="constructorexiftool"><span class="tsd-signature-keyword">new</span> <span class="tsd-kind-constructor-signature">ExifTool</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">opts</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Partial</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/types.ExifToolOptions.html" class="tsd-signature-type tsd-kind-interface">ExifToolOptions</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="" class="tsd-signature-type tsd-kind-class">ExifTool</a><a href="#constructorexiftool" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Creates a new ExifToolCore instance.</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">opts</span>: <span class="tsd-signature-type">Partial</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/types.ExifToolOptions.html" class="tsd-signature-type tsd-kind-interface">ExifToolOptions</a><span class="tsd-signature-symbol">&gt;</span></span>
+<div class="tsd-comment tsd-typography"><p>Optional configuration options</p>
+</div>
+<ul class="tsd-parameters">
+<li class="tsd-parameter">
+<h5><span>plugins</span></h5>
+<div class="tsd-comment tsd-typography"><p>Custom format parsers (default: all built-in)</p>
+</div></li>
+<li class="tsd-parameter">
+<h5><span>ignoreWarnings</span></h5>
+<div class="tsd-comment tsd-typography"><p>Suppress parsing warnings</p>
+</div></li>
+<li class="tsd-parameter">
+<h5><span>parseHints</span></h5>
+<div class="tsd-comment tsd-typography"><p>Format-specific parsing hints</p>
+</div></li></ul></li></ul></div>
+<h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">ExifTool</a></h4><aside class="tsd-sources">
+<p>Inherited from <a href="exiftool-core.ExifToolCore.html">ExifToolCore</a>.<a href="exiftool-core.ExifToolCore.html#constructor">constructor</a></p>
+<ul>
+<li>Defined in src/exiftool-core.ts:43</li></ul></aside></div></li></ul></section></section></details>
+<details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h2 class="tsd-anchor-link" id="properties-1">Properties<a href="#properties-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
+<section>
+<section class="tsd-panel tsd-member tsd-is-inherited">
+<h3 class="tsd-anchor-link" id="tagdb"><code class="tsd-tag">Readonly</code><span>tag<wbr/>Db</span><a href="#tagdb" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">tagDb</span><span class="tsd-signature-symbol">:</span> <a href="tag-db.TagDb.html" class="tsd-signature-type tsd-kind-class">TagDb</a></div>
+<div class="tsd-comment tsd-typography"><p>Tag database for custom tag definitions.</p>
+</div><aside class="tsd-sources">
+<p>Inherited from <a href="exiftool-core.ExifToolCore.html">ExifToolCore</a>.<a href="exiftool-core.ExifToolCore.html#tagdb">tagDb</a></p>
+<ul>
+<li>Defined in src/exiftool-core.ts:28</li></ul></aside></section>
+<section class="tsd-panel tsd-member tsd-is-inherited">
+<h3 class="tsd-anchor-link" id="options"><code class="tsd-tag">Readonly</code><span>options</span><a href="#options" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">options</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/types.ExifToolOptions.html" class="tsd-signature-type tsd-kind-interface">ExifToolOptions</a></div>
+<div class="tsd-comment tsd-typography"><p>Resolved options (merged with defaults).</p>
+</div><aside class="tsd-sources">
+<p>Inherited from <a href="exiftool-core.ExifToolCore.html">ExifToolCore</a>.<a href="exiftool-core.ExifToolCore.html#options">options</a></p>
+<ul>
+<li>Defined in src/exiftool-core.ts:31</li></ul></aside></section></section></details>
+<details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
+<section>
+<section class="tsd-panel tsd-member tsd-is-inherited">
+<h3 class="tsd-anchor-link" id="getparser"><span>get<wbr/>Parser</span><a href="#getparser" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures tsd-is-inherited">
+<li class="tsd-is-inherited">
+<div class="tsd-signature tsd-anchor-link" id="getparser-1"><span class="tsd-kind-call-signature">getParser</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">format</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/format_mod.FormatParser.html" class="tsd-signature-type tsd-kind-interface">FormatParser</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">undefined</span><a href="#getparser-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Gets a parser by format name (e.g., 'JPEG', 'PNG', 'AVIF').</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><span class="tsd-kind-parameter">format</span>: <span class="tsd-signature-type">string</span></span>
+<div class="tsd-comment tsd-typography"><p>Format identifier</p>
+</div></li></ul></div>
+<h4 class="tsd-returns-title">Returns <a href="../interfaces/format_mod.FormatParser.html" class="tsd-signature-type tsd-kind-interface">FormatParser</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">undefined</span></h4><p>FormatParser if available, undefined otherwise</p>
+<aside class="tsd-sources">
+<p>Inherited from <a href="exiftool-core.ExifToolCore.html">ExifToolCore</a>.<a href="exiftool-core.ExifToolCore.html#getparser">getParser</a></p>
+<ul>
+<li>Defined in src/exiftool-core.ts:65</li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member tsd-is-inherited">
+<h3 class="tsd-anchor-link" id="readbytes"><span>read<wbr/>Bytes</span><a href="#readbytes" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures tsd-is-inherited">
+<li class="tsd-is-inherited">
+<div class="tsd-signature tsd-anchor-link" id="readbytes-1"><span class="tsd-kind-call-signature">readBytes</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">bytes</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Uint8Array</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/types.FileInfo.html" class="tsd-signature-type tsd-kind-interface">FileInfo</a><span class="tsd-signature-symbol">&gt;</span><a href="#readbytes-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Parses metadata from an in-memory buffer.</p>
+<p>File-system-derived tags (FileName, FileSize, FileModifyDate, etc.)
+are absent — only embedded metadata is returned.</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><span class="tsd-kind-parameter">bytes</span>: <span class="tsd-signature-type">Uint8Array</span></span>
+<div class="tsd-comment tsd-typography"><p>Image file data as Uint8Array</p>
+</div></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/types.FileInfo.html" class="tsd-signature-type tsd-kind-interface">FileInfo</a><span class="tsd-signature-symbol">&gt;</span></h4><p>Parsed file information with tags</p>
+<aside class="tsd-sources">
+<p>Inherited from <a href="exiftool-core.ExifToolCore.html">ExifToolCore</a>.<a href="exiftool-core.ExifToolCore.html#readbytes">readBytes</a></p>
+<ul>
+<li>Defined in src/exiftool-core.ts:78</li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member tsd-is-inherited">
+<h3 class="tsd-anchor-link" id="writebytes"><span>write<wbr/>Bytes</span><a href="#writebytes" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures tsd-is-inherited">
+<li class="tsd-is-inherited">
+<div class="tsd-signature tsd-anchor-link" id="writebytes-1"><span class="tsd-kind-call-signature">writeBytes</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">bytes</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Uint8Array</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">tags</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <a href="../types/types.TagValue.html" class="tsd-signature-type tsd-kind-type-alias">TagValue</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/types.WriteOutcome.html" class="tsd-signature-type tsd-kind-interface">WriteOutcome</a><span class="tsd-signature-symbol">&gt;</span><a href="#writebytes-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Writes metadata tags to an in-memory buffer.</p>
+<p>Returns the new bytes with updated metadata container
+(JPEG APP1, PNG eXIf, WebP EXIF, AVIF/HEIF meta box).</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><span class="tsd-kind-parameter">bytes</span>: <span class="tsd-signature-type">Uint8Array</span></span>
+<div class="tsd-comment tsd-typography"><p>Original image data</p>
+</div></li>
+<li><span><span class="tsd-kind-parameter">tags</span>: <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <a href="../types/types.TagValue.html" class="tsd-signature-type tsd-kind-type-alias">TagValue</a><span class="tsd-signature-symbol">&gt;</span></span>
+<div class="tsd-comment tsd-typography"><p>Tags to write (normalized format)</p>
+</div></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/types.WriteOutcome.html" class="tsd-signature-type tsd-kind-interface">WriteOutcome</a><span class="tsd-signature-symbol">&gt;</span></h4><p>Write outcome with new bytes and any warnings</p>
+
+<div class="tsd-comment tsd-typography">
+<div class="tsd-tag-throws">
+<h4 class="tsd-anchor-link" id="throws">Throws<a href="#throws" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>UnsupportedFormatError if format doesn't support writing</p>
+</div></div><aside class="tsd-sources">
+<p>Inherited from <a href="exiftool-core.ExifToolCore.html">ExifToolCore</a>.<a href="exiftool-core.ExifToolCore.html#writebytes">writeBytes</a></p>
+<ul>
+<li>Defined in src/exiftool-core.ts:97</li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="read"><span>read</span><a href="#read" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="read-1"><span class="tsd-kind-call-signature">read</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">filePath</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">hints</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/format_mod.ParseHints.html" class="tsd-signature-type tsd-kind-interface">ParseHints</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/types.FileInfo.html" class="tsd-signature-type tsd-kind-interface">FileInfo</a><span class="tsd-signature-symbol">&gt;</span><a href="#read-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Reads metadata from a file path.</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><span class="tsd-kind-parameter">filePath</span>: <span class="tsd-signature-type">string</span></span>
+<div class="tsd-comment tsd-typography"><p>Path to the image file</p>
+</div></li>
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">hints</span>: <a href="../interfaces/format_mod.ParseHints.html" class="tsd-signature-type tsd-kind-interface">ParseHints</a></span>
+<div class="tsd-comment tsd-typography"><p>Optional parsing hints for format-specific behavior</p>
+</div></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/types.FileInfo.html" class="tsd-signature-type tsd-kind-interface">FileInfo</a><span class="tsd-signature-symbol">&gt;</span></h4><p>Parsed file information with tags grouped by metadata standard</p>
+<aside class="tsd-sources">
+<ul>
+<li>Defined in src/exiftool.ts:36</li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="write"><span>write</span><a href="#write" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="write-1"><span class="tsd-kind-call-signature">write</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">filePath</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">tags</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <a href="../types/types.TagValue.html" class="tsd-signature-type tsd-kind-type-alias">TagValue</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">opts</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">overwriteOriginal</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span> <span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/types.WriteResult.html" class="tsd-signature-type tsd-kind-interface">WriteResult</a><span class="tsd-signature-symbol">&gt;</span><a href="#write-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Writes metadata tags to a file.</p>
+<p>Creates a backup file (<code>&lt;file&gt;_original</code>) unless <code>overwriteOriginal</code> is set.
+Supports JPEG (APP1), PNG (eXIf), WebP (EXIF), AVIF/HEIF (meta box).</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><span class="tsd-kind-parameter">filePath</span>: <span class="tsd-signature-type">string</span></span>
+<div class="tsd-comment tsd-typography"><p>Path to the input file</p>
+</div></li>
+<li><span><span class="tsd-kind-parameter">tags</span>: <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <a href="../types/types.TagValue.html" class="tsd-signature-type tsd-kind-type-alias">TagValue</a><span class="tsd-signature-symbol">&gt;</span></span>
+<div class="tsd-comment tsd-typography"><p>Tags to write (normalized format, see <a href="../types/types.TagValue.html" class="tsd-kind-type-alias">TagValue</a>)</p>
+</div></li>
+<li><span><span class="tsd-kind-parameter">opts</span>: <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">overwriteOriginal</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span> <span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol"> = {}</span></span>
+<div class="tsd-comment tsd-typography"><p>Write options</p>
+</div>
+<ul class="tsd-parameters">
+<li class="tsd-parameter">
+<h5><code class="tsd-tag">Optional</code><span class="tsd-kind-property">overwriteOriginal</span><span class="tsd-signature-symbol">?: </span><span class="tsd-signature-type">boolean</span></h5>
+<div class="tsd-comment tsd-typography"><p>Overwrite file without backup (default: false)</p>
+</div></li></ul></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../interfaces/types.WriteResult.html" class="tsd-signature-type tsd-kind-interface">WriteResult</a><span class="tsd-signature-symbol">&gt;</span></h4><p>Write result with success status and any warnings</p>
+<aside class="tsd-sources">
+<ul>
+<li>Defined in src/exiftool.ts:58</li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="run"><span>run</span><a href="#run" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="run-1"><span class="tsd-kind-call-signature">run</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">args</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">&gt;</span><a href="#run-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Runs CLI-style arguments programmatically.</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><span class="tsd-kind-parameter">args</span>: <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">[]</span></span>
+<div class="tsd-comment tsd-typography"><p>Command-line arguments (e.g., <code>['-j', 'photo.jpg']</code>)</p>
+</div></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">&gt;</span></h4><p>Exit code (0 = success)</p>
+<aside class="tsd-sources">
+<ul>
+<li>Defined in src/exiftool.ts:72</li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="printhelp"><span>print<wbr/>Help</span><a href="#printhelp" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="printhelp-1"><span class="tsd-kind-call-signature">printHelp</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#printhelp-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Prints CLI help text.</p>
+</div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in src/exiftool.ts:89</li></ul></aside></div></li></ul></section></section></details></div>
+<div class="col-sidebar">
+<div class="page-menu">
+<div class="tsd-navigation settings">
+<details class="tsd-accordion"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h3>Settings</h3></summary>
+<div class="tsd-accordion-details">
+<div class="tsd-filter-visibility"><span class="settings-label">Member Visibility</span>
+<ul id="tsd-filter-options">
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-inherited" name="inherited" checked/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>Inherited</span></label></li>
+<li class="tsd-filter-item"><label class="tsd-filter-input"><input type="checkbox" id="tsd-filter-external" name="external"/><svg width="32" height="32" viewBox="0 0 32 32" aria-hidden="true"><rect class="tsd-checkbox-background" width="30" height="30" x="1" y="1" rx="6" fill="none"></rect><path class="tsd-checkbox-checkmark" d="M8.35422 16.8214L13.2143 21.75L24.6458 10.25" stroke="none" stroke-width="3.5" stroke-linejoin="round" fill="none"></path></svg><span>External</span></label></li></ul></div>
+<div class="tsd-theme-toggle"><label class="settings-label" for="tsd-theme">Theme</label><select id="tsd-theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></div></div></details></div>
+<details open class="tsd-accordion tsd-page-navigation"><summary class="tsd-accordion-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
+<h3>On This Page</h3></summary>
+<div class="tsd-accordion-details">
+<details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Constructors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Constructors</summary>
+<div><a href="#constructor"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Constructor"><use href="../assets/icons.svg#icon-512"></use></svg><span>constructor</span></a></div></details>
+<details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Properties</summary>
+<div><a href="#tagdb" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>tag<wbr/>Db</span></a><a href="#options" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>options</span></a></div></details>
+<details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Methods</summary>
+<div><a href="#getparser" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Parser</span></a><a href="#readbytes" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>read<wbr/>Bytes</span></a><a href="#writebytes" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>write<wbr/>Bytes</span></a><a href="#read"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>read</span></a><a href="#write"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>write</span></a><a href="#run"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>run</span></a><a href="#printhelp"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>print<wbr/>Help</span></a></div></details></div></details></div>
+<div class="site-menu">
+<nav id="tsd-sidebar-links" class="tsd-navigation"><a href="https://github.com/woss/exiftool-ts" class="tsd-nav-link">GitHub</a><a href="https://www.npmjs.com/package/exiftool-ts" class="tsd-nav-link">npm</a></nav>
+<nav class="tsd-navigation"><a href="../modules.html">exiftool-ts - v0.1.0</a>
+<ul class="tsd-small-nested-navigation" id="tsd-nav-container">
+<li>Loading...</li></ul></nav></div></div></div><footer>
+<p class="tsd-generator">Generated using <a href="https://typedoc.org/" target="_blank">TypeDoc</a></p></footer>
+<div class="overlay"></div></body></html>

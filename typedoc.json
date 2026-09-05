@@ -1,0 +1,22 @@
+{
+  "entryPoints": ["src/mod.ts", "src/cli.ts"],
+  "out": "docs/typedoc",
+  "tsconfig": "tsconfig.json",
+  "readme": "README.md",
+  "name": "exiftool-ts",
+  "includeVersion": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "categorizeByGroup": true,
+  "defaultCategory": "Core",
+  "categoryOrder": ["Core", "Formats", "Exif", "Utilities", "CLI"],
+  "navigationLinks": {
+    "GitHub": "https://github.com/woss/exiftool-ts",
+    "npm": "https://www.npmjs.com/package/exiftool-ts"
+  },
+  "entryPointStrategy": "expand",
+  "sort": ["source-order"],
+  "searchInComments": true,
+  "plugin": ["typedoc-plugin-markdown"]
+}

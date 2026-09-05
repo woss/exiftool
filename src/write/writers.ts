@@ -2,7 +2,10 @@ import type { ContainerWriter, TagValue, WriteOutcome } from '../types.js';
 import { buildTiff } from '../exif/tiff-builder.js';
 import { crc32 } from '../utils/crc32.js';
 
-export class UnsupportedFormatError extends Error {}
+/**
+ * Error thrown when a format does not support writing tags.
+ */
+ export class UnsupportedFormatError extends Error {}
 
 function u32be(arr: number[], v: number): void {
   arr.push((v >>> 24) & 255, (v >> 16) & 255, (v >> 8) & 255, v & 255);

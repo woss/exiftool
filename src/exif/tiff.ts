@@ -34,7 +34,24 @@ function resolveTagName(
   return getTagName(tag, group);
 }
 
-export function parseTiff(
+/**
+ * Parses TIFF/EXIF data and extracts metadata tags.
+ *
+ * Handles:
+ * - IFD0: Basic image tags (ImageWidth, ImageHeight, Make, Model, etc.)
+ * - Exif IFD: Camera settings (ExposureTime, FNumber, ISO, etc.)
+ * - GPS IFD: Geolocation data (Latitude, Longitude, Altitude, etc.)
+ * - Interoperability IFD
+ * - Sub-IFDs (MakerNotes, etc.)
+ *
+ * Supports both little-endian (Intel) and big-endian (Motorola) byte orders.
+ *
+ * @param bytes - TIFF/EXIF data
+ * @param tagDb - Optional tag database for name resolution
+ * @param hints - Optional parsing hints
+ * @returns Extracted tags as key-value pairs
+ */
+ export function parseTiff(
   bytes: Uint8Array,
   tagDb?: TagDb,
   hints?: ParseHints,
@@ -207,7 +224,14 @@ function renderCoordFormat(
   return undefined; // unrecognized format → caller falls back to DMS
 }
 
-export function formatGPSWithRef(value: TagValue, ref: string, coordFormat?: string): string {
+/**
+ * Formats a GPS coordinate with compass reference.
+ * @param value - Coordinate value (rational array [deg, min, sec])
+ * @param ref - Compass reference (N, S, E, W)
+ * @param coordFormat - Optional format string (ExifTool style)
+ * @returns Formatted coordinate string
+ */
+ export function formatGPSWithRef(value: TagValue, ref: string, coordFormat?: string): string {
   if (coordFormat) {
     const rendered = renderCoordFormat(coordFormat, value, ref);
     if (rendered !== undefined) return rendered;
@@ -228,6 +252,11 @@ export function formatGPSWithRef(value: TagValue, ref: string, coordFormat?: str
   return `${deg} deg ${min.toFixed(4)}'${ref ? ` ${ref}` : ''}`;
 }
 
-export function extractExifFromTiff(bytes: Uint8Array): Record<string, TagValue> {
+/**
+ * Extracts EXIF tags from a TIFF block (used for embedded EXIF in PNG/WebP).
+ * @param bytes - TIFF data
+ * @returns Extracted tags
+ */
+ export function extractExifFromTiff(bytes: Uint8Array): Record<string, TagValue> {
   return parseTiff(bytes);
 }

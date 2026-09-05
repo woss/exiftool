@@ -246,4 +246,7 @@ function readUint32(data: Uint8Array, offset: number): number {
   return (data[offset] << 24) | (data[offset + 1] << 16) | (data[offset + 2] << 8) | data[offset + 3];
 }
 
+/**
+ * Known JUMBF box type names (uppercase and lowercase variants).
+ */
 export { JUMBF_TYPES, C2PA_UUID_STANDARD as C2PA_UUID };

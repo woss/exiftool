@@ -16,11 +16,20 @@ import { extractEmbeddedJpegs } from './format/jpeg.js';
 export { normalizeArgs, parseCliArgs } from './cli/args.js';
 export type { CliOptions } from './cli/args.js';
 
-// The CLI is the all-formats binary: wire every builtin explicitly so
-// the lazy default-plugin path (and its dynamic import) never runs.
+/**
+ * Pre-wired ExifTool instance with all built-in plugins for CLI use.
+ */
 const tool = new ExifTool({ plugins: BUILTIN_PLUGINS });
 
 
+/**
+ * Runs a single CLI action (read or write) with the given options and files.
+ * This is the core logic used by both `main()` and the `-stay_open` daemon.
+ *
+ * @param options - Parsed CLI options
+ * @param files - File paths or tag assignments (TAG=VALUE)
+ * @returns Exit code (0 = success, 1 = failure)
+ */
 export async function runAction(options: CliOptions, ...files: string[]): Promise<number> {
   const quietCount: number = options.quiet?.length ?? 0;
   const verboseCount: number = options.verbose?.length ?? 0;

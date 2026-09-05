@@ -1,0 +1,121 @@
+/**
+ * exiftool-ts Docusaurus Custom CSS
+ */
+
+:root {
+  --ifm-color-primary: #2563eb;
+  --ifm-color-primary-dark: #1d4ed8;
+  --ifm-color-primary-darker: #1e40af;
+  --ifm-color-primary-darkest: #172554;
+  --ifm-color-primary-light: #3b82f6;
+  --ifm-color-primary-lighter: #60a5fa;
+  --ifm-color-primary-lightest: #93c5fd;
+  --ifm-code-font-size: 95%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #60a5fa;
+  --ifm-color-primary-dark: #3b82f6;
+  --ifm-color-primary-darker: #2563eb;
+  --ifm-color-primary-darkest: #1d4ed8;
+  --ifm-color-primary-light: #93c5fd;
+  --ifm-color-primary-lighter: #bfdbfe;
+  --ifm-color-primary-lightest: #dbeafe;
+  --docusaurus-highlighted-code-line-bg: rgba(255, 255, 255, 0.15);
+}
+
+/* Custom styles for code blocks */
+.prism-code {
+  line-height: 1.6;
+}
+
+/* API reference tables */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th, td {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--ifm-table-border-color);
+  text-align: left;
+}
+
+th {
+  background-color: var(--ifm-background-surface-color);
+  font-weight: 600;
+}
+
+/* Tag reference styling */
+.tag-ref {
+  font-family: var(--ifm-font-family-monospace);
+  background-color: var(--ifm-code-background);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.9em;
+}
+
+/* C2PA-specific styling */
+.c2pa-tag {
+  color: var(--ifm-color-primary);
+  font-weight: 500;
+}
+
+/* Navigation enhancements */
+.navbar__link--active {
+  font-weight: 600;
+}
+
+/* Footer */
+.footer__link-item {
+  transition: color 0.2s ease;
+}
+
+.footer__link-item:hover {
+  color: var(--ifm-color-primary) !important;
+}
+
+/* Hero section */
+.hero {
+  padding: 4rem 0;
+}
+
+.hero__title {
+  font-size: 3.5rem;
+}
+
+.hero__subtitle {
+  font-size: 1.5rem;
+  color: var(--ifm-font-color-secondary);
+}
+
+/* Feature cards */
+.feature-card {
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  background-color: var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-table-border-color);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme='dark'] .feature-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+/* Code block copy button */
+.theme-code-block {
+  border-radius: 0.5rem;
+}
+
+.theme-code-block__label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--ifm-font-color-secondary);
+}

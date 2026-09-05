@@ -1,8 +1,25 @@
 import { getExifTypeSize } from './types.js';
 import type { Ifd, IfdEntry } from './types.js';
 
-export function parseIFD(
-  view: DataView,
+/**
+ * Parses a TIFF/EXIF Image File Directory (IFD) from a DataView.
+ *
+ * An IFD is a table of 12-byte entries containing:
+ * - Tag ID (2 bytes)
+ * - Type (2 bytes)
+ * - Count (4 bytes)
+ * - Value/Offset (4 bytes, inline if <=4 bytes else offset to data)
+ *
+ * Handles recursive IFD chaining via the next-IFD pointer.
+ *
+ * @param view - DataView of the TIFF data
+ * @param offset - Byte offset to the IFD entry count
+ * @param littleEndian - Byte order (true = Intel/little-endian)
+ * @param maxRecursion - Maximum IFD chain depth (default 10)
+ * @returns Parsed IFD with entries and next IFD offset
+ */
+ export function parseIFD(
+   view: DataView,
   offset: number,
   littleEndian: boolean,
   maxRecursion = 10,

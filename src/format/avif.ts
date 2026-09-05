@@ -113,7 +113,12 @@ function parseBoxTree(
   }
 }
 
-export const avifParser: FormatParser = {
+/**
+ * AVIF/HEIF format parser.
+ * Handles EXIF (in 'Exif' box), ICC profiles ('prof'), XMP ('xml '),
+ * and ISOBMFF box structure (ftyp, meta, iinf, iref, etc.).
+ */
+ export const avifParser: FormatParser = {
   writeBytes: avifWriter,
   format: 'AVIF',
   extensions: ['.avif', '.heic', '.heif', '.hif'],

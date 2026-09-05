@@ -1,5 +1,11 @@
 import type { TagValue } from '../types.js';
 
+/**
+ * Result of building a TIFF structure.
+ * @property bytes - Serialized TIFF bytes
+ * @property written - Tag names successfully written
+ * @property skipped - Tag names that could not be encoded
+ */
 export interface BuildTiffResult {
   bytes: Uint8Array;
   written: string[];
