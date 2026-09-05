@@ -476,8 +476,8 @@ test('normalizeArgs — generic single-dash flag converts to long form', () => {
 // and the non-zero exit branch execute.
 test('CLI entrypoint exits nonzero on unreadable file', async () => {
   const child = spawn(
-    process.execPath,
-    ['--import', 'tsx', 'src/cli.ts', 'definitely-missing.jpg'],
+    'bun',
+    ['run', 'src/cli.ts', 'definitely-missing.jpg'],
     { cwd: new URL('../..', import.meta.url).pathname, stdio: ['ignore', 'pipe', 'pipe'] },
   );
   let errText = '';
@@ -492,8 +492,8 @@ test('CLI entrypoint exits nonzero on unreadable file', async () => {
 
 test('CLI entrypoint succeeds on a real file', async () => {
   const child = spawn(
-    process.execPath,
-    ['--import', 'tsx', 'src/cli.ts', 'assets/01.jpg'],
+    'bun',
+    ['run', 'src/cli.ts', 'assets/01.jpg'],
     { cwd: new URL('../..', import.meta.url).pathname, stdio: ['ignore', 'pipe', 'pipe'] },
   );
   let outText = '';
