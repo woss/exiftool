@@ -67,5 +67,10 @@
     "typedoc-plugin-markdown": "^4.13.0",
     "typescript": "^5.9.0",
     "vitest": "^4.1.11"
+  },
+  "pnpm": {
+    "overrides": {
+      "uuid@<9": "^9.0.1"
+    }
   }
 }
