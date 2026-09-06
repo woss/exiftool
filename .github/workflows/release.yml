@@ -20,6 +20,7 @@ jobs:
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org/
+      - uses: oven-sh/setup-bun@v2
       - run: pnpm install --frozen-lockfile
       - name: Version sync (tag vs package.json / jsr.json)
         run: |
