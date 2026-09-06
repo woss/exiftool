@@ -68,6 +68,9 @@ jobs:
   publish-jsr:
     needs: gates
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
         with:
@@ -76,7 +79,7 @@ jobs:
         with:
           node-version: 22
       - name: Publish to JSR
-        run: npx jsr@latest publish --token ${{ secrets.JSR_TOKEN }}
+        run: npx jsr@latest publish
 
   github-release:
     needs: gates
