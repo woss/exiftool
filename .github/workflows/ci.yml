@@ -18,6 +18,12 @@ jobs:
         with:
           node-version: 22
       - uses: oven-sh/setup-bun@v2
+      - name: Install reference exiftool 13.55 (parity)
+        run: |
+          curl -fsSL -o /tmp/exiftool.tar.gz https://github.com/exiftool/exiftool/archive/refs/tags/13.55.tar.gz
+          tar -xzf /tmp/exiftool.tar.gz -C /opt
+          echo "/opt/exiftool-13.55" >> "$GITHUB_PATH"
+          exiftool -ver
       - run: pnpm install --frozen-lockfile
       - name: Type check
         run: pnpm check
