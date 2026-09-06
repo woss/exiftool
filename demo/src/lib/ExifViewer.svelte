@@ -9,6 +9,30 @@
 
 	const tool = new ExifTool();
 
+	let dragOver = $state(false);
+
+	function handleDragOver(event: DragEvent) {
+		event.preventDefault();
+		dragOver = true;
+	}
+
+	function handleDragLeave(event: DragEvent) {
+		event.preventDefault();
+		dragOver = false;
+	}
+
+	function handleDrop(event: DragEvent) {
+		event.preventDefault();
+		dragOver = false;
+		if (!event.dataTransfer?.files?.length) return;
+		const input = document.getElementById('file-input') as HTMLInputElement;
+		if (input) {
+			input.files = event.dataTransfer.files;
+			const changeEvent = new Event('change', { bubbles: true });
+			input.dispatchEvent(changeEvent);
+		}
+	}
+
 	async function handleFileChange(event: Event) {
 		const input = event.target as HTMLInputElement;
 		if (!input.files?.length) return;
@@ -21,7 +45,7 @@
 
 		try {
 			const arrayBuffer = await file.arrayBuffer();
-			const info = await tool.read(new Uint8Array(arrayBuffer), file.name);
+			const info = await tool.readBytes(new Uint8Array(arrayBuffer));
 			tags = info.tags;
 			format = info.format;
 		} catch (e) {
@@ -56,10 +80,12 @@
 	}
 </script>
 
-<div class="container">
-	<div class="upload-area">
-		<input type="file" accept="image/*" onchange={handleFileChange} disabled={loading} />
-		<p class="hint">Select an image file (JPEG, PNG, WebP, TIFF, DNG, AVIF, HEIC)</p>
+	<div class="container">
+	<div class="upload-area" role="button" ondragover={handleDragOver} ondragleave={handleDragLeave} ondrop={handleDrop} class:drag-over={dragOver}>
+		<input id="file-input" type="file" accept="image/*" onchange={handleFileChange} disabled={loading} />
+		<label for="file-input" class="upload-label">
+			<p class="hint">Click or drag an image file here (JPEG, PNG, WebP, TIFF, DNG, AVIF, HEIC)</p>
+		</label>
 	</div>
 
 	{#if loading}
@@ -119,14 +145,20 @@
 		border-color: #0066cc;
 	}
 
+	.upload-area.drag-over {
+		border-color: #0066cc;
+		background: #e8f0fe;
+	}
+
 	.upload-area input {
 		display: none;
 	}
 
-	.hint {
-		margin: 0.5rem 0 0;
-		color: #666;
-		font-size: 0.9rem;
+	.upload-label {
+		display: block;
+		cursor: pointer;
+		width: 100%;
+		height: 100%;
 	}
 
 	.loading {
