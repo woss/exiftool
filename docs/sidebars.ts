@@ -29,6 +29,11 @@ const sidebars: SidebarsConfig = {
         'cli/usage',
       ],
     },
+    {
+      type: 'link',
+      label: 'Live Demo',
+      href: '/demo',
+    },
   ],
 };
 

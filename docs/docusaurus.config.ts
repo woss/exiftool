@@ -63,6 +63,7 @@ const config: Config = {
         { to: '/getting-started', label: 'Getting Started', position: 'left' },
         { to: '/c2pa/overview', label: 'C2PA', position: 'left' },
         { to: '/cli/usage', label: 'CLI', position: 'left' },
+        { to: '/demo', label: 'Demo', position: 'left' },
         { to: '/api', label: 'API (Docusaurus)', position: 'left' },
         { href: '/exiftool-ts/typedoc/', label: 'API (TypeDoc)', position: 'left' },
         { href: 'https://github.com/woss/exiftool-ts', label: 'GitHub', position: 'right' },

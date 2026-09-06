@@ -27,6 +27,9 @@ jobs:
       - name: Install root deps
         run: pnpm install --frozen-lockfile
 
+      - name: Build exiftool-ts (browser bundle)
+        run: pnpm run build
+
       # Docs deps: docusaurus build
       - name: Install docs deps
         working-directory: docs

@@ -7,6 +7,8 @@
 # Generated files
 .docusaurus
 .cache-loader
+/static/typedoc/
+/typedoc-html/
 
 # Misc
 .DS_Store
