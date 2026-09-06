@@ -1,4 +1,4 @@
-# exiftool-ts
+# exiftool
 
 TypeScript rewrite of [ExifTool](https://exiftool.org) for Node.js. Read and write
 metadata from JPEG, PNG, WebP, AVIF/HEIF, and TIFF-family images — with a fully
@@ -10,7 +10,7 @@ ExifTool is the gold standard for metadata — but it's a 30k-line Perl program.
 Every invocation pays a Perl startup cost, embedding it in a JS/TS service means
 shelling out or managing sidecars, and there are no types.
 
-exiftool-ts exists to bring that capability natively into the TypeScript
+exiftool exists to bring that capability natively into the TypeScript
 ecosystem:
 
 - **Typed end to end** — `read()` returns an inferred `FileInfo`; no parsing strings.

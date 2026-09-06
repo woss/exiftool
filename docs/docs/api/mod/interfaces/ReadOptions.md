@@ -6,7 +6,7 @@
 
 # Interface: ReadOptions
 
-Defined in: [src/types.ts:112](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L112)
+Defined in: [src/types.ts:112](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L112)
 
 Options for read operations.
 
@@ -16,7 +16,7 @@ Options for read operations.
 
 > `optional` **duplicates?**: `boolean`
 
-Defined in: [src/types.ts:114](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L114)
+Defined in: [src/types.ts:114](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L114)
 
 Return duplicate tags (default: false)
 
@@ -26,7 +26,7 @@ Return duplicate tags (default: false)
 
 > `optional` **binary?**: `boolean`
 
-Defined in: [src/types.ts:117](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L117)
+Defined in: [src/types.ts:117](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L117)
 
 Return binary data as Uint8Array (default: false)
 
@@ -36,7 +36,7 @@ Return binary data as Uint8Array (default: false)
 
 > `optional` **groupHeadings?**: `string` \| `number`
 
-Defined in: [src/types.ts:120](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L120)
+Defined in: [src/types.ts:120](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L120)
 
 Group heading style (default: 0)
 
@@ -46,7 +46,7 @@ Group heading style (default: 0)
 
 > `optional` **dateFormat?**: `string`
 
-Defined in: [src/types.ts:123](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L123)
+Defined in: [src/types.ts:123](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L123)
 
 Date format string (default: "%Y:%m:%d %H:%M:%S")
 
@@ -56,7 +56,7 @@ Date format string (default: "%Y:%m:%d %H:%M:%S")
 
 > `optional` **coordFormat?**: `string`
 
-Defined in: [src/types.ts:126](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L126)
+Defined in: [src/types.ts:126](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L126)
 
 Coordinate format string (default: "%%.6f")
 
@@ -66,7 +66,7 @@ Coordinate format string (default: "%%.6f")
 
 > `optional` **charset?**: `string`
 
-Defined in: [src/types.ts:129](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L129)
+Defined in: [src/types.ts:129](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L129)
 
 Character set (default: "UTF8")
 
@@ -76,7 +76,7 @@ Character set (default: "UTF8")
 
 > `optional` **lang?**: `string`
 
-Defined in: [src/types.ts:132](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L132)
+Defined in: [src/types.ts:132](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L132)
 
 Language code (default: "en")
 
@@ -86,7 +86,7 @@ Language code (default: "en")
 
 > `optional` **composite?**: `boolean`
 
-Defined in: [src/types.ts:135](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L135)
+Defined in: [src/types.ts:135](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L135)
 
 Compute composite tags (default: true)
 
@@ -96,7 +96,7 @@ Compute composite tags (default: true)
 
 > `optional` **struct?**: `boolean`
 
-Defined in: [src/types.ts:138](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L138)
+Defined in: [src/types.ts:138](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L138)
 
 Parse XMP structures (default: true)
 
@@ -106,7 +106,7 @@ Parse XMP structures (default: true)
 
 > `optional` **escapeHTML?**: `boolean`
 
-Defined in: [src/types.ts:141](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L141)
+Defined in: [src/types.ts:141](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L141)
 
 Escape HTML entities (default: false)
 
@@ -116,7 +116,7 @@ Escape HTML entities (default: false)
 
 > `optional` **escapeXML?**: `boolean`
 
-Defined in: [src/types.ts:144](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L144)
+Defined in: [src/types.ts:144](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L144)
 
 Escape XML entities (default: false)
 
@@ -126,6 +126,6 @@ Escape XML entities (default: false)
 
 > `optional` **missingTagValue?**: `string`
 
-Defined in: [src/types.ts:147](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L147)
+Defined in: [src/types.ts:147](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L147)
 
 Value for missing tags (default: undefined)

@@ -6,7 +6,7 @@
 
 # Class: TagDb
 
-Defined in: [src/tag-db.ts:23](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L23)
+Defined in: [src/tag-db.ts:23](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/tag-db.ts#L23)
 
 Tag database for managing tag definitions.
 Provides fast lookup by name, ID, or group.
@@ -44,7 +44,7 @@ db.register({
 
 > **register**(`entry`): `void`
 
-Defined in: [src/tag-db.ts:34](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L34)
+Defined in: [src/tag-db.ts:34](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/tag-db.ts#L34)
 
 Registers a single tag entry.
 Indexes by name (case-insensitive), ID+group, and all group families.
@@ -67,7 +67,7 @@ Tag entry to register
 
 > **registerBatch**(`entries`): `void`
 
-Defined in: [src/tag-db.ts:55](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L55)
+Defined in: [src/tag-db.ts:55](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/tag-db.ts#L55)
 
 Registers multiple tag entries in batch.
 
@@ -89,7 +89,7 @@ Array of tag entries
 
 > **getByName**(`name`): [`TagEntry`](../interfaces/TagEntry.md) \| `undefined`
 
-Defined in: [src/tag-db.ts:67](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L67)
+Defined in: [src/tag-db.ts:67](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/tag-db.ts#L67)
 
 Looks up a tag by normalized name (case-insensitive).
 
@@ -113,7 +113,7 @@ Tag entry or undefined
 
 > **getById**(`id`, `group?`): [`TagEntry`](../interfaces/TagEntry.md) \| `undefined`
 
-Defined in: [src/tag-db.ts:78](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L78)
+Defined in: [src/tag-db.ts:78](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/tag-db.ts#L78)
 
 Looks up a tag by ID within a group.
 
@@ -143,7 +143,7 @@ First matching tag entry or undefined
 
 > **getByGroup**(`group`): [`TagEntry`](../interfaces/TagEntry.md)[]
 
-Defined in: [src/tag-db.ts:90](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L90)
+Defined in: [src/tag-db.ts:90](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/tag-db.ts#L90)
 
 Gets all tags belonging to a group family.
 
@@ -167,7 +167,7 @@ Array of tag entries
 
 > **getAllTags**(): [`TagEntry`](../interfaces/TagEntry.md)[]
 
-Defined in: [src/tag-db.ts:95](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L95)
+Defined in: [src/tag-db.ts:95](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/tag-db.ts#L95)
 
 Returns all registered tags.
 
@@ -181,7 +181,7 @@ Returns all registered tags.
 
 > **getWritableTags**(): [`TagEntry`](../interfaces/TagEntry.md)[]
 
-Defined in: [src/tag-db.ts:100](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L100)
+Defined in: [src/tag-db.ts:100](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/tag-db.ts#L100)
 
 Returns all writable tags.
 
@@ -195,7 +195,7 @@ Returns all writable tags.
 
 > **getGroups**(): `string`[]
 
-Defined in: [src/tag-db.ts:105](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L105)
+Defined in: [src/tag-db.ts:105](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/tag-db.ts#L105)
 
 Returns all known group names.
 
@@ -209,7 +209,7 @@ Returns all known group names.
 
 > **size**(): `number`
 
-Defined in: [src/tag-db.ts:110](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L110)
+Defined in: [src/tag-db.ts:110](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/tag-db.ts#L110)
 
 Returns the number of registered tags.
 

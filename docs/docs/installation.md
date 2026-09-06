@@ -53,8 +53,8 @@ npx exiftool-ts -j sample.jpg
 
 ```bash
 # Clone and install
-git clone https://github.com/woss/exiftool-ts.git
-cd exiftool-ts
+git clone https://github.com/woss/exiftool.git
+cd exiftool
 pnpm install
 
 # Run tests

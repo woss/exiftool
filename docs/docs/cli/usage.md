@@ -5,7 +5,7 @@ slug: /cli/usage
 
 # CLI Reference
 
-exiftool-ts CLI is designed for **ExifTool compatibility** with additional features for C2PA and modern workflows.
+exiftool CLI is designed for **ExifTool compatibility** with additional features for C2PA and modern workflows.
 
 ## Basic Usage
 

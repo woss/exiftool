@@ -5,7 +5,7 @@ slug: /core/parsing
 
 # Core Parsing Architecture
 
-exiftool-ts uses a **streaming, zero-copy** parsing architecture designed for performance and memory efficiency.
+exiftool uses a **streaming, zero-copy** parsing architecture designed for performance and memory efficiency.
 
 ## Pipeline Architecture
 

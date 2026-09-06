@@ -1,4 +1,4 @@
-# exiftool-ts Agent Instructions
+# exiftool Agent Instructions
 
 **Agent-agnostic** — works with mp, opencode, or any compatible agent.
 

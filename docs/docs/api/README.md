@@ -2,7 +2,7 @@
 
 ***
 
-# exiftool-ts
+# exiftool
 
 TypeScript rewrite of [ExifTool](https://exiftool.org) for Node.js. Read and write
 metadata from JPEG, PNG, WebP, AVIF/HEIF, and TIFF-family images — with a fully

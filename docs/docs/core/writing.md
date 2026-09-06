@@ -5,12 +5,12 @@ slug: /core/writing
 
 # Writing Metadata
 
-exiftool-ts supports writing metadata to all supported formats with full ExifTool compatibility.
+exiftool supports writing metadata to all supported formats with full ExifTool compatibility.
 
 ## Basic Write
 
 ```typescript
-import { ExifTool } from 'exiftool-ts';
+import { ExifTool } from '@woss/exiftool';
 
 const exiftool = new ExifTool();
 await exiftool.write('input.jpg', 'output.jpg', {

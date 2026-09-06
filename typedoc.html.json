@@ -52,8 +52,8 @@
     "Utils"
   ],
   "navigationLinks": {
-    "GitHub": "https://github.com/woss/exiftool-ts",
-    "npm": "https://www.npmjs.com/package/exiftool-ts"
+    "GitHub": "https://github.com/woss/exiftool",
+    "npm": "https://www.npmjs.com/package/@woss/exiftool"
   },
   "sort": [
     "source-order"

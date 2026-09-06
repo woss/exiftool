@@ -8,7 +8,7 @@
 
 > **writeTags**(`filePath`, `tags`, `opts?`, `plugins?`): `Promise`\<[`WriteResult`](../interfaces/WriteResult.md)\>
 
-Defined in: [src/write/pipeline.ts:21](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/write/pipeline.ts#L21)
+Defined in: [src/write/pipeline.ts:21](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/write/pipeline.ts#L21)
 
 Safe-overwrite pipeline: parse-checks the target, produces new bytes via
 the format writer, preserves a `<file>_original` backup unless

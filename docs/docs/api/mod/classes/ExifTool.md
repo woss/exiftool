@@ -6,7 +6,7 @@
 
 # Class: ExifTool
 
-Defined in: [src/exiftool.ts:28](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool.ts#L28)
+Defined in: [src/exiftool.ts:28](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/exiftool.ts#L28)
 
 Node.js entry point for exiftool-ts.
 Extends ExifToolCore with filesystem-based read/write operations.
@@ -39,7 +39,7 @@ await exiftool.write('input.jpg', 'output.jpg', {
 
 > **new ExifTool**(`opts?`): `ExifTool`
 
-Defined in: [src/exiftool-core.ts:43](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool-core.ts#L43)
+Defined in: [src/exiftool-core.ts:43](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/exiftool-core.ts#L43)
 
 Creates a new ExifToolCore instance.
 
@@ -65,7 +65,7 @@ Optional configuration options
 
 > `readonly` **tagDb**: [`TagDb`](TagDb.md)
 
-Defined in: [src/exiftool-core.ts:28](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool-core.ts#L28)
+Defined in: [src/exiftool-core.ts:28](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/exiftool-core.ts#L28)
 
 Tag database for custom tag definitions.
 
@@ -79,7 +79,7 @@ Tag database for custom tag definitions.
 
 > `readonly` **options**: `ExifToolOptions`
 
-Defined in: [src/exiftool-core.ts:31](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool-core.ts#L31)
+Defined in: [src/exiftool-core.ts:31](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/exiftool-core.ts#L31)
 
 Resolved options (merged with defaults).
 
@@ -93,7 +93,7 @@ Resolved options (merged with defaults).
 
 > **getParser**(`format`): `FormatParser` \| `undefined`
 
-Defined in: [src/exiftool-core.ts:65](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool-core.ts#L65)
+Defined in: [src/exiftool-core.ts:65](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/exiftool-core.ts#L65)
 
 Gets a parser by format name (e.g., 'JPEG', 'PNG', 'AVIF').
 
@@ -121,7 +121,7 @@ FormatParser if available, undefined otherwise
 
 > **readBytes**(`bytes`): `Promise`\<[`FileInfo`](../interfaces/FileInfo.md)\>
 
-Defined in: [src/exiftool-core.ts:78](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool-core.ts#L78)
+Defined in: [src/exiftool-core.ts:78](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/exiftool-core.ts#L78)
 
 Parses metadata from an in-memory buffer.
 
@@ -152,7 +152,7 @@ Parsed file information with tags
 
 > **writeBytes**(`bytes`, `tags`): `Promise`\<`WriteOutcome`\>
 
-Defined in: [src/exiftool-core.ts:97](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool-core.ts#L97)
+Defined in: [src/exiftool-core.ts:97](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/exiftool-core.ts#L97)
 
 Writes metadata tags to an in-memory buffer.
 
@@ -193,7 +193,7 @@ Write outcome with new bytes and any warnings
 
 > **read**(`filePath`, `hints?`): `Promise`\<[`FileInfo`](../interfaces/FileInfo.md)\>
 
-Defined in: [src/exiftool.ts:36](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool.ts#L36)
+Defined in: [src/exiftool.ts:36](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/exiftool.ts#L36)
 
 Reads metadata from a file path.
 
@@ -223,7 +223,7 @@ Parsed file information with tags grouped by metadata standard
 
 > **write**(`filePath`, `tags`, `opts?`): `Promise`\<[`WriteResult`](../interfaces/WriteResult.md)\>
 
-Defined in: [src/exiftool.ts:58](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool.ts#L58)
+Defined in: [src/exiftool.ts:58](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/exiftool.ts#L58)
 
 Writes metadata tags to a file.
 
@@ -266,7 +266,7 @@ Write result with success status and any warnings
 
 > **run**(`args`): `Promise`\<`number`\>
 
-Defined in: [src/exiftool.ts:72](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool.ts#L72)
+Defined in: [src/exiftool.ts:72](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/exiftool.ts#L72)
 
 Runs CLI-style arguments programmatically.
 
@@ -290,7 +290,7 @@ Exit code (0 = success)
 
 > **printHelp**(): `void`
 
-Defined in: [src/exiftool.ts:89](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool.ts#L89)
+Defined in: [src/exiftool.ts:89](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/exiftool.ts#L89)
 
 Prints CLI help text.
 

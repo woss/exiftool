@@ -6,7 +6,7 @@
 
 # Interface: WriteResult
 
-Defined in: [src/types.ts:164](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L164)
+Defined in: [src/types.ts:164](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L164)
 
 Result of a write operation.
 
@@ -16,7 +16,7 @@ Result of a write operation.
 
 > **file**: `string`
 
-Defined in: [src/types.ts:166](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L166)
+Defined in: [src/types.ts:166](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L166)
 
 Path to written file
 
@@ -26,7 +26,7 @@ Path to written file
 
 > **written**: `string`[]
 
-Defined in: [src/types.ts:169](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L169)
+Defined in: [src/types.ts:169](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L169)
 
 Successfully written tag names
 
@@ -36,7 +36,7 @@ Successfully written tag names
 
 > **skipped**: `string`[]
 
-Defined in: [src/types.ts:172](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L172)
+Defined in: [src/types.ts:172](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L172)
 
 Skipped tag names (unsupported/read-only)
 
@@ -46,6 +46,6 @@ Skipped tag names (unsupported/read-only)
 
 > `optional` **backup?**: `string`
 
-Defined in: [src/types.ts:175](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L175)
+Defined in: [src/types.ts:175](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L175)
 
 Backup file path if created

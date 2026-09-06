@@ -5,7 +5,7 @@ slug: /core/metadata-model
 
 # Metadata Model
 
-exiftool-ts uses a unified metadata model that normalizes tags across all formats and standards.
+exiftool uses a unified metadata model that normalizes tags across all formats and standards.
 
 ## Tag Structure
 

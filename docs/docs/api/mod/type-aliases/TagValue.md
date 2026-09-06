@@ -8,7 +8,7 @@
 
 > **TagValue** = `string` \| `number` \| `boolean` \| `Uint8Array` \| `null` \| `TagValue`[]
 
-Defined in: [src/types.ts:107](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L107)
+Defined in: [src/types.ts:107](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L107)
 
 Normalized tag value.
 Can be string, number, boolean, binary data (Uint8Array), null, or nested arrays.

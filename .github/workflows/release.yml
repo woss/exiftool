@@ -95,8 +95,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Package dist tarball
-        run: tar czf "exiftool-ts-${GITHUB_REF_NAME}.tar.gz" dist package.json README.md
+        run: tar czf "exiftool-${GITHUB_REF_NAME}.tar.gz" dist package.json README.md
       - name: Attach to release
         uses: softprops/action-gh-release@v2
         with:
-          files: exiftool-ts-*.tar.gz
+          files: exiftool-*.tar.gz

@@ -12,7 +12,7 @@
   "defaultCategory": "Core",
   "categoryOrder": ["Core", "Formats", "Exif", "Utilities", "CLI"],
   "navigationLinks": {
-    "GitHub": "https://github.com/woss/exiftool-ts",
+    "GitHub": "https://github.com/woss/exiftool",
     "npm": "https://www.npmjs.com/package/@woss/exiftool"
   },
   "entryPointStrategy": "expand",

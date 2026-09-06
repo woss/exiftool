@@ -6,7 +6,7 @@
 
 # Class: UnsupportedFormatError
 
-Defined in: [src/write/writers.ts:8](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/write/writers.ts#L8)
+Defined in: [src/write/writers.ts:8](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/write/writers.ts#L8)
 
 Error thrown when a format does not support writing tags.
 

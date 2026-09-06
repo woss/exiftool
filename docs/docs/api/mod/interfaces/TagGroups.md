@@ -6,7 +6,7 @@
 
 # Interface: TagGroups
 
-Defined in: [src/types.ts:83](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L83)
+Defined in: [src/types.ts:83](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L83)
 
 Tag group assignments across ExifTool's family hierarchy.
 Family 0: General category (EXIF, XMP, IPTC, GPS, etc.)
@@ -21,7 +21,7 @@ Family 7: Custom/external
 
 > `optional` **family0?**: `string`
 
-Defined in: [src/types.ts:85](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L85)
+Defined in: [src/types.ts:85](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L85)
 
 Family 0: General category
 
@@ -31,7 +31,7 @@ Family 0: General category
 
 > `optional` **family1?**: `string`
 
-Defined in: [src/types.ts:88](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L88)
+Defined in: [src/types.ts:88](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L88)
 
 Family 1: Specific group
 
@@ -41,7 +41,7 @@ Family 1: Specific group
 
 > `optional` **family2?**: `string`
 
-Defined in: [src/types.ts:91](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L91)
+Defined in: [src/types.ts:91](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L91)
 
 Family 2: Sub-category
 
@@ -51,7 +51,7 @@ Family 2: Sub-category
 
 > `optional` **family3?**: `string`
 
-Defined in: [src/types.ts:94](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L94)
+Defined in: [src/types.ts:94](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L94)
 
 Family 3: Additional grouping
 
@@ -61,7 +61,7 @@ Family 3: Additional grouping
 
 > `optional` **family4?**: `string`
 
-Defined in: [src/types.ts:97](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L97)
+Defined in: [src/types.ts:97](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L97)
 
 Family 4: Additional grouping
 
@@ -71,6 +71,6 @@ Family 4: Additional grouping
 
 > `optional` **family7?**: `string`
 
-Defined in: [src/types.ts:100](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L100)
+Defined in: [src/types.ts:100](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L100)
 
 Family 7: Custom/external

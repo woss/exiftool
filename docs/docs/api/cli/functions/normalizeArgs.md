@@ -8,7 +8,7 @@
 
 > **normalizeArgs**(`args`): `string`[]
 
-Defined in: [src/cli/args.ts:144](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L144)
+Defined in: [src/cli/args.ts:144](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/cli/args.ts#L144)
 
 ## Parameters
 

@@ -6,7 +6,7 @@
   "sideEffects": false,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/woss/exiftool-ts.git"
+    "url": "git+https://github.com/woss/exiftool.git"
   },
   "bin": {
     "exiftool-ts": "dist/cli.js"

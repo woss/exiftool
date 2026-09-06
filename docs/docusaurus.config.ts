@@ -3,7 +3,7 @@ import type {Config} from '@docusaurus/types';
 import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
-  title: 'exiftool-ts',
+  title: 'exiftool',
   tagline: 'TypeScript ExifTool wrapper with C2PA support',
   favicon: 'img/favicon.ico',
 
@@ -12,10 +12,10 @@ const config: Config = {
   },
 
   url: 'https://woss.github.io',
-  baseUrl: '/exiftool-ts/',
+  baseUrl: '/exiftool/',
 
   organizationName: 'woss',
-  projectName: 'exiftool-ts',
+  projectName: 'exiftool',
   onBrokenLinks: 'warn',
   onBrokenMarkdownLinks: 'warn',
 
@@ -30,14 +30,14 @@ const config: Config = {
       {
         docs: {
           sidebarPath: './sidebars.ts',
-          editUrl: 'https://github.com/woss/exiftool-ts/tree/main/docs/',
+          editUrl: 'https://github.com/woss/exiftool/tree/main/docs/',
           routeBasePath: '/',
         },
         blog: {
           showReadingTime: true,
           feedOptions: {
             type: 'all',
-            copyright: `Copyright © ${new Date().getFullYear()} exiftool-ts.`,
+            copyright: `Copyright © ${new Date().getFullYear()} exiftool.`,
           },
         },
         theme: {
@@ -48,14 +48,14 @@ const config: Config = {
   ],
 
   themeConfig: {
-    image: 'img/exiftool-ts-social-card.jpg',
+    image: 'img/exiftool-social-card.jpg',
     colorMode: {
       respectPrefersColorScheme: true,
     },
     navbar: {
-      title: 'exiftool-ts',
+      title: 'exiftool',
       logo: {
-        alt: 'exiftool-ts Logo',
+        alt: 'exiftool Logo',
         src: 'img/logo.svg',
       },
       items: [
@@ -65,8 +65,8 @@ const config: Config = {
         { to: '/cli/usage', label: 'CLI', position: 'left' },
         { to: '/demo', label: 'Demo', position: 'left' },
         { to: '/api', label: 'API (Docusaurus)', position: 'left' },
-        { href: '/exiftool-ts/typedoc/', label: 'API (TypeDoc)', position: 'left' },
-        { href: 'https://github.com/woss/exiftool-ts', label: 'GitHub', position: 'right' },
+        { href: '/exiftool/typedoc/', label: 'API (TypeDoc)', position: 'left' },
+        { href: 'https://github.com/woss/exiftool', label: 'GitHub', position: 'right' },
       ],
     },
     footer: {
@@ -83,20 +83,20 @@ const config: Config = {
         {
           title: 'Community',
           items: [
-            { label: 'GitHub', href: 'https://github.com/woss/exiftool-ts' },
-            { label: 'Issues', href: 'https://github.com/woss/exiftool-ts/issues' },
-            { label: 'Discussions', href: 'https://github.com/woss/exiftool-ts/discussions' },
+            { label: 'GitHub', href: 'https://github.com/woss/exiftool' },
+            { label: 'Issues', href: 'https://github.com/woss/exiftool/issues' },
+            { label: 'Discussions', href: 'https://github.com/woss/exiftool/discussions' },
           ],
         },
         {
           title: 'More',
           items: [
-            { label: 'npm', href: 'https://www.npmjs.com/package/exiftool-ts' },
-            { label: 'GitHub', href: 'https://github.com/woss/exiftool-ts' },
+            { label: 'npm', href: 'https://www.npmjs.com/package/@woss/exiftool' },
+            { label: 'GitHub', href: 'https://github.com/woss/exiftool' },
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} exiftool-ts. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} exiftool. Built with Docusaurus.`,
     },
     prism: {
       theme: prismThemes.github,
@@ -106,7 +106,7 @@ const config: Config = {
     algolia: {
       appId: 'BH4D9OD16A',
       apiKey: 'f9e9c9a5f5c7d5e5f5f5f5f5f5f5f5f5f5f5f',
-      indexName: 'exiftool-ts',
+      indexName: 'exiftool',
     },
   } satisfies Preset.ThemeConfig,
 };

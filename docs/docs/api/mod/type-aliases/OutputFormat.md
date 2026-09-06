@@ -8,7 +8,7 @@
 
 > **OutputFormat** = `"json"` \| `"xml"` \| `"html"` \| `"csv"` \| `"tabular"` \| `"arg"`
 
-Defined in: [src/types.ts:187](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L187)
+Defined in: [src/types.ts:187](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L187)
 
 Output format for CLI and programmatic use.
 - 'json': ExifTool-compatible JSON

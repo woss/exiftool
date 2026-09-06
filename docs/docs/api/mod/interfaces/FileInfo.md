@@ -6,7 +6,7 @@
 
 # Interface: FileInfo
 
-Defined in: [src/types.ts:192](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L192)
+Defined in: [src/types.ts:192](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L192)
 
 File information returned by parse operations.
 
@@ -16,7 +16,7 @@ File information returned by parse operations.
 
 > **path**: `string`
 
-Defined in: [src/types.ts:194](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L194)
+Defined in: [src/types.ts:194](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L194)
 
 Source path or identifier
 
@@ -26,7 +26,7 @@ Source path or identifier
 
 > **format**: `string`
 
-Defined in: [src/types.ts:197](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L197)
+Defined in: [src/types.ts:197](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L197)
 
 Detected format (e.g., "JPEG", "PNG", "AVIF")
 
@@ -36,7 +36,7 @@ Detected format (e.g., "JPEG", "PNG", "AVIF")
 
 > **tags**: `Record`\<`string`, [`TagValue`](../type-aliases/TagValue.md)\>
 
-Defined in: [src/types.ts:200](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L200)
+Defined in: [src/types.ts:200](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L200)
 
 Extracted tags, keyed by tag name
 
@@ -46,7 +46,7 @@ Extracted tags, keyed by tag name
 
 > `optional` **errors?**: `string`[]
 
-Defined in: [src/types.ts:203](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L203)
+Defined in: [src/types.ts:203](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L203)
 
 Parse errors
 
@@ -56,6 +56,6 @@ Parse errors
 
 > `optional` **warnings?**: `string`[]
 
-Defined in: [src/types.ts:206](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L206)
+Defined in: [src/types.ts:206](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L206)
 
 Parse warnings

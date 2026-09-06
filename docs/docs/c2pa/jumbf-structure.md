@@ -138,7 +138,7 @@ All multi-byte values in JUMBF boxes are **big-endian** (network byte order), ex
 
 ## ExifTool Parity
 
-exiftool-ts JUMBF parser matches ExifTool 13.55+ byte-for-byte:
+exiftool JUMBF parser matches ExifTool 13.55+ byte-for-byte:
 
 - ✅ 16-byte UUID parsing
 - ✅ 1-byte flags

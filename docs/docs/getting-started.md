@@ -25,7 +25,7 @@ yarn add exiftool-ts
 ### Reading Metadata
 
 ```typescript
-import { ExifTool } from 'exiftool-ts';
+import { ExifTool } from '@woss/exiftool';
 
 const exiftool = new ExifTool();
 const result = await exiftool.read('photo.jpg');
@@ -38,7 +38,7 @@ console.log(result.tags.DateTimeOriginal); // "2024:01:15 14:30:22"
 ### Writing Metadata
 
 ```typescript
-import { ExifTool } from 'exiftool-ts';
+import { ExifTool } from '@woss/exiftool';
 
 const exiftool = new ExifTool();
 await exiftool.write('input.jpg', 'output.jpg', {
@@ -51,7 +51,7 @@ await exiftool.write('input.jpg', 'output.jpg', {
 ### C2PA Content Credentials
 
 ```typescript
-import { ExifTool } from 'exiftool-ts';
+import { ExifTool } from '@woss/exiftool';
 
 const exiftool = new ExifTool();
 const result = await exiftool.read('c2pa-image.jpg');

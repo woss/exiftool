@@ -19,7 +19,7 @@ slug: /c2pa/overview
 > - **Financial incentives oppose it**: AI slop drives engagement → ads → revenue
 > - **"Friction theater"**: Appearance of a solution that lets business continue unchanged
 >
-> exiftool-ts parses JUMBF/C2PA structures if present, but **cannot verify trust** — the chain
+> exiftool parses JUMBF/C2PA structures if present, but **cannot verify trust** — the chain
 > of custody is broken by design.
 
  C2PA (Coalition for Content Provenance and Authenticity) defines a standard for embedding **cryptographically verifiable provenance** in media files. It enables:
@@ -95,7 +95,7 @@ JUMBF Superbox ("jumb")
 ## Reading C2PA Data
 
 ```typescript
-import { ExifTool } from 'exiftool-ts';
+import { ExifTool } from '@woss/exiftool';
 
 const exiftool = new ExifTool();
 const result = await exiftool.read('c2pa-image.jpg');
@@ -134,7 +134,7 @@ exiftool-ts -j -C2PA image.jpg
 ## Validation
 
 ```typescript
-import { ExifTool } from 'exiftool-ts';
+import { ExifTool } from '@woss/exiftool';
 
 const exiftool = new ExifTool();
 const result = await exiftool.read('c2pa-image.jpg');

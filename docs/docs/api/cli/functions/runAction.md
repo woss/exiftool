@@ -8,7 +8,7 @@
 
 > **runAction**(`options`, ...`files`): `Promise`\<`number`\>
 
-Defined in: [src/cli.ts:33](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli.ts#L33)
+Defined in: [src/cli.ts:33](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/cli.ts#L33)
 
 Runs a single CLI action (read or write) with the given options and files.
 This is the core logic used by both `main()` and the `-stay_open` daemon.
