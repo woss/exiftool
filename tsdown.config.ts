@@ -18,8 +18,14 @@ export default defineConfig([
     unbundle: true,
     dts: true,
     publint: true,
-    attw: { profile: 'node16' },
-    external: [TAGS_JSON],
+    attw: {
+      profile: 'node16',
+      // ESM-only package by design ("type": "module"); node16-cjs require()
+      // is intentionally unsupported — CJS consumers must use dynamic
+      // import(), which works fine against these exports.
+      ignoreRules: ['cjs-resolves-to-esm'],
+    },
+    deps: { neverBundle: [TAGS_JSON] },
     outExtensions,
     copy: {
       from: 'src/tags/generated/tags.json',
@@ -33,8 +39,8 @@ export default defineConfig([
     format: 'esm',
     platform: 'node',
     dts: true,
-    external: [TAGS_JSON],
-    outputOptions: { inlineDynamicImports: true },
+    deps: { neverBundle: [TAGS_JSON] },
+    codeSplitting: false,
     outExtensions,
     hooks: {
       'build:done': () => {
