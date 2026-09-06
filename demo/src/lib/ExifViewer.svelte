@@ -6,6 +6,10 @@
 	let format: string | null = $state(null);
 	let loading = $state(false);
 	let error: string | null = $state(null);
+	let parseTimeMs: number | null = $state(null);
+	let metadataBytes: number | null = $state(null);
+	let width: number | null = $state(null);
+	let height: number | null = $state(null);
 
 	const tool = new ExifTool();
 
@@ -42,17 +46,91 @@
 		error = null;
 		tags = null;
 		format = null;
+		parseTimeMs = null;
+		metadataBytes = null;
+		width = null;
+		height = null;
 
 		try {
 			const arrayBuffer = await file.arrayBuffer();
-			const info = await tool.readBytes(new Uint8Array(arrayBuffer));
+			const bytes = new Uint8Array(arrayBuffer);
+			const t0 = performance.now();
+			const info = await tool.readBytes(bytes);
+			parseTimeMs = performance.now() - t0;
 			tags = info.tags;
 			format = info.format;
+			metadataBytes = findMetadataBytes(bytes);
+			width = toNumber(info.tags.ImageWidth);
+			height = toNumber(info.tags.ImageHeight);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to read EXIF data';
 		} finally {
 			loading = false;
 		}
+	}
+
+	function toNumber(value: unknown): number | null {
+		const n = Number(value);
+		return Number.isFinite(n) && n > 0 ? n : null;
+	}
+
+	/**
+	 * Size in bytes of the embedded metadata container (EXIF block).
+	 * Handles JPEG APP1 (Exif\0\0), PNG eXIf, and WebP EXIF chunks.
+	 */
+	function findMetadataBytes(bytes: Uint8Array): number | null {
+		// JPEG: scan APPn segments for APP1 with Exif\0\0 signature
+		if (bytes[0] === 0xff && bytes[1] === 0xd8) {
+			let i = 2;
+			while (i + 4 < bytes.length) {
+				if (bytes[i] === 0xff) {
+					const marker = bytes[i + 1];
+					if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+						i += 2;
+						continue;
+					}
+					const len = (bytes[i + 2] << 8) | bytes[i + 3];
+					if (
+						marker === 0xe1 &&
+						len >= 6 &&
+						String.fromCharCode(bytes[i + 4], bytes[i + 5], bytes[i + 6], bytes[i + 7], bytes[i + 8], bytes[i + 9]) === 'Exif\0\0'
+					) {
+						return len - 2;
+					}
+					i += 2 + len;
+				} else {
+					i++;
+				}
+			}
+			return null;
+		}
+
+		// Generic: locate the Exif\0\0 signature and read the container size.
+		// PNG: 4-byte big-endian length precedes the chunk type (12 overhead: len+type+crc).
+		// WebP: 4-byte little-endian size follows the "EXIF" chunk type (8 overhead).
+		const sig = 'Exif\0\0';
+		const text = String.fromCharCode(...bytes.subarray(0, Math.min(bytes.length, 8192)));
+		const idx = text.indexOf(sig);
+		if (idx === -1) return null;
+
+		const png = String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]);
+		if (png === '\x89PNG') {
+			const end = idx + sig.length;
+			const len = (bytes[end - 8] << 24) | (bytes[end - 7] << 16) | (bytes[end - 6] << 8) | bytes[end - 5];
+			return len > 0 && len < bytes.length ? len + 12 : null;
+		}
+		if (String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]) === 'RIFF') {
+			const size = bytes[idx + sig.length] | (bytes[idx + sig.length + 1] << 8) | (bytes[idx + sig.length + 2] << 16) | (bytes[idx + sig.length + 3] << 24);
+			return size > 0 && size < bytes.length - idx ? size + 8 : null;
+		}
+		return null;
+	}
+
+	function formatBytes(n: number | null): string {
+		if (n === null) return '—';
+		if (n < 1024) return `${n} B`;
+		if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+		return `${(n / (1024 * 1024)).toFixed(2)} MB`;
 	}
 
 	function formatValue(value: unknown): string {
@@ -101,6 +179,24 @@
 			<div class="header">
 				<h2>{file?.name}</h2>
 				<span class="format-badge">{format}</span>
+			</div>
+
+			<div class="debug-bar">
+				<div class="stat">
+					<span class="stat-label">Parse time</span>
+					<span class="stat-value">{parseTimeMs !== null ? `${parseTimeMs.toFixed(1)} ms` : '—'}</span>
+				</div>
+				<div class="stat">
+					<span class="stat-label">Metadata</span>
+					<span class="stat-value">{formatBytes(metadataBytes)}</span>
+				</div>
+				<div class="stat">
+					<span class="stat-label">Image</span>
+					<span class="stat-value">
+						{width && height ? `${width}×${height} px` : '—'}
+						{#if width && height}<small>{formatBytes(width * height * 3)} raw RGB</small>{/if}
+					</span>
+				</div>
 			</div>
 
 			<div class="tags">
@@ -192,6 +288,46 @@
 		margin: 0;
 		font-size: 1.2rem;
 		word-break: break-all;
+	}
+
+	.debug-bar {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin-bottom: 1rem;
+	}
+
+	.stat {
+		flex: 1;
+		min-width: 140px;
+		background: #f0f4f8;
+		border: 1px solid #d5e0ea;
+		border-radius: 6px;
+		padding: 0.5rem 0.75rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+	}
+
+	.stat-label {
+		font-size: 0.65rem;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: #667;
+	}
+
+	.stat-value {
+		font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+		font-size: 0.95rem;
+		font-weight: 600;
+		color: #0a2540;
+	}
+
+	.stat-value small {
+		font-weight: 400;
+		font-size: 0.75rem;
+		color: #667;
+		margin-left: 0.4rem;
 	}
 
 	.format-badge {
