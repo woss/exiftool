@@ -1,14 +1,14 @@
-[**exiftool-ts v0.1.0**](../../README.md)
+[**@woss/exiftool v0.1.0**](../../README.md)
 
 ***
 
-[exiftool-ts](../../modules.md) / [mod](../README.md) / writeTags
+[@woss/exiftool](../../modules.md) / [mod](../README.md) / writeTags
 
 # Function: writeTags()
 
 > **writeTags**(`filePath`, `tags`, `opts?`, `plugins?`): `Promise`\<[`WriteResult`](../interfaces/WriteResult.md)\>
 
-Defined in: src/write/pipeline.ts:21
+Defined in: [src/write/pipeline.ts:21](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/write/pipeline.ts#L21)
 
 Safe-overwrite pipeline: parse-checks the target, produces new bytes via
 the format writer, preserves a `<file>_original` backup unless

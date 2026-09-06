@@ -1,12 +1,32 @@
-[**exiftool-ts v0.1.0**](../../README.md)
+[**@woss/exiftool v0.1.0**](../../README.md)
 
 ***
 
-[exiftool-ts](../../modules.md) / [mod](../README.md) / TagDb
+[@woss/exiftool](../../modules.md) / [mod](../README.md) / TagDb
 
 # Class: TagDb
 
-Defined in: src/tag-db.ts:3
+Defined in: [src/tag-db.ts:23](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L23)
+
+Tag database for managing tag definitions.
+Provides fast lookup by name, ID, or group.
+Used by ExifTool for tag normalization and validation.
+
+## Example
+
+```typescript
+import { TagDb } from 'exiftool-ts';
+
+const db = new TagDb();
+db.register({
+  id: 'CustomTag',
+  name: 'CustomTag',
+  description: 'My custom tag',
+  format: 'string',
+  writable: true,
+  groups: { family0: 'Custom', family1: 'Custom', family2: 'User' },
+});
+```
 
 ## Constructors
 
@@ -24,13 +44,18 @@ Defined in: src/tag-db.ts:3
 
 > **register**(`entry`): `void`
 
-Defined in: src/tag-db.ts:8
+Defined in: [src/tag-db.ts:34](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L34)
+
+Registers a single tag entry.
+Indexes by name (case-insensitive), ID+group, and all group families.
 
 #### Parameters
 
 ##### entry
 
 [`TagEntry`](../interfaces/TagEntry.md)
+
+Tag entry to register
 
 #### Returns
 
@@ -42,13 +67,17 @@ Defined in: src/tag-db.ts:8
 
 > **registerBatch**(`entries`): `void`
 
-Defined in: src/tag-db.ts:24
+Defined in: [src/tag-db.ts:55](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L55)
+
+Registers multiple tag entries in batch.
 
 #### Parameters
 
 ##### entries
 
 [`TagEntry`](../interfaces/TagEntry.md)[]
+
+Array of tag entries
 
 #### Returns
 
@@ -60,7 +89,9 @@ Defined in: src/tag-db.ts:24
 
 > **getByName**(`name`): [`TagEntry`](../interfaces/TagEntry.md) \| `undefined`
 
-Defined in: src/tag-db.ts:30
+Defined in: [src/tag-db.ts:67](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L67)
+
+Looks up a tag by normalized name (case-insensitive).
 
 #### Parameters
 
@@ -68,9 +99,13 @@ Defined in: src/tag-db.ts:30
 
 `string`
 
+Tag name (e.g., "exposuretime", "Artist")
+
 #### Returns
 
 [`TagEntry`](../interfaces/TagEntry.md) \| `undefined`
+
+Tag entry or undefined
 
 ***
 
@@ -78,7 +113,9 @@ Defined in: src/tag-db.ts:30
 
 > **getById**(`id`, `group?`): [`TagEntry`](../interfaces/TagEntry.md) \| `undefined`
 
-Defined in: src/tag-db.ts:34
+Defined in: [src/tag-db.ts:78](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L78)
+
+Looks up a tag by ID within a group.
 
 #### Parameters
 
@@ -86,13 +123,19 @@ Defined in: src/tag-db.ts:34
 
 `TagId`
 
+Tag ID (e.g., "ExposureTime", "0x829A")
+
 ##### group?
 
 `string`
 
+Optional group name (e.g., "IFD0", "XMP-dc")
+
 #### Returns
 
 [`TagEntry`](../interfaces/TagEntry.md) \| `undefined`
+
+First matching tag entry or undefined
 
 ***
 
@@ -100,7 +143,9 @@ Defined in: src/tag-db.ts:34
 
 > **getByGroup**(`group`): [`TagEntry`](../interfaces/TagEntry.md)[]
 
-Defined in: src/tag-db.ts:40
+Defined in: [src/tag-db.ts:90](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L90)
+
+Gets all tags belonging to a group family.
 
 #### Parameters
 
@@ -108,9 +153,13 @@ Defined in: src/tag-db.ts:40
 
 `string`
 
+Group name (family 0, 1, or 2)
+
 #### Returns
 
 [`TagEntry`](../interfaces/TagEntry.md)[]
+
+Array of tag entries
 
 ***
 
@@ -118,7 +167,9 @@ Defined in: src/tag-db.ts:40
 
 > **getAllTags**(): [`TagEntry`](../interfaces/TagEntry.md)[]
 
-Defined in: src/tag-db.ts:44
+Defined in: [src/tag-db.ts:95](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L95)
+
+Returns all registered tags.
 
 #### Returns
 
@@ -130,7 +181,9 @@ Defined in: src/tag-db.ts:44
 
 > **getWritableTags**(): [`TagEntry`](../interfaces/TagEntry.md)[]
 
-Defined in: src/tag-db.ts:48
+Defined in: [src/tag-db.ts:100](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L100)
+
+Returns all writable tags.
 
 #### Returns
 
@@ -142,7 +195,9 @@ Defined in: src/tag-db.ts:48
 
 > **getGroups**(): `string`[]
 
-Defined in: src/tag-db.ts:52
+Defined in: [src/tag-db.ts:105](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L105)
+
+Returns all known group names.
 
 #### Returns
 
@@ -154,7 +209,9 @@ Defined in: src/tag-db.ts:52
 
 > **size**(): `number`
 
-Defined in: src/tag-db.ts:56
+Defined in: [src/tag-db.ts:110](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/tag-db.ts#L110)
+
+Returns the number of registered tags.
 
 #### Returns
 

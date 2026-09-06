@@ -1,15 +1,33 @@
-[**exiftool-ts v0.1.0**](../../README.md)
+[**@woss/exiftool v0.1.0**](../../README.md)
 
 ***
 
-[exiftool-ts](../../modules.md) / [mod](../README.md) / ExifTool
+[@woss/exiftool](../../modules.md) / [mod](../README.md) / ExifTool
 
 # Class: ExifTool
 
-Defined in: src/exiftool.ts:11
+Defined in: [src/exiftool.ts:28](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool.ts#L28)
 
-Node entry: extends the platform-free core with path-based read/write
-backed by the filesystem.
+Node.js entry point for exiftool-ts.
+Extends ExifToolCore with filesystem-based read/write operations.
+
+This is the main class for Node.js environments. For browser/edge,
+use ExifToolCore directly with `Uint8Array` buffers.
+
+## Example
+
+```typescript
+import { ExifTool } from 'exiftool-ts';
+
+const exiftool = new ExifTool();
+const result = await exiftool.read('photo.jpg');
+console.log(result.tags.Make, result.tags.Model);
+
+await exiftool.write('input.jpg', 'output.jpg', {
+  Title: 'My Photo',
+  Artist: 'John Doe',
+});
+```
 
 ## Extends
 
@@ -21,13 +39,17 @@ backed by the filesystem.
 
 > **new ExifTool**(`opts?`): `ExifTool`
 
-Defined in: src/exiftool-core.ts:20
+Defined in: [src/exiftool-core.ts:43](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool-core.ts#L43)
+
+Creates a new ExifToolCore instance.
 
 #### Parameters
 
 ##### opts?
 
 `Partial`\<`ExifToolOptions`\>
+
+Optional configuration options
 
 #### Returns
 
@@ -43,7 +65,9 @@ Defined in: src/exiftool-core.ts:20
 
 > `readonly` **tagDb**: [`TagDb`](TagDb.md)
 
-Defined in: src/exiftool-core.ts:15
+Defined in: [src/exiftool-core.ts:28](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool-core.ts#L28)
+
+Tag database for custom tag definitions.
 
 #### Inherited from
 
@@ -55,7 +79,9 @@ Defined in: src/exiftool-core.ts:15
 
 > `readonly` **options**: `ExifToolOptions`
 
-Defined in: src/exiftool-core.ts:16
+Defined in: [src/exiftool-core.ts:31](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool-core.ts#L31)
+
+Resolved options (merged with defaults).
 
 #### Inherited from
 
@@ -67,9 +93,9 @@ Defined in: src/exiftool-core.ts:16
 
 > **getParser**(`format`): `FormatParser` \| `undefined`
 
-Defined in: src/exiftool-core.ts:32
+Defined in: [src/exiftool-core.ts:65](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool-core.ts#L65)
 
-The resolved plugin for `format`, if this instance uses it.
+Gets a parser by format name (e.g., 'JPEG', 'PNG', 'AVIF').
 
 #### Parameters
 
@@ -77,9 +103,13 @@ The resolved plugin for `format`, if this instance uses it.
 
 `string`
 
+Format identifier
+
 #### Returns
 
 `FormatParser` \| `undefined`
+
+FormatParser if available, undefined otherwise
 
 #### Inherited from
 
@@ -91,10 +121,12 @@ The resolved plugin for `format`, if this instance uses it.
 
 > **readBytes**(`bytes`): `Promise`\<[`FileInfo`](../interfaces/FileInfo.md)\>
 
-Defined in: src/exiftool-core.ts:40
+Defined in: [src/exiftool-core.ts:78](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool-core.ts#L78)
 
 Parses metadata from an in-memory buffer.
-File-system-derived tags (FileName, FileSize, …) are absent here.
+
+File-system-derived tags (FileName, FileSize, FileModifyDate, etc.)
+are absent — only embedded metadata is returned.
 
 #### Parameters
 
@@ -102,9 +134,13 @@ File-system-derived tags (FileName, FileSize, …) are absent here.
 
 `Uint8Array`
 
+Image file data as Uint8Array
+
 #### Returns
 
 `Promise`\<[`FileInfo`](../interfaces/FileInfo.md)\>
+
+Parsed file information with tags
 
 #### Inherited from
 
@@ -116,10 +152,12 @@ File-system-derived tags (FileName, FileSize, …) are absent here.
 
 > **writeBytes**(`bytes`, `tags`): `Promise`\<`WriteOutcome`\>
 
-Defined in: src/exiftool-core.ts:52
+Defined in: [src/exiftool-core.ts:97](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool-core.ts#L97)
 
-Writes the writable tag subset into an in-memory container's metadata
-(JPEG APP1, PNG eXIf, WebP EXIF, AVIF meta) and returns the new bytes.
+Writes metadata tags to an in-memory buffer.
+
+Returns the new bytes with updated metadata container
+(JPEG APP1, PNG eXIf, WebP EXIF, AVIF/HEIF meta box).
 
 #### Parameters
 
@@ -127,13 +165,23 @@ Writes the writable tag subset into an in-memory container's metadata
 
 `Uint8Array`
 
+Original image data
+
 ##### tags
 
 `Record`\<`string`, [`TagValue`](../type-aliases/TagValue.md)\>
 
+Tags to write (normalized format)
+
 #### Returns
 
 `Promise`\<`WriteOutcome`\>
+
+Write outcome with new bytes and any warnings
+
+#### Throws
+
+[UnsupportedFormatError](UnsupportedFormatError.md) if format doesn't support writing
 
 #### Inherited from
 
@@ -145,7 +193,9 @@ Writes the writable tag subset into an in-memory container's metadata
 
 > **read**(`filePath`, `hints?`): `Promise`\<[`FileInfo`](../interfaces/FileInfo.md)\>
 
-Defined in: src/exiftool.ts:12
+Defined in: [src/exiftool.ts:36](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool.ts#L36)
+
+Reads metadata from a file path.
 
 #### Parameters
 
@@ -153,13 +203,19 @@ Defined in: src/exiftool.ts:12
 
 `string`
 
+Path to the image file
+
 ##### hints?
 
 [`ParseHints`](../interfaces/ParseHints.md)
 
+Optional parsing hints for format-specific behavior
+
 #### Returns
 
 `Promise`\<[`FileInfo`](../interfaces/FileInfo.md)\>
+
+Parsed file information with tags grouped by metadata standard
 
 ***
 
@@ -167,11 +223,12 @@ Defined in: src/exiftool.ts:12
 
 > **write**(`filePath`, `tags`, `opts?`): `Promise`\<[`WriteResult`](../interfaces/WriteResult.md)\>
 
-Defined in: src/exiftool.ts:27
+Defined in: [src/exiftool.ts:58](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool.ts#L58)
 
-Writes the writable tag subset into the file's native metadata
-container (JPEG APP1, PNG eXIf, WebP EXIF, AVIF meta). Creates a
-`<file>_original` backup unless overwriteOriginal is set.
+Writes metadata tags to a file.
+
+Creates a backup file (`<file>_original`) unless `overwriteOriginal` is set.
+Supports JPEG (APP1), PNG (eXIf), WebP (EXIF), AVIF/HEIF (meta box).
 
 #### Parameters
 
@@ -179,19 +236,29 @@ container (JPEG APP1, PNG eXIf, WebP EXIF, AVIF meta). Creates a
 
 `string`
 
+Path to the input file
+
 ##### tags
 
 `Record`\<`string`, [`TagValue`](../type-aliases/TagValue.md)\>
 
+Tags to write (normalized format, see [TagValue](../type-aliases/TagValue.md))
+
 ##### opts?
+
+Write options
 
 ###### overwriteOriginal?
 
 `boolean`
 
+Overwrite file without backup (default: false)
+
 #### Returns
 
 `Promise`\<[`WriteResult`](../interfaces/WriteResult.md)\>
+
+Write result with success status and any warnings
 
 ***
 
@@ -199,7 +266,9 @@ container (JPEG APP1, PNG eXIf, WebP EXIF, AVIF meta). Creates a
 
 > **run**(`args`): `Promise`\<`number`\>
 
-Defined in: src/exiftool.ts:35
+Defined in: [src/exiftool.ts:72](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool.ts#L72)
+
+Runs CLI-style arguments programmatically.
 
 #### Parameters
 
@@ -207,9 +276,13 @@ Defined in: src/exiftool.ts:35
 
 `string`[]
 
+Command-line arguments (e.g., `['-j', 'photo.jpg']`)
+
 #### Returns
 
 `Promise`\<`number`\>
+
+Exit code (0 = success)
 
 ***
 
@@ -217,7 +290,9 @@ Defined in: src/exiftool.ts:35
 
 > **printHelp**(): `void`
 
-Defined in: src/exiftool.ts:51
+Defined in: [src/exiftool.ts:89](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/exiftool.ts#L89)
+
+Prints CLI help text.
 
 #### Returns
 

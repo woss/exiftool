@@ -1,10 +1,25 @@
-[**exiftool-ts v0.1.0**](../README.md)
+[**@woss/exiftool v0.1.0**](../README.md)
 
 ***
 
-[exiftool-ts](../modules.md) / mod
+[@woss/exiftool](../modules.md) / mod
 
 # mod
+
+exiftool-ts - TypeScript ExifTool wrapper with C2PA support
+
+Main entry point for the exiftool-ts library.
+Provides high-level API for reading and writing image metadata.
+
+## Example
+
+```typescript
+import { ExifTool } from 'exiftool-ts';
+
+const exiftool = new ExifTool();
+const result = await exiftool.read('photo.jpg');
+console.log(result.tags.Make); // "Canon"
+```
 
 ## Classes
 

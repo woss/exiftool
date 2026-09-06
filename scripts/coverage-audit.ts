@@ -16,6 +16,12 @@ export interface ModuleReport {
   functionPct: number;
 }
 
+/** Strips the checkout prefix (repo dir name varies) down to src/ or mod.ts. */
+function shortPath(p: string): string {
+  const cut = Math.max(p.lastIndexOf('/src/'), p.lastIndexOf('/mod.ts'));
+  return cut === -1 ? p : p.slice(cut + 1);
+}
+
 /** Parses an lcov.info tracefile into per-module percentage reports. */
 export function parseLcov(lcov: string): ModuleReport[] {
   const modules: ModuleReport[] = [];
@@ -38,7 +44,7 @@ export function parseLcov(lcov: string): ModuleReport[] {
   for (const line of lcov.split('\n')) {
     if (line.startsWith('SF:')) {
       flush();
-      file = line.slice(3).replace(/^.*exiftool-ts\//, '');
+      file = shortPath(line.slice(3));
     } else if (line.startsWith('LF:')) {
       lf = Number(line.slice(3));
     } else if (line.startsWith('LH:')) {

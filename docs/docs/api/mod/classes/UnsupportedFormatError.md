@@ -1,12 +1,14 @@
-[**exiftool-ts v0.1.0**](../../README.md)
+[**@woss/exiftool v0.1.0**](../../README.md)
 
 ***
 
-[exiftool-ts](../../modules.md) / [mod](../README.md) / UnsupportedFormatError
+[@woss/exiftool](../../modules.md) / [mod](../README.md) / UnsupportedFormatError
 
 # Class: UnsupportedFormatError
 
-Defined in: src/write/writers.ts:5
+Defined in: [src/write/writers.ts:8](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/write/writers.ts#L8)
+
+Error thrown when a format does not support writing tags.
 
 ## Extends
 

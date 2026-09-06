@@ -34,18 +34,29 @@
   "out": "docs/typedoc-html",
   "tsconfig": "tsconfig.json",
   "readme": "README.md",
-  "name": "exiftool-ts",
+  "name": "@woss/exiftool",
   "includeVersion": true,
   "excludePrivate": true,
   "excludeProtected": true,
   "excludeInternal": true,
   "categorizeByGroup": true,
   "defaultCategory": "Core",
-  "categoryOrder": ["Core", "Formats", "Exif", "Utilities", "CLI", "Tags", "Write", "Utils"],
+  "categoryOrder": [
+    "Core",
+    "Formats",
+    "Exif",
+    "Utilities",
+    "CLI",
+    "Tags",
+    "Write",
+    "Utils"
+  ],
   "navigationLinks": {
     "GitHub": "https://github.com/woss/exiftool-ts",
     "npm": "https://www.npmjs.com/package/exiftool-ts"
   },
-  "sort": ["source-order"],
+  "sort": [
+    "source-order"
+  ],
   "searchInComments": true
 }

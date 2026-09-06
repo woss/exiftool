@@ -47,7 +47,7 @@ file with reasons (file-date timezone offsets, makernote lens lookups, …).
 **npm** (CLI + library, Node ≥ 18):
 
 ```bash
-npm i -g exiftool-ts
+npm i -g @woss/exiftool
 exiftool-ts photo.jpg
 ```
 
@@ -57,7 +57,7 @@ dependencies**.
 **JSR** (for Deno consumers, runs from TypeScript source):
 
 ```bash
-deno install -A -n exiftool-ts jsr:@woss/exiftool-ts
+deno install -A -n exiftool-ts jsr:@woss/exiftool
 ```
 
 ## Library usage
@@ -66,7 +66,7 @@ The package ships `.d.ts` declarations, so consumers get full types and
 autocomplete out of the box:
 
 ```ts
-import { ExifTool } from "exiftool-ts";
+import { ExifTool } from "@woss/exiftool";
 
 const tool = new ExifTool();
 
@@ -92,8 +92,8 @@ Formats are plugins. By default `ExifTool` loads every built-in one, but you
 can restrict an instance to a set — the bundler then ships only those parsers:
 
 ```ts
-import { ExifTool } from "exiftool-ts";
-import { MODERN_PLUGINS } from "exiftool-ts/plugins";
+import { ExifTool } from "@woss/exiftool";
+import { MODERN_PLUGINS } from "@woss/exiftool/plugins";
 
 const tool = new ExifTool({ plugins: MODERN_PLUGINS }); // JPEG, PNG, WebP, AVIF only
 ```
@@ -110,7 +110,7 @@ The parser core is platform-free. The `browser` export condition resolves to a
 bundle with no Node builtins; reads and writes work on in-memory buffers:
 
 ```ts
-import { ExifTool, MODERN_PLUGINS } from "exiftool-ts/browser";
+import { ExifTool, MODERN_PLUGINS } from "@woss/exiftool/browser";
 
 const tool = new ExifTool({ plugins: MODERN_PLUGINS });
 const { bytes, written } = await tool.writeBytes(imageBuffer, { Artist: "me" });

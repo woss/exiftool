@@ -1,12 +1,14 @@
-[**exiftool-ts v0.1.0**](../../README.md)
+[**@woss/exiftool v0.1.0**](../../README.md)
 
 ***
 
-[exiftool-ts](../../modules.md) / [mod](../README.md) / ReadOptions
+[@woss/exiftool](../../modules.md) / [mod](../README.md) / ReadOptions
 
 # Interface: ReadOptions
 
-Defined in: src/types.ts:50
+Defined in: [src/types.ts:112](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L112)
+
+Options for read operations.
 
 ## Properties
 
@@ -14,7 +16,9 @@ Defined in: src/types.ts:50
 
 > `optional` **duplicates?**: `boolean`
 
-Defined in: src/types.ts:51
+Defined in: [src/types.ts:114](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L114)
+
+Return duplicate tags (default: false)
 
 ***
 
@@ -22,7 +26,9 @@ Defined in: src/types.ts:51
 
 > `optional` **binary?**: `boolean`
 
-Defined in: src/types.ts:52
+Defined in: [src/types.ts:117](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L117)
+
+Return binary data as Uint8Array (default: false)
 
 ***
 
@@ -30,7 +36,9 @@ Defined in: src/types.ts:52
 
 > `optional` **groupHeadings?**: `string` \| `number`
 
-Defined in: src/types.ts:53
+Defined in: [src/types.ts:120](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L120)
+
+Group heading style (default: 0)
 
 ***
 
@@ -38,7 +46,9 @@ Defined in: src/types.ts:53
 
 > `optional` **dateFormat?**: `string`
 
-Defined in: src/types.ts:54
+Defined in: [src/types.ts:123](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L123)
+
+Date format string (default: "%Y:%m:%d %H:%M:%S")
 
 ***
 
@@ -46,7 +56,9 @@ Defined in: src/types.ts:54
 
 > `optional` **coordFormat?**: `string`
 
-Defined in: src/types.ts:55
+Defined in: [src/types.ts:126](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L126)
+
+Coordinate format string (default: "%%.6f")
 
 ***
 
@@ -54,7 +66,9 @@ Defined in: src/types.ts:55
 
 > `optional` **charset?**: `string`
 
-Defined in: src/types.ts:56
+Defined in: [src/types.ts:129](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L129)
+
+Character set (default: "UTF8")
 
 ***
 
@@ -62,7 +76,9 @@ Defined in: src/types.ts:56
 
 > `optional` **lang?**: `string`
 
-Defined in: src/types.ts:57
+Defined in: [src/types.ts:132](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L132)
+
+Language code (default: "en")
 
 ***
 
@@ -70,7 +86,9 @@ Defined in: src/types.ts:57
 
 > `optional` **composite?**: `boolean`
 
-Defined in: src/types.ts:58
+Defined in: [src/types.ts:135](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L135)
+
+Compute composite tags (default: true)
 
 ***
 
@@ -78,7 +96,9 @@ Defined in: src/types.ts:58
 
 > `optional` **struct?**: `boolean`
 
-Defined in: src/types.ts:59
+Defined in: [src/types.ts:138](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L138)
+
+Parse XMP structures (default: true)
 
 ***
 
@@ -86,7 +106,9 @@ Defined in: src/types.ts:59
 
 > `optional` **escapeHTML?**: `boolean`
 
-Defined in: src/types.ts:60
+Defined in: [src/types.ts:141](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L141)
+
+Escape HTML entities (default: false)
 
 ***
 
@@ -94,7 +116,9 @@ Defined in: src/types.ts:60
 
 > `optional` **escapeXML?**: `boolean`
 
-Defined in: src/types.ts:61
+Defined in: [src/types.ts:144](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L144)
+
+Escape XML entities (default: false)
 
 ***
 
@@ -102,4 +126,6 @@ Defined in: src/types.ts:61
 
 > `optional` **missingTagValue?**: `string`
 
-Defined in: src/types.ts:62
+Defined in: [src/types.ts:147](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L147)
+
+Value for missing tags (default: undefined)

@@ -1,12 +1,12 @@
-[**exiftool-ts v0.1.0**](../../README.md)
+[**@woss/exiftool v0.1.0**](../../README.md)
 
 ***
 
-[exiftool-ts](../../modules.md) / [cli](../README.md) / CliOptions
+[@woss/exiftool](../../modules.md) / [cli](../README.md) / CliOptions
 
 # Interface: CliOptions
 
-Defined in: src/cli/args.ts:10
+Defined in: [src/cli/args.ts:10](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L10)
 
 ExifTool-style command-line parsing.
 
@@ -21,7 +21,7 @@ untouched, mirroring the real ExifTool CLI.
 
 > `optional` **json?**: `boolean`
 
-Defined in: src/cli/args.ts:11
+Defined in: [src/cli/args.ts:11](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L11)
 
 ***
 
@@ -29,7 +29,7 @@ Defined in: src/cli/args.ts:11
 
 > `optional` **csv?**: `boolean`
 
-Defined in: src/cli/args.ts:12
+Defined in: [src/cli/args.ts:12](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L12)
 
 ***
 
@@ -37,7 +37,7 @@ Defined in: src/cli/args.ts:12
 
 > `optional` **xml?**: `boolean`
 
-Defined in: src/cli/args.ts:13
+Defined in: [src/cli/args.ts:13](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L13)
 
 ***
 
@@ -45,7 +45,7 @@ Defined in: src/cli/args.ts:13
 
 > `optional` **binary?**: `boolean`
 
-Defined in: src/cli/args.ts:14
+Defined in: [src/cli/args.ts:14](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L14)
 
 ***
 
@@ -53,7 +53,7 @@ Defined in: src/cli/args.ts:14
 
 > `optional` **dateFormat?**: `string`
 
-Defined in: src/cli/args.ts:15
+Defined in: [src/cli/args.ts:15](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L15)
 
 ***
 
@@ -61,7 +61,7 @@ Defined in: src/cli/args.ts:15
 
 > `optional` **groupHeadings?**: `string` \| `boolean`
 
-Defined in: src/cli/args.ts:16
+Defined in: [src/cli/args.ts:16](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L16)
 
 ***
 
@@ -69,7 +69,7 @@ Defined in: src/cli/args.ts:16
 
 > `optional` **groupPrefix?**: `string` \| `boolean`
 
-Defined in: src/cli/args.ts:17
+Defined in: [src/cli/args.ts:17](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L17)
 
 ***
 
@@ -77,7 +77,7 @@ Defined in: src/cli/args.ts:17
 
 > `optional` **coordFormat?**: `string`
 
-Defined in: src/cli/args.ts:18
+Defined in: [src/cli/args.ts:18](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L18)
 
 ***
 
@@ -85,7 +85,7 @@ Defined in: src/cli/args.ts:18
 
 > `optional` **if?**: `string`[]
 
-Defined in: src/cli/args.ts:19
+Defined in: [src/cli/args.ts:19](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L19)
 
 ***
 
@@ -93,7 +93,7 @@ Defined in: src/cli/args.ts:19
 
 > `optional` **verbose?**: `unknown`[]
 
-Defined in: src/cli/args.ts:20
+Defined in: [src/cli/args.ts:20](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L20)
 
 ***
 
@@ -101,7 +101,7 @@ Defined in: src/cli/args.ts:20
 
 > `optional` **quiet?**: `unknown`[]
 
-Defined in: src/cli/args.ts:21
+Defined in: [src/cli/args.ts:21](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L21)
 
 ***
 
@@ -109,7 +109,7 @@ Defined in: src/cli/args.ts:21
 
 > `optional` **recurse?**: `boolean`
 
-Defined in: src/cli/args.ts:22
+Defined in: [src/cli/args.ts:22](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L22)
 
 ***
 
@@ -117,7 +117,7 @@ Defined in: src/cli/args.ts:22
 
 > `optional` **extension?**: `string`[]
 
-Defined in: src/cli/args.ts:23
+Defined in: [src/cli/args.ts:23](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L23)
 
 ***
 
@@ -125,7 +125,7 @@ Defined in: src/cli/args.ts:23
 
 > `optional` **ignore?**: `string`[]
 
-Defined in: src/cli/args.ts:24
+Defined in: [src/cli/args.ts:24](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L24)
 
 ***
 
@@ -133,7 +133,7 @@ Defined in: src/cli/args.ts:24
 
 > `optional` **output?**: `string`
 
-Defined in: src/cli/args.ts:25
+Defined in: [src/cli/args.ts:25](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L25)
 
 ***
 
@@ -141,7 +141,7 @@ Defined in: src/cli/args.ts:25
 
 > `optional` **extractEmbedded?**: `boolean`
 
-Defined in: src/cli/args.ts:26
+Defined in: [src/cli/args.ts:26](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L26)
 
 ***
 
@@ -149,7 +149,7 @@ Defined in: src/cli/args.ts:26
 
 > `optional` **overwriteOriginal?**: `boolean`
 
-Defined in: src/cli/args.ts:27
+Defined in: [src/cli/args.ts:27](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L27)
 
 ***
 
@@ -157,7 +157,7 @@ Defined in: src/cli/args.ts:27
 
 > `optional` **stayOpen?**: `string` \| `boolean`
 
-Defined in: src/cli/args.ts:28
+Defined in: [src/cli/args.ts:28](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L28)
 
 ***
 
@@ -165,7 +165,7 @@ Defined in: src/cli/args.ts:28
 
 > `optional` **help?**: `boolean`
 
-Defined in: src/cli/args.ts:29
+Defined in: [src/cli/args.ts:29](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L29)
 
 ***
 
@@ -173,4 +173,4 @@ Defined in: src/cli/args.ts:29
 
 > `optional` **version?**: `boolean`
 
-Defined in: src/cli/args.ts:30
+Defined in: [src/cli/args.ts:30](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/cli/args.ts#L30)

@@ -1,8 +1,8 @@
-[**exiftool-ts v0.1.0**](README.md)
+[**@woss/exiftool v0.1.0**](README.md)
 
 ***
 
-# exiftool-ts v0.1.0
+# @woss/exiftool v0.1.0
 
 ## Modules
 

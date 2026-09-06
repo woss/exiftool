@@ -1,12 +1,14 @@
-[**exiftool-ts v0.1.0**](../../README.md)
+[**@woss/exiftool v0.1.0**](../../README.md)
 
 ***
 
-[exiftool-ts](../../modules.md) / [mod](../README.md) / FileInfo
+[@woss/exiftool](../../modules.md) / [mod](../README.md) / FileInfo
 
 # Interface: FileInfo
 
-Defined in: src/types.ts:79
+Defined in: [src/types.ts:192](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L192)
+
+File information returned by parse operations.
 
 ## Properties
 
@@ -14,7 +16,9 @@ Defined in: src/types.ts:79
 
 > **path**: `string`
 
-Defined in: src/types.ts:80
+Defined in: [src/types.ts:194](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L194)
+
+Source path or identifier
 
 ***
 
@@ -22,7 +26,9 @@ Defined in: src/types.ts:80
 
 > **format**: `string`
 
-Defined in: src/types.ts:81
+Defined in: [src/types.ts:197](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L197)
+
+Detected format (e.g., "JPEG", "PNG", "AVIF")
 
 ***
 
@@ -30,7 +36,9 @@ Defined in: src/types.ts:81
 
 > **tags**: `Record`\<`string`, [`TagValue`](../type-aliases/TagValue.md)\>
 
-Defined in: src/types.ts:82
+Defined in: [src/types.ts:200](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L200)
+
+Extracted tags, keyed by tag name
 
 ***
 
@@ -38,7 +46,9 @@ Defined in: src/types.ts:82
 
 > `optional` **errors?**: `string`[]
 
-Defined in: src/types.ts:83
+Defined in: [src/types.ts:203](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L203)
+
+Parse errors
 
 ***
 
@@ -46,4 +56,6 @@ Defined in: src/types.ts:83
 
 > `optional` **warnings?**: `string`[]
 
-Defined in: src/types.ts:84
+Defined in: [src/types.ts:206](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L206)
+
+Parse warnings

@@ -1,5 +1,5 @@
 {
-  "name": "@woss/exiftool-ts",
+  "name": "@woss/exiftool",
   "version": "0.1.0",
   "exports": {
     ".": "./mod.ts"

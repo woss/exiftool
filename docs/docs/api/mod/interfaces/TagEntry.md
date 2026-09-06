@@ -1,12 +1,14 @@
-[**exiftool-ts v0.1.0**](../../README.md)
+[**@woss/exiftool v0.1.0**](../../README.md)
 
 ***
 
-[exiftool-ts](../../modules.md) / [mod](../README.md) / TagEntry
+[@woss/exiftool](../../modules.md) / [mod](../README.md) / TagEntry
 
 # Interface: TagEntry
 
-Defined in: src/types.ts:25
+Defined in: [src/types.ts:40](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L40)
+
+Complete tag entry with metadata.
 
 ## Properties
 
@@ -14,7 +16,9 @@ Defined in: src/types.ts:25
 
 > **id**: `TagId`
 
-Defined in: src/types.ts:26
+Defined in: [src/types.ts:42](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L42)
+
+Tag ID (string name or numeric IFD tag number)
 
 ***
 
@@ -22,7 +26,9 @@ Defined in: src/types.ts:26
 
 > **name**: `string`
 
-Defined in: src/types.ts:27
+Defined in: [src/types.ts:45](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L45)
+
+Human-readable tag name
 
 ***
 
@@ -30,7 +36,9 @@ Defined in: src/types.ts:27
 
 > `optional` **description?**: `string`
 
-Defined in: src/types.ts:28
+Defined in: [src/types.ts:48](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L48)
+
+Optional description
 
 ***
 
@@ -38,7 +46,9 @@ Defined in: src/types.ts:28
 
 > `optional` **format?**: `TagFormat`
 
-Defined in: src/types.ts:29
+Defined in: [src/types.ts:51](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L51)
+
+Tag format type
 
 ***
 
@@ -46,7 +56,9 @@ Defined in: src/types.ts:29
 
 > `optional` **count?**: `number`
 
-Defined in: src/types.ts:30
+Defined in: [src/types.ts:54](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L54)
+
+Expected count (for arrays)
 
 ***
 
@@ -54,7 +66,9 @@ Defined in: src/types.ts:30
 
 > **writable**: `boolean`
 
-Defined in: src/types.ts:31
+Defined in: [src/types.ts:57](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L57)
+
+Whether tag is writable
 
 ***
 
@@ -62,7 +76,9 @@ Defined in: src/types.ts:31
 
 > **groups**: [`TagGroups`](TagGroups.md)
 
-Defined in: src/types.ts:32
+Defined in: [src/types.ts:60](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L60)
+
+Group assignments at different family levels
 
 ***
 
@@ -70,7 +86,9 @@ Defined in: src/types.ts:32
 
 > `optional` **isList?**: `boolean`
 
-Defined in: src/types.ts:33
+Defined in: [src/types.ts:63](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L63)
+
+Whether tag is a list/sequence
 
 ***
 
@@ -78,7 +96,9 @@ Defined in: src/types.ts:33
 
 > `optional` **isMandatory?**: `boolean`
 
-Defined in: src/types.ts:34
+Defined in: [src/types.ts:66](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L66)
+
+Whether tag is mandatory for the format
 
 ***
 
@@ -86,7 +106,9 @@ Defined in: src/types.ts:34
 
 > `optional` **isBad?**: `boolean`
 
-Defined in: src/types.ts:35
+Defined in: [src/types.ts:69](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L69)
+
+Whether tag indicates a problem (e.g., corrupted data)
 
 ***
 
@@ -94,4 +116,6 @@ Defined in: src/types.ts:35
 
 > `optional` **values?**: `Record`\<`string` \| `number`, `string`\>
 
-Defined in: src/types.ts:36
+Defined in: [src/types.ts:72](https://github.com/woss/exiftool-ts/blob/6eaae3f9d9ea7a8ab482f667fdef64e0c4268e3d/src/types.ts#L72)
+
+Value enumeration (e.g., { 1: "Auto", 2: "Manual" })

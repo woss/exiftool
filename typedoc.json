@@ -1,9 +1,9 @@
 {
   "entryPoints": ["src/mod.ts", "src/cli.ts"],
-  "out": "docs/typedoc",
+  "out": "docs/docs/api",
   "tsconfig": "tsconfig.json",
   "readme": "README.md",
-  "name": "exiftool-ts",
+  "name": "@woss/exiftool",
   "includeVersion": true,
   "excludePrivate": true,
   "excludeProtected": true,
@@ -13,7 +13,7 @@
   "categoryOrder": ["Core", "Formats", "Exif", "Utilities", "CLI"],
   "navigationLinks": {
     "GitHub": "https://github.com/woss/exiftool-ts",
-    "npm": "https://www.npmjs.com/package/exiftool-ts"
+    "npm": "https://www.npmjs.com/package/@woss/exiftool"
   },
   "entryPointStrategy": "expand",
   "sort": ["source-order"],
