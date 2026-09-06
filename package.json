@@ -2,6 +2,7 @@
   "name": "@woss/exiftool",
   "version": "0.1.1",
   "description": "ExifTool rewrite in TypeScript",
+  "license": "MIT",
   "type": "module",
   "sideEffects": false,
   "repository": {

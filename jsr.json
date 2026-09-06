@@ -1,6 +1,7 @@
 {
   "name": "@woss/exiftool",
   "version": "0.1.1",
+  "license": "MIT",
   "exports": {
     ".": "./mod.ts"
   }
