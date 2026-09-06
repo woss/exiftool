@@ -10,6 +10,7 @@
 	let metadataBytes: number | null = $state(null);
 	let width: number | null = $state(null);
 	let height: number | null = $state(null);
+	let pixelBytes: number | null = $state(null);
 
 	const tool = new ExifTool();
 
@@ -50,6 +51,7 @@
 		metadataBytes = null;
 		width = null;
 		height = null;
+		pixelBytes = null;
 
 		try {
 			const arrayBuffer = await file.arrayBuffer();
@@ -62,6 +64,7 @@
 			metadataBytes = findMetadataBytes(bytes);
 			width = toNumber(info.tags.ImageWidth);
 			height = toNumber(info.tags.ImageHeight);
+			pixelBytes = findPixelBytes(bytes, width, height);
 		} catch (e) {
 			error = e instanceof Error ? e.message : 'Failed to read EXIF data';
 		} finally {
@@ -124,6 +127,75 @@
 			return size > 0 && size < bytes.length - idx ? size + 8 : null;
 		}
 		return null;
+	}
+
+	/**
+	 * Size in bytes of the actual compressed pixel data.
+	 * JPEG: entropy-coded segment (SOS header end → EOI).
+	 * PNG:  sum of IDAT chunk payloads.
+	 * WebP: VP8/VP8L chunk payloads.
+	 * Falls back to an uncompressed width×height×3 estimate for other formats.
+	 */
+	function findPixelBytes(bytes: Uint8Array, width: number | null, height: number | null): number | null {
+		// JPEG: entropy-coded segment between SOS (FF DA) header end and EOI (FF D9)
+		if (bytes[0] === 0xff && bytes[1] === 0xd8) {
+			let i = 2;
+			let sos = -1;
+			while (i + 4 < bytes.length) {
+				if (bytes[i] === 0xff) {
+					const marker = bytes[i + 1];
+					if (marker === 0xda) {
+						sos = i;
+						break;
+					}
+					if (marker === 0xd9) break;
+					if (marker === 0xd8 || marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) {
+						i += 2;
+						continue;
+					}
+					const len = (bytes[i + 2] << 8) | bytes[i + 3];
+					i += 2 + len;
+				} else {
+					i++;
+				}
+			}
+			if (sos === -1) return width && height ? width * height * 3 : null;
+			const hdrEnd = sos + 2 + ((bytes[sos + 2] << 8) | bytes[sos + 3]);
+			for (let j = hdrEnd; j + 1 < bytes.length; j++) {
+				if (bytes[j] === 0xff && bytes[j + 1] === 0xd9) return j - hdrEnd;
+			}
+			return bytes.length - hdrEnd;
+		}
+
+		// PNG: sum IDAT chunk payloads
+		if (String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]) === '\x89PNG') {
+			let total = 0;
+			let i = 8;
+			while (i + 12 <= bytes.length) {
+				const len = (bytes[i] << 24) | (bytes[i + 1] << 16) | (bytes[i + 2] << 8) | bytes[i + 3];
+				const type = String.fromCharCode(bytes[i + 4], bytes[i + 5], bytes[i + 6], bytes[i + 7]);
+				if (type === 'IDAT') total += len;
+				if (type === 'IEND' || len <= 0 || i + 12 + len > bytes.length) break;
+				i += 12 + len;
+			}
+			return total > 0 ? total : width && height ? width * height * 3 : null;
+		}
+
+		// WebP: sum VP8/VP8L chunk payloads (little-endian sizes)
+		if (String.fromCharCode(bytes[0], bytes[1], bytes[2], bytes[3]) === 'RIFF') {
+			let total = 0;
+			let i = 12;
+			while (i + 8 <= bytes.length) {
+				const type = String.fromCharCode(bytes[i], bytes[i + 1], bytes[i + 2], bytes[i + 3]);
+				const size = (bytes[i + 4] | (bytes[i + 5] << 8) | (bytes[i + 6] << 16) | (bytes[i + 7] << 24)) >>> 0;
+				if (type === 'VP8 ' || type === 'VP8L') total += size;
+				if (size === 0 || i + 8 + size > bytes.length) break;
+				i += 8 + size + (size % 2);
+			}
+			return total > 0 ? total : width && height ? width * height * 3 : null;
+		}
+
+		return width && height ? width * height * 3 : null;
 	}
 
 	function formatBytes(n: number | null): string {
@@ -194,7 +266,7 @@
 					<span class="stat-label">Image</span>
 					<span class="stat-value">
 						{width && height ? `${width}×${height} px` : '—'}
-						{#if width && height}<small>{formatBytes(width * height * 3)} raw RGB</small>{/if}
+						{#if pixelBytes !== null}<small>{formatBytes(pixelBytes)} pixel data</small>{/if}
 					</span>
 				</div>
 			</div>
