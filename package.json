@@ -4,6 +4,10 @@
   "description": "ExifTool rewrite in TypeScript",
   "type": "module",
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/woss/exiftool-ts.git"
+  },
   "bin": {
     "exiftool-ts": "dist/cli.js"
   },
