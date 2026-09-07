@@ -30,6 +30,13 @@ const sidebars: SidebarsConfig = {
       ],
     },
     {
+      type: 'category',
+      label: 'Parity',
+      items: [
+        'parity',
+      ],
+    },
+    {
       type: 'link',
       label: 'Live Demo',
       href: '/demo',

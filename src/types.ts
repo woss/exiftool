@@ -188,6 +188,12 @@ export type OutputFormat = 'json' | 'xml' | 'html' | 'csv' | 'tabular' | 'arg';
 
 /**
  * File information returned by parse operations.
+ *
+ * Memory note: binary tag values (e.g. `ThumbnailImage`) are zero-copy views
+ * into the source file's buffer, so a `FileInfo` keeps that buffer alive as
+ * long as the object (or any of its tag views) is referenced. Let it go out of
+ * scope after extracting what you need, or copy values out (`Uint8Array.prototype.slice()`)
+ * if you must retain them independently of the file bytes.
  */
 export interface FileInfo {
   /** Source path or identifier */

@@ -23,19 +23,9 @@ ecosystem:
 
 ## Status & parity
 
-Early development, moving fast. Full detail lives in
-[`docs/PARITY_MATRIX.md`](./docs/PARITY_MATRIX.md). Summary:
-
-| Area                                                     | State                                   |
-| -------------------------------------------------------- | --------------------------------------- |
-| Read JPEG / PNG / WebP / AVIF-HEIF                       | ✅ verified against reference exiftool  |
-| EXIF (IFD0 + sub-IFDs + GPS + IFD1)                      | ✅ both endians                         |
-| XMP / IPTC-IIM / ICC / Photoshop IRB / JFIF              | 🟨 core coverage                        |
-| MPF embedded-image extraction (`-ee`)                    | 🟨                                      |
-| Write JPEG / PNG / WebP / AVIF                           | ✅ IFD0 tag subset, `_original` backups |
-| `-stay_open` daemon protocol                             | ✅ stdin command loop                   |
-| CLI: `-j -csv -X -b -d -c -g -G -v -q -if -o -r -ext -i` | ✅                                      |
-| MakerNotes, RAW containers (CR2/DNG/…), PDF/video        | ❌ not started                          |
+Early development, moving fast. The full, maintained status matrix lives in the
+[parity docs](https://woss.github.io/exiftool/parity) and the working register
+in [`DIVERGENCES.md`](./DIVERGENCES.md).
 
 Value-level parity is enforced by `src/cli/exiftool-parity.test.ts`, which runs
 the real `exiftool` binary on shared fixtures and fails on any undocumented
@@ -203,7 +193,7 @@ npx vitest run src/cli/exiftool-parity.test.ts
 Near term: deepen EXIF/XMP/IPTC writing, add maker-note decoding, extend the
 container list toward the formats exiftool covers. The long-term target remains
 parity with ExifTool's reading surface across its supported formats — tracked in
-the parity matrix above.
+the [parity docs](https://woss.github.io/exiftool/parity).
 
 ## License
 

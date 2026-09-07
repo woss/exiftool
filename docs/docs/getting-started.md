@@ -5,7 +5,7 @@ slug: /getting-started
 
 # Getting Started
 
-exiftool-ts is a TypeScript implementation of ExifTool for reading and writing metadata in image files. It provides full C2PA (Content Credentials) support, streaming parsing, and a CLI compatible with ExifTool's output format.
+exiftool-ts is a TypeScript implementation of ExifTool for reading and writing metadata in image files. It provides typed, dependency-free parsing with output verified against the real ExifTool binary; see the [parity page](/parity) for exactly what matches and what doesn't.
 
 ## Installation
 

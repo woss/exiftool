@@ -93,9 +93,12 @@ GPSLatitude: [
 
 ## Performance Characteristics
 
-| Metric | Value |
-|--------|-------|
-| Memory (typical JPEG) | ~2-5 MB |
-| Parse time (10MP JPEG) | ~5-15 ms |
-| Throughput | ~500 MB/s |
-| Max file size | Unlimited (streaming) |
+Measured on an M2 Max against the reference ExifTool 13.55 binary, 218 real-world JPEGs (~3.1 GB) read by a single process:
+
+| Metric | exiftool-ts | Reference exiftool |
+|--------|-------------|--------------------|
+| Batch read, one process | 2.1 s (~10 ms/file) | 3.9 s (~18 ms/file) |
+| Cold CLI call, single file | ~150 ms (node) / ~125 ms (bun) | ~150 ms |
+| Peak memory, same batch | ~0.6–0.8 GB (V8 high-water, bounded) | ~34 MB |
+
+The in-process win comes from having no subprocess and no interpreter startup per file; the memory cost comes from the JavaScript runtime's heap management.
