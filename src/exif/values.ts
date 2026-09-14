@@ -113,6 +113,7 @@ function readASCII(view: DataView, offset: number, count: number): string {
 }
 
 const KNOWN_TAGS: Record<number, string> = {
+  0x00fe: 'SubfileType',
   0x0100: 'ImageWidth',
   0x0101: 'ImageLength',
   0x0102: 'BitsPerSample',
@@ -475,11 +476,29 @@ const ENUMS: Record<string, Record<number | string, string>> = {
   },
   Compression: {
     1: 'Uncompressed',
-    6: 'JPEG',
+    5: 'LZW',
+    6: 'JPEG (old-style)',
+    7: 'JPEG',
+    8: 'Deflate',
+    32773: 'PackBits',
+    34712: 'Lossless JPEG',
+    34713: 'Nikon NEF Compressed',
   },
   PhotometricInterpretation: {
+    0: 'White Is Zero',
+    1: 'Black Is Zero',
     2: 'RGB',
+    3: 'RGB Palette',
+    5: 'CMYK',
     6: 'YCbCr',
+    32803: 'Color Filter Array',
+    34892: 'Linear Raw',
+  },
+  SubfileType: {
+    0: 'Full-resolution image',
+    1: 'Reduced-resolution image',
+    2: 'Single page of multi-page image',
+    3: 'Multi-page image',
   },
   GPSStatus: {
     'A': 'Measurement Active',
@@ -798,6 +817,10 @@ export function formatExifValue(value: TagValue, tagName: string): TagValue {
 
   if (tagName === 'PhotometricInterpretation' && typeof value === 'number') {
     return ENUMS.PhotometricInterpretation[value] ?? value;
+  }
+
+  if (tagName === 'SubfileType' && typeof value === 'number') {
+    return ENUMS.SubfileType[value] ?? value;
   }
 
   if (tagName === 'SensingMethod' && typeof value === 'number') {

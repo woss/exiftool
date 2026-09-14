@@ -22,9 +22,9 @@ test('detectParser returns undefined on unrecognized magic', () => {
   assertEquals(detectParser(new Uint8Array([0x01, 0x02, 0x03, 0x04]), []), undefined);
 });
 
-test('builtinPlugins lazily provides all four built-in formats', async () => {
+test('builtinPlugins lazily provides all built-in formats', async () => {
   const plugins = await builtinPlugins();
-  assertEquals(plugins.map((p) => p.format), ['JPEG', 'PNG', 'WebP', 'AVIF']);
+  assertEquals(plugins.map((p) => p.format), ['JPEG', 'PNG', 'WebP', 'AVIF', 'TIFF']);
   // Cached: the same array instances come back.
   assertEquals(await builtinPlugins(), plugins);
 });

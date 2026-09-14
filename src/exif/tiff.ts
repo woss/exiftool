@@ -1,4 +1,5 @@
 import { parseIFD } from './ifd.js';
+import { parseXMP } from './xmp.js';
 import type { ParseHints } from '../format/mod.js';
 import { formatExifValue, getTagName, readIfdValue, readRationalRaw, EXIF_POINTER_TAGS } from './values.js';
 import type { TagValue } from '../types.js';
@@ -7,14 +8,31 @@ import type { TagDb } from '../tag-db.js';
 const TIFF_MAGIC_BIG = 0x4d4d;
 const TIFF_MAGIC_LITTLE = 0x4949;
 const TIFF_MAGIC_VALUE = 42;
+const PANASONIC_MAGIC_VALUE = 85;
 
-function isTiffHeader(bytes: Uint8Array): boolean {
+/**
+ * Optional container-level behaviours for {@link parseTiff}. TIFF-based RAW
+ * containers (DNG, CR2, NEF, …) need SubIFD chains (where raw image tags
+ * live), embedded XMP, and Panasonic's non-42 magic; JPEG/PNG/WebP/AVIF
+ * embedded-Exif callers omit it and keep the default behaviour.
+ */
+export interface TiffParseOptions {
+  /** Walk IFD0 tag 0x014a (SubIFDs, incl. one chained level) and emit their entries. */
+  subIfds?: boolean;
+  /** Decode IFD0 tag 0x02bc (XMP packet) into flattened tags. */
+  xmp?: boolean;
+  /** Accept Panasonic magic 85 ('IIU\0') in addition to 42. */
+  panasonic?: boolean;
+}
+
+function isTiffHeader(bytes: Uint8Array, opts?: TiffParseOptions): boolean {
   if (bytes.length < 8) return false;
   const magic = (bytes[0] << 8) | bytes[1];
   if (magic !== TIFF_MAGIC_BIG && magic !== TIFF_MAGIC_LITTLE) return false;
   const isLE = magic === TIFF_MAGIC_LITTLE;
-  const fortyTwo = isLE ? (bytes[2] | (bytes[3] << 8)) : (bytes[3] | (bytes[2] << 8));
-  return fortyTwo === TIFF_MAGIC_VALUE;
+  const version = isLE ? (bytes[2] | (bytes[3] << 8)) : (bytes[3] | (bytes[2] << 8));
+  return version === TIFF_MAGIC_VALUE ||
+    (opts?.panasonic === true && version === PANASONIC_MAGIC_VALUE);
 }
 
 function tagIdToStr(id: number): string {
@@ -49,17 +67,32 @@ function resolveTagName(
  * @param bytes - TIFF/EXIF data
  * @param tagDb - Optional tag database for name resolution
  * @param hints - Optional parsing hints
+ * @param opts - Optional container behaviours (SubIFDs, XMP, Panasonic magic)
  * @returns Extracted tags as key-value pairs
  */
  export function parseTiff(
   bytes: Uint8Array,
   tagDb?: TagDb,
   hints?: ParseHints,
+  opts?: TiffParseOptions,
 ): Record<string, TagValue> {
-  const { coordFormat, duplicates } = hints ?? {};
   const result: Record<string, TagValue> = {};
+  const { coordFormat, duplicates } = hints ?? {};
+  if (!isTiffHeader(bytes, opts)) return result;
 
-  if (!isTiffHeader(bytes)) return result;
+  // ExifTool priority model (TIFF.pm): tags carry a priority — full-
+  // resolution IFDs emit at 2; once an IFD's NewSubfileType says
+  // "reduced-resolution" (1/2/3), its remaining tags drop to 1. A later
+  // higher-priority value overrides a demoted one; equal priority keeps
+  // the first (hints.duplicates lifts the suppression).
+  const priority: Record<string, number> = {};
+  const put = (name: string, value: TagValue, prio: number): void => {
+    const cur = priority[name];
+    if (cur === undefined || prio > cur || duplicates) {
+      result[name] = value;
+      priority[name] = prio;
+    }
+  };
 
   const littleEndian = bytes[0] === 0x49;
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
@@ -72,14 +105,17 @@ function resolveTagName(
 
   let exifIfdPtr: number | undefined;
   let gpsIfdPtr: number | undefined;
-
   const TAG_EXIF_IFD = 0x8769;
   const TAG_GPS_INFO = 0x8825;
   const TAG_INTEROP = 0xa005;
+  const TAG_SUB_IFDS = 0x014a;
+  const TAG_NEW_SUBFILE_TYPE = 0x00fe;
+  const TAG_XMP = 0x02bc;
 
   const ifd0 = parseIFD(view, ifd0Offset, littleEndian);
+  const subIfdOffsets: number[] = [];
+  let demoted = false; // true once IFD0's NewSubfileType says "reduced"
   for (const entry of ifd0.entries) {
-    const name = resolveTagName(entry.tag, 'ifd0', tagDb);
     if (entry.tag === TAG_EXIF_IFD) {
       const val = readIfdValue(entry, view, littleEndian);
       exifIfdPtr = typeof val === 'number' ? val : undefined;
@@ -91,9 +127,70 @@ function resolveTagName(
       continue;
     }
     const val = readIfdValue(entry, view, littleEndian);
-    if (name) {
-      if (EXIF_POINTER_TAGS.has(name)) continue;
-      result[name] = formatExifValue(val, name);
+    if (entry.tag === TAG_SUB_IFDS) {
+      // RAW containers keep their raw-image tags (ImageWidth/ImageHeight,
+      // compression, …) in SubIFDs. readIfdValue yields one LONG (count 1)
+      // or a LONG array (count N). The pointer itself is not emitted.
+      if (opts?.subIfds) {
+        const offsets = typeof val === 'number' ? [val]
+          : Array.isArray(val) ? val.filter((v): v is number => typeof v === 'number')
+          : [];
+        subIfdOffsets.push(...offsets);
+      }
+      continue;
+    }
+    if (opts?.xmp && entry.tag === TAG_XMP) {
+      // XMP packets arrive as type 7 (UNDEFINED) or type 1 (BYTE) data.
+      // First-wins merge like the JPEG APP1 XMP path; the raw XMP blob
+      // key itself is not emitted.
+      const xmpBytes = val instanceof Uint8Array
+        ? val
+        : Array.isArray(val) && val.every((n) => typeof n === 'number')
+          ? Uint8Array.from(val as number[])
+          : undefined;
+      if (xmpBytes && xmpBytes.length > 0) {
+        const xmpTags = parseXMP(new TextDecoder().decode(xmpBytes));
+        for (const [k, v] of Object.entries(xmpTags)) {
+          if (!(k in result)) put(k, v, demoted ? 1 : 2);
+        }
+      }
+      continue;
+    }
+    const name = resolveTagName(entry.tag, 'ifd0', tagDb);
+    if (!name) continue;
+    if (EXIF_POINTER_TAGS.has(name)) continue;
+    if (entry.tag === TAG_NEW_SUBFILE_TYPE) {
+      // NewSubfileType itself keeps full priority even when it demotes
+      // the rest of this IFD (exiftool keeps the first SubfileType read).
+      put(name, formatExifValue(val, name), 2);
+      if (val === 1 || val === 2 || val === 3) demoted = true;
+      continue;
+    }
+    put(name, formatExifValue(val, name), demoted ? 1 : 2);
+  }
+
+  // Walk the SubIFDs (plus one chained level each) after IFD0 so the
+  // priority model can arbitrate collisions between them.
+  if (opts?.subIfds) {
+    for (const off of subIfdOffsets) {
+      if (!off || off >= bytes.length) continue;
+      let sub = parseIFD(view, off, littleEndian);
+      for (let level = 0; level < 2; level++) {
+        let subDemoted = false;
+        for (const se of sub.entries) {
+          const sname = resolveTagName(se.tag, 'ifd0', tagDb);
+          if (!sname || EXIF_POINTER_TAGS.has(sname)) continue;
+          const sval = readIfdValue(se, view, littleEndian);
+          if (se.tag === TAG_NEW_SUBFILE_TYPE) {
+            put(sname, formatExifValue(sval, sname), 2);
+            if (sval === 1 || sval === 2 || sval === 3) subDemoted = true;
+            continue;
+          }
+          put(sname, formatExifValue(sval, sname), subDemoted ? 1 : 2);
+        }
+        if (!sub.nextIfdOffset || sub.nextIfdOffset >= bytes.length) break;
+        sub = parseIFD(view, sub.nextIfdOffset, littleEndian);
+      }
     }
   }
 

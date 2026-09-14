@@ -69,6 +69,7 @@ The library sweep additionally tracks live divergences found on real-world files
 | EXIF (IFD0 + sub-IFDs + GPS + IFD1) | ✅ both endians |
 | XMP / IPTC-IIM / ICC / Photoshop IRB / JFIF | 🟨 core coverage, not full |
 | MPF embedded-image extraction (`-ee`) | 🟨 partial |
+| TIFF-family RAW reading (TIFF, DNG, CR2, NEF, ARW, ORF, RW2, PEF, ERF, DCR, SRW) | 🟨 read-only; standard IFD0/Exif/GPS/SubIFD/XMP tags with exiftool's NewSubfileType priority. MakerNotes not decoded; RW2/RWL parity partial (PanasonicRaw-specific ids not resolved); CR3 and RAF not supported. |
 | Write JPEG / PNG / WebP / AVIF | ✅ IFD0 tag subset, `_original` backups |
 | `-stay_open` daemon protocol | ✅ stdin command loop |
 | CLI: `-j -csv -X -b -d -c -g -G -v -q -if -o -r -ext -i` | ✅ |
@@ -79,7 +80,7 @@ The library sweep additionally tracks live divergences found on real-world files
 Honest list, in rough priority order:
 
 - **MakerNotes decoding** — vendor-specific binary metadata blocks (Canon, Nikon, Sony, …). This is the single biggest gap: it blocks `LensID`, model-specific crop-factor lookups, and a family of camera-specific tags.
-- **RAW containers** — CR2, DNG, NEF and the rest of the TIFF-based camera formats. Not started.
+- **RAW containers** — CR3 (ISOBMFF) and RAF (Fuji) are not supported; the TIFF-based family reads but has no write support and no MakerNotes decoding.
 - **PDF and video metadata** — not started.
 - **C2PA / Content Credentials (JUMBF + CBOR)** — planned, not implemented. The full architecture and phased plan live in [`C2PA_PLAN.md`](https://github.com/woss/exiftool/blob/main/C2PA_PLAN.md): JUMBF box parser, APP11/`caBX`/QuickTime format hooks, CBOR decoder, tag tables.
 - **Full write surface** — writes cover an IFD0 tag subset on JPEG/PNG/WebP/AVIF. ExifTool writes far more groups (XMP, IPTC, EXIF sub-IFDs, makernotes).

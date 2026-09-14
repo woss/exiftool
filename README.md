@@ -85,11 +85,11 @@ can restrict an instance to a set — the bundler then ships only those parsers:
 import { ExifTool } from "@woss/exiftool";
 import { MODERN_PLUGINS } from "@woss/exiftool/plugins";
 
-const tool = new ExifTool({ plugins: MODERN_PLUGINS }); // JPEG, PNG, WebP, AVIF only
+const tool = new ExifTool({ plugins: MODERN_PLUGINS }); // JPEG, PNG, WebP, AVIF, TIFF-family RAW (read-only)
 ```
 
 `MODERN_PLUGINS` / `ALL_PLUGINS` cover the shipped formats; individual parsers
-(`jpegParser`, `pngParser`, `webpParser`, `avifParser`) and fully custom plugins
+(`jpegParser`, `pngParser`, `webpParser`, `avifParser`, `tiffRawParser`) and fully custom plugins
 (`{ format, extensions, canParse, parse, writeBytes? }`) come from the same
 subpath. A plugin without `writeBytes` is read-only. The default — every
 built-in — loads lazily, so `new ExifTool()` keeps working unchanged.
