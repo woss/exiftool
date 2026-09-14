@@ -78,6 +78,8 @@ interface ExtractedTag {
   name: string;
   /** Element count for multi-value entries (Format => 'int16s[4]'). */
   count?: number;
+  /** ASCII string of N bytes at the id's byte offset (Format => 'string[N]'). */
+  str?: number;
   raw?: 'skipZero' | 'skipNeg1' | 'skip0x7fff' | 'skipEq127' | 'skipNonPositive' | 'skipEq0' | 'skipNegative' | 'skipLt40' | 'custom';
   prio?: number;
   unknown?: number;
@@ -90,7 +92,8 @@ interface ExtractedTable {
   tags: Record<string, ExtractedTag>;
 }
 
-const TABLES = makerPc as unknown as Record<string, ExtractedTable>;
+const TABLES = makerPc.tables as unknown as Record<string, ExtractedTable>;
+const ROUTING = makerPc.routing as unknown as Record<string, Record<string, string>>;
 
 /** ExifTool's PrintConv for exposure times ("1/16", "0.3", "2"). */
 function exposureTime(v: number): string {
@@ -131,6 +134,29 @@ const EV_TIME = (raw: number): TagValue => exposureTime(Math.exp(-canonEv(raw) *
  * Perl expressions), keyed by tag name. Applied after the generated hash
  * lookup misses.
  */
+const OLYMPUS_SPECIALS: Record<string, (v: TagValue) => TagValue> = {
+  Quality: (v) => {
+    // Olympus.pm Quality (t2 map: all camera types except SX/D4322)
+    const n = typeof v === 'number' ? v : 0;
+    const t2: Record<number, string> = {
+      1: 'SQ (Low)',
+      2: 'HQ (Normal)',
+      3: 'SHQ (Fine)',
+      4: 'RAW',
+      5: 'Medium-Fine',
+      6: 'Small-Fine',
+      33: 'Uncompressed',
+    };
+    return t2[n] ?? n;
+  },
+  SpecialMode: (v) => {
+    const a = Array.isArray(v) ? v.map(Number) : [Number(v), 0, 0];
+    const mode = ['Normal', 'High', 'Low'][a[0]] ?? a[0];
+    const pano = a[2] === 0 ? '(none)' : a[2] === 1 ? 'Left Bottom' : `Position ${a[2] - 1}`;
+    return `${mode}, Sequence: ${a[1]}, Panorama: ${pano}`;
+  },
+};
+
 const VENDOR_SPECIALS: Record<string, (v: number) => TagValue> = {
   FileNumber: (v) => `${v >>> 16}-${String(v & 0xffff).padStart(4, '0')}`,
   SerialNumber: (v) => String(v).padStart(10, '0'),
@@ -218,6 +244,10 @@ function formatMakerValue(def: ExtractedTag | undefined, name: string, value: Ta
     if (special) return special(value);
     return value;
   }
+  if (typeof value === 'string' && def?.pc) {
+    const s = def.pc[value];
+    if (s !== undefined) return s;
+  }
   return value;
 }
 
@@ -260,17 +290,29 @@ function decodePositionalTable(
 ): void {
   const signed = table.format === 'int16s' || table.format === 'int32s';
   const wide = table.format === 'int32s' || table.format === 'int32u';
-  const vals = wide ? readInts(bytes, signed) : readShorts(bytes, signed);
-  for (let i = 0; i < vals.length; ) {
-    const def = table.tags[String(i)];
-    if (!def) {
-      i += 1;
+  const increment = wide ? 4 : 2;
+  // ProcessBinaryData addressing: value N lives at byte offset N * increment
+  // (the leading size word occupies offset 0 when FIRST_ENTRY is 1).
+  for (const [idStr, def] of Object.entries(table.tags)) {
+    const id = Number(idStr);
+    const byteOff = id * increment;
+    if (def.unknown) continue;
+    if (def.str) {
+      if (byteOff + def.str > bytes.length) continue;
+      out[def.name] = asciiOf(bytes.subarray(byteOff, byteOff + def.str));
       continue;
     }
     const count = def.count ?? 1;
-    const raw: TagValue = count === 1 ? vals[i] : vals.slice(i, i + count);
-    i += count;
-    if (def.unknown) continue;
+    const total = count * increment;
+    if (byteOff + total > bytes.length) continue;
+    let raw: TagValue;
+    if (count === 1) {
+      raw = wide ? readInts(bytes.subarray(byteOff, byteOff + 4), signed)[0]
+        : readShorts(bytes.subarray(byteOff, byteOff + 2), signed)[0];
+    } else {
+      raw = wide ? readInts(bytes.subarray(byteOff, byteOff + total), signed)
+        : readShorts(bytes.subarray(byteOff, byteOff + total), signed);
+    }
     if (typeof raw === 'number') {
       if (SKIP_CUSTOM.has(def.name) && raw === 0) continue;
       if (skipByClass(def.raw, raw)) continue;
@@ -299,6 +341,7 @@ const CANON_SUBTABLES: Record<number, string> = {
   0x001d: 'Canon::MyColors',
   0x00a0: 'Canon::Processing',
   0x00aa: 'Canon::MeasuredColor',
+  0x0093: 'Canon::FileInfo',
   0x00e0: 'Canon::SensorInfo',
   0x4001: 'Canon::ColorData1',
   0x4003: 'Canon::ColorInfo',
@@ -346,6 +389,537 @@ function decodeCanon(
   return out;
 }
 
+
+// ---------------------------------------------------------------------------
+// Shared vendor helpers
+// ---------------------------------------------------------------------------
+
+/** DataView over the whole TIFF block. */
+function fullView(env: MakerNoteEnv): DataView {
+  return new DataView(env.bytes.buffer, env.bytes.byteOffset, env.bytes.byteLength);
+}
+
+/** DataView whose offset 0 sits at `base` — IFD entry offsets resolve
+ *  relative to the vendor's own base automatically. */
+function basedView(env: MakerNoteEnv, base: number): DataView {
+  return new DataView(env.bytes.buffer, env.bytes.byteOffset + base, env.bytes.byteLength - base);
+}
+
+function asciiOf(bytes: Uint8Array): string {
+  return new TextDecoder().decode(bytes).split('\0', 1)[0];
+}
+
+function u32Of(bytes: Uint8Array, le: boolean): number {
+  return le
+    ? bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24)
+    : (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+}
+
+function printableAscii(bytes: Uint8Array): string | undefined {
+  if (bytes.length === 0) return '';
+  let text = '';
+  for (const b of bytes) {
+    if (b === 0) break;
+    if (b < 0x20 || b > 0x7e) return undefined;
+    text += String.fromCharCode(b);
+  }
+  return text;
+}
+
+function startsWith(buf: Uint8Array, text: string, off = 0): boolean {
+  if (off + text.length > buf.length) return false;
+  for (let i = 0; i < text.length; i++) {
+    if (buf[off + i] !== text.charCodeAt(i)) return false;
+  }
+  return true;
+}
+
+/**
+ * Emits a positional (ProcessBinaryData) sub-table whose value array is
+ * embedded inside an IFD entry value at `index` semantics (ids restart at 0,
+ * e.g. Nikon LensData). Canon uses the shared decodePositionalTable.
+ */
+function decodeNikonBinaryTable(table: ExtractedTable, bytes: Uint8Array, out: Record<string, TagValue>): void {
+  const signed = table.format === 'int16s' || table.format === 'int32s';
+  const wide = table.format === 'int32s' || table.format === 'int32u';
+  const vals = wide ? readInts(bytes, signed) : readShorts(bytes, signed);
+  for (let i = 0; i < vals.length; ) {
+    const def = table.tags[String(i)];
+    if (!def) {
+      i += 1;
+      continue;
+    }
+    const count = def.count ?? 1;
+    const raw: TagValue = count === 1 ? vals[i] : vals.slice(i, i + count);
+    i += count;
+    if (def.unknown) continue;
+    out[def.name] = formatMakerValue(def, def.name, raw);
+  }
+}
+
+/** Decodes an int8u-tagged binary block: version string + (tag, len, data). */
+function decodeNikonLensData(bytes: Uint8Array, table: ExtractedTable, out: Record<string, TagValue>): void {
+  for (const [idStr, def] of Object.entries(table.tags)) {
+    const id = Number(idStr);
+    if (def.count === 4 || id === 0) {
+      // LensDataVersion: ASCII string of 4 bytes at offset 0
+      if (id === 0) {
+        out[def.name] = asciiOf(bytes.subarray(0, 4));
+        continue;
+      }
+    }
+    let pos = 4;
+    let found = false;
+    while (pos + 2 <= bytes.length) {
+      const tag = bytes[pos];
+      const len = bytes[pos + 1];
+      if (tag === id) {
+        const raw: TagValue = len === 1 ? bytes[pos + 2] : Array.from(bytes.slice(pos + 2, pos + 2 + len));
+        if (typeof raw === 'number' && skipByClass(def.raw, raw)) break;
+        out[def.name] = formatMakerValue(def, def.name, raw);
+        found = true;
+        break;
+      }
+      pos += 2 + len;
+    }
+    if (!found && id === 0) continue;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Nikon
+// ---------------------------------------------------------------------------
+
+/** Port of exiftool's DecodeBits for Nikon LensType. */
+function nikonLensType(v: number): TagValue {
+  if (v === 0) return 'AF';
+  const bits: Array<[number, string]> = [
+    [0, 'MF'], [1, 'D'], [2, 'G'], [3, 'VR'],
+    [4, '1'], [5, 'FT-1'], [6, 'E'], [7, 'AF-P'],
+  ];
+  // exiftool: joins bits, drops commas, folds "D G" into "G"
+  const text = bits.filter(([bit]) => v & (1 << bit)).map(([, name]) => name).join(' ');
+  return text.replace(/\bD G\b/, 'G') || v;
+}
+
+const NIKON_APERTURE = (v: number): TagValue => Number((2 ** (v / 24)).toFixed(1));
+const NIKON_FOCAL = (v: number): TagValue => `${(5 * 2 ** (v / 24)).toFixed(1)} mm`;
+
+/** Nikon LensData01 / LensData00 expression transforms. */
+const NIKON_LENSDATA_SPECIALS: Record<string, (v: number) => TagValue> = {
+  ExitPupilPosition: (v) => (v === 0 ? 0 : `${(2048 / v).toFixed(1)} mm`),
+  AFAperture: NIKON_APERTURE,
+  MaxApertureAtMinFocal: NIKON_APERTURE,
+  MaxApertureAtMaxFocal: NIKON_APERTURE,
+  EffectiveMaxAperture: NIKON_APERTURE,
+  FocalLength: NIKON_FOCAL,
+  MinFocalLength: NIKON_FOCAL,
+  MaxFocalLength: NIKON_FOCAL,
+  FocusDistance: (v) => (v === 0 ? 'inf' : `${(10 ** (v / 100)).toFixed(2)} m`),
+  LensFStops: (v) => Number((v / 12).toFixed(2)),
+  FocusPosition: (v) => `0x${v.toString(16).padStart(2, '0')}`,
+};
+
+/** Nikon stores uppercase space-padded enums; exiftool prints mixed case. */
+const NIKON_STRING_MAPS: Record<string, Record<string, string>> = {
+  WhiteBalance: {
+    AUTO: 'Auto',
+    DAYLIGHT: 'Daylight',
+    CLOUDY: 'Cloudy',
+    INCANDESCENT: 'Incandescent',
+    FLUORESCENT: 'Fluorescent',
+    FLASH: 'Flash',
+    SHADE: 'Shade',
+    'COLOR TEMP.': 'Color Temp.',
+    PRESET: 'Preset',
+  },
+  ColorHue: { MODE1: 'Mode1', MODE2: 'Mode2', AUTO: 'Auto', OFF: 'Off' },
+  NoiseReduction: { OFF: 'Off', ON: 'On' },
+  HueAdjustment: { OFF: 'Off' },
+};
+
+/** Nikon MakerNoteVersion: undef '0210' renders as 2.1. */
+function nikonVersion(bytes: Uint8Array): TagValue {
+  const text = asciiOf(bytes);
+  return /^\d{4}$/.test(text) ? Number(`${text[1]}.${text.slice(2)}`) : text;
+}
+
+function decodeNikon(
+  mn: Uint8Array,
+  valueStart: number,
+  env: MakerNoteEnv,
+  prioOut?: Record<string, number>,
+): Record<string, TagValue> {
+  const le = env.littleEndian;
+  let base: number;
+  let ifdOff: number;
+  if (mn.length >= 18 && startsWith(mn, 'Nikon\0') && mn[6] >= 2) {
+    // Type 2: 10-byte header + embedded TIFF header; entry offsets resolve
+    // relative to the embedded TIFF header start (valueStart + 10).
+    base = valueStart + 10;
+    ifdOff = valueStart + 18;
+  } else if (mn.length >= 10 && startsWith(mn, 'Nikon\0') && mn[6] === 1) {
+    // Type 1 (old Coolpix): little-endian IFD at +8, makernote-relative.
+    base = valueStart;
+    ifdOff = valueStart + 8;
+    return decodeNikonIfd(basedView(env, base), ifdOff - base, true, 'Nikon::Type2', {}, env, prioOut);
+  } else {
+    // Type 3: headerless; offsets are TIFF-absolute.
+    base = 0;
+    ifdOff = valueStart;
+  }
+  return decodeNikonIfd(basedView(env, base), ifdOff - base, le, 'Nikon::Main', {}, env, prioOut, base);
+}
+
+function decodeNikonIfd(
+  view: DataView,
+  ifdOff: number,
+  le: boolean,
+  mainTable: string,
+  keys: Record<string, number | string | undefined>,
+  env: MakerNoteEnv,
+  prioOut?: Record<string, number>,
+  nestedBase?: number,
+): Record<string, TagValue> {
+  const out: Record<string, TagValue> = {};
+  const ifd = parseIFD(view, ifdOff, le);
+  const serialTag = mainTable === 'Nikon::Main' ? 0x001d : -1;
+  const countTag = mainTable === 'Nikon::Main' ? 0x00a7 : -1;
+  for (const entry of ifd.entries) {
+    if (entry.tag === serialTag && entry.value instanceof Uint8Array) {
+      const parsed = parseInt(asciiOf(entry.value), 10);
+      keys.serial = Number.isFinite(parsed) ? parsed : undefined;
+    } else if (entry.tag === countTag && (entry.value as Uint8Array).length >= 4) {
+      keys.count = u32Of(entry.value as Uint8Array, le);
+    }
+  }
+  for (const entry of ifd.entries) {
+    const def = TABLES[mainTable]?.tags[String(entry.tag)];
+    const name = def?.name ?? nameIn(mainTable, entry.tag) ?? unknownName('Nikon', entry.tag);
+    if (mainTable === 'Nikon::Main' && entry.tag === 0x0011) {
+      // PreviewIFD: one nested level; names resolve through the tag db.
+      const ptr = entry.value instanceof Uint8Array ? u32Of(entry.value, le) : 0;
+      if (ptr && (nestedBase ?? 0) + ptr + 2 <= env.bytes.length) {
+        const preview = parseIFD(view, (nestedBase ?? 0) + ptr, le);
+        for (const pe of preview.entries) {
+          const pname = nameIn('Nikon::PreviewIFD', pe.tag);
+          if (!pname) continue;
+          const pval = readIfdValue(pe, view, le);
+          if (pname === 'PreviewImageStart' || pname === 'PreviewImageLength') continue;
+          out[pname] = formatMakerValue(undefined, pname, pval);
+        }
+      }
+      continue;
+    }
+    if (mainTable === 'Nikon::Main' && entry.tag === 0x0001) {
+      out['MakerNoteVersion'] = nikonVersion(entry.value as Uint8Array);
+      continue;
+    }
+    if (mainTable === 'Nikon::Main' && entry.tag === 0x0098) {
+      // LensData: 4-byte version + binary table (0101 unencrypted).
+      const raw = entry.value as Uint8Array;
+      const version = asciiOf(raw.subarray(0, 4));
+      const lensTable =
+        version === '0101' ? TABLES['Nikon::LensData01'] : version === '0100' ? TABLES['Nikon::LensData00'] : undefined;
+      if (lensTable) {
+        // Binary-data table: value N lives at byte offset N (version string
+        // occupies 0-3); int8u values, ids sequential.
+        for (const [idStr, ldef] of Object.entries(lensTable.tags)) {
+          const id = Number(idStr);
+          if (id === 0) {
+            out[ldef.name] = version;
+            continue;
+          }
+          if (id >= raw.length || ldef.unknown) continue;
+          const val: TagValue = raw[id];
+          const special = NIKON_LENSDATA_SPECIALS[ldef.name];
+          out[ldef.name] = typeof val === 'number' && special ? special(val) : formatMakerValue(ldef, ldef.name, val);
+        }
+      } else {
+        out['LensData'] = `(Binary data ${raw.length} bytes, use -b option to extract)`;
+      }
+      continue;
+    }
+    if (!def || def.unknown) continue;
+    if (ROUTING['Nikon::Main']?.[String(entry.tag)]) continue; // custom-processed blocks (v1 gap)
+    let value: TagValue;
+    if (entry.type === 2) {
+      value = asciiOf(entry.value as Uint8Array).replace(/ +$/, '');
+      const map = NIKON_STRING_MAPS[def.name];
+      if (map && typeof value === 'string') value = map[value] ?? value;
+    } else if ((entry.type === 7 || entry.type === 1) && (entry.value as Uint8Array).length === 1) {
+      value = (entry.value as Uint8Array)[0];
+    } else if (entry.type === 7 || entry.type === 1) {
+      value = entry.value;
+    } else {
+      value = readIfdValue(entry, view, le);
+    }
+    if (typeof value === 'number' && skipByClass(def.raw, value)) continue;
+    if (def.prio === 0 && prioOut) prioOut[def.name] = 1;
+    if (def.name === 'LensType' && typeof value === 'number' && !def.pc) {
+      out[def.name] = nikonLensType(value);
+      continue;
+    }
+    if (def.name === 'LensFStops' && value instanceof Uint8Array && value.length >= 1) {
+      out[def.name] = Number((value[0] / 12).toFixed(2));
+      continue;
+    }
+    out[def.name] = formatMakerValue(def, def.name, value);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Sony
+// ---------------------------------------------------------------------------
+
+/** Decodes a Sony makernote (headered DSC/CAM JPEGs or headerless ARW/MakN). */
+function decodeSony(
+  mn: Uint8Array,
+  valueStart: number,
+  env: MakerNoteEnv,
+  prioOut?: Record<string, number>,
+): Record<string, TagValue> {
+  const out: Record<string, TagValue> = {};
+  const view = fullView(env);
+  let base: number;
+  let ifdOff: number;
+  let le = env.littleEndian;
+  if (startsWith(mn, 'SONY DSC \0') || startsWith(mn, 'SONY CAM \0') || startsWith(mn, 'SONY MOBILE\0')) {
+    base = valueStart;
+    ifdOff = valueStart + 12;
+  } else {
+    // Headerless (ARW/SR2 via Adobe MakN): optional II/MM marker + uint32
+    // original position; entry offsets resolve relative to the original file.
+    base = valueStart;
+    ifdOff = valueStart;
+    if (mn[0] === 0x49 && mn[1] === 0x49) {
+      le = true;
+      const originalPos = (mn[2] << 24) | (mn[3] << 16) | (mn[4] << 8) | mn[5];
+      base = valueStart + 6 - originalPos;
+      ifdOff = valueStart + 6;
+    }
+  }
+  const ifdOffRel = ifdOff - base;
+  if (ifdOffRel < 0 || ifdOffRel + 2 > mn.length) return out;
+  const ifd = parseIFD(basedView(env, base), ifdOffRel, le);
+  const routing = ROUTING['Sony::Main'] ?? {};
+  for (const entry of ifd.entries) {
+    if (entry.tag === 0x2000 || entry.tag === 0x3000 || entry.tag === 0x9000) {
+      // Encrypted / device-dependent sub-IFDs: skipped in v1.
+      continue;
+    }
+    if (entry.tag >= 0x9400 && entry.tag <= 0x940f) {
+      // Encrypted cipher-data blocks (exiftool hides them as unknown).
+      continue;
+    }
+    const subTable = routing[String(entry.tag)];
+    if (subTable && TABLES[subTable] && (entry.value as Uint8Array).length >= 2) {
+      decodePositionalTable(TABLES[subTable], entry.value as Uint8Array, out);
+      continue;
+    }
+    const def = TABLES['Sony::Main']?.tags[String(entry.tag)];
+    if (!def || def.unknown) continue;
+    let value: TagValue;
+    if (entry.type === 2) {
+      value = asciiOf(entry.value as Uint8Array);
+    } else if (entry.type === 7 || entry.type === 1) {
+      value = entry.value;
+    } else {
+      value = readIfdValue(entry, view, le);
+    }
+    if (typeof value === 'number' && skipByClass(def.raw, value)) continue;
+    if (def.prio === 0 && prioOut) prioOut[def.name] = 1;
+    out[def.name] = formatMakerValue(def, def.name, value);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Olympus
+// ---------------------------------------------------------------------------
+
+const OLYMPUS_SUBTABLES: Record<number, string> = {
+  0x2010: 'Olympus::Equipment',
+  0x2020: 'Olympus::CameraSettings',
+  0x2030: 'Olympus::RawDevelopment',
+  0x2031: 'Olympus::RawDevelopment2',
+  0x2040: 'Olympus::ImageProcessing',
+  0x2050: 'Olympus::FocusInfo',
+};
+
+function decodeOlympus(
+  mn: Uint8Array,
+  valueStart: number,
+  env: MakerNoteEnv,
+  prioOut?: Record<string, number>,
+): Record<string, TagValue> {
+  const out: Record<string, TagValue> = {};
+  let base = 0; // old OLYMP\0 offsets are TIFF-absolute
+  let ifdOff = valueStart + 8;
+  let le = env.littleEndian;
+  if (startsWith(mn, 'OLYMPUS\0') || startsWith(mn, 'OM SYSTEM\0')) {
+    // 10/12-byte header + own II/MM marker + uint32 IFD offset; Base = start - 12
+    le = mn[8] === 0x49 && mn[9] === 0x49;
+    base = valueStart - 12;
+    ifdOff = valueStart + 12;
+  }
+  const view = basedView(env, base);
+  const ifd = parseIFD(view, ifdOff - base, le);
+  const routing = ROUTING['Olympus::Main'] ?? {};
+  for (const entry of ifd.entries) {
+    const subTable = OLYMPUS_SUBTABLES[entry.tag] ?? routing[String(entry.tag)];
+    if (subTable && TABLES[subTable] && (entry.value as Uint8Array).length >= 2) {
+      // Sub-table tag holds an offset (makernote-relative) to a flat binary
+      // block that runs to the end of the makernote.
+      const ptr = u32Of(entry.value as Uint8Array, le);
+      const block = (entry.value as Uint8Array).slice(0);
+      void block;
+      const start = ptr;
+      const end = mn.length;
+      if (start > 0 && start < end) {
+        decodePositionalTable(TABLES[subTable], mn.subarray(start, end), out);
+      }
+      continue;
+    }
+    const def = TABLES['Olympus::Main']?.tags[String(entry.tag)];
+    if (!def || def.unknown) continue;
+    let value: TagValue;
+    if (entry.type === 2) {
+      value = asciiOf(entry.value as Uint8Array);
+    } else if (entry.type === 7 || entry.type === 1) {
+      value = printableAscii(entry.value as Uint8Array) ?? entry.value;
+    } else {
+      value = readIfdValue(entry, view, le);
+    }
+    if (typeof value === 'number' && skipByClass(def.raw, value)) continue;
+    if (def.prio === 0 && prioOut) prioOut[def.name] = 1;
+    const special = OLYMPUS_SPECIALS[def.name];
+    if (special) {
+      out[def.name] = special(value);
+      continue;
+    }
+    out[def.name] = formatMakerValue(def, def.name, value);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Panasonic
+// ---------------------------------------------------------------------------
+
+/** Panasonic entry types are ignored; values follow the table's Format. */
+const PANASONIC_SPECIALS: Record<string, (v: TagValue) => TagValue> = {
+  AFAreaMode: (v) => {
+    // second int16u selects the mode; first is a highlight-frame marker
+    if (Array.isArray(v) && v.length === 2) return v;
+    return v;
+  },
+  FirmwareVersion: (v) =>
+    Array.isArray(v) ? v.join('.') : v instanceof Uint8Array ? Array.from(v).join('.') : v,
+  TimeSincePowerOn: (v) => {
+    if (typeof v !== 'number') return v;
+    const cs = v % 100;
+    const s = Math.floor(v / 100) % 60;
+    const m = Math.floor(v / 6000) % 60;
+    const h = Math.floor(v / 360000);
+    const p = (n: number, w = 2) => String(n).padStart(w, '0');
+    return `${p(h)}:${p(m)}:${p(s)}.${p(cs)}`;
+  },
+};
+
+function decodePanasonicIfd(
+  view: DataView,
+  ifdOff: number,
+  le: boolean,
+  out: Record<string, TagValue>,
+  prioOut?: Record<string, number>,
+): void {
+  const ifd = parseIFD(view, ifdOff, le);
+  for (const entry of ifd.entries) {
+    const def = TABLES['Panasonic::Main']?.tags[String(entry.tag)];
+    if (!def || def.unknown) continue;
+    const raw = entry.value as Uint8Array;
+    const fmt = (def as ExtractedTag & { fmt?: string }).fmt ?? '';
+    let value: TagValue;
+    if (fmt.startsWith('int16u')) {
+      value = raw.length >= 2 ? readShorts(raw, false)[0] : 0;
+    } else if (fmt.startsWith('int16s')) {
+      value = raw.length >= 2 ? readShorts(raw, true)[0] : 0;
+    } else if (fmt.startsWith('int32u') || fmt.startsWith('int32s')) {
+      value = raw.length >= 4 ? u32Of(raw, le) : 0;
+    } else if (fmt.startsWith('int8u') && raw.length > 1) {
+      value = Array.from(raw);
+    } else {
+      // undef/string: ASCII when printable, binary placeholder otherwise
+      const text = asciiOf(raw);
+      value = /^[ -~]+$/.test(text) && text.length > 0 ? text : raw;
+    }
+    if (typeof value === 'number' && skipByClass(def.raw, value)) continue;
+    if (def.prio === 0 && prioOut) prioOut[def.name] = 1;
+    const special = PANASONIC_SPECIALS[def.name];
+    if (special) {
+      out[def.name] = special(value);
+      continue;
+    }
+    out[def.name] = formatMakerValue(def, def.name, value);
+  }
+}
+
+function decodePanasonic(
+  mn: Uint8Array,
+  valueStart: number,
+  env: MakerNoteEnv,
+  prioOut?: Record<string, number>,
+): Record<string, TagValue> {
+  const out: Record<string, TagValue> = {};
+  const view = fullView(env);
+  // 12-byte "Panasonic\0\0\0" header; IFD follows; offsets makernote-relative.
+  decodePanasonicIfd(view, valueStart + 12, env.littleEndian, out, prioOut);
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Pentax
+// ---------------------------------------------------------------------------
+
+function decodePentax(
+  mn: Uint8Array,
+  valueStart: number,
+  env: MakerNoteEnv,
+  prioOut?: Record<string, number>,
+): Record<string, TagValue> {
+  const out: Record<string, TagValue> = {};
+  if (!startsWith(mn, 'AOC\0')) return out;
+  // Byte-order marker ("MM\0"/"II\0") at +4; IFD entry count at +6.
+  const le = mn[4] === 0x49 && mn[5] === 0x49;
+  const view = basedView(env, valueStart);
+  const ifd = parseIFD(view, 6, le);
+  const routing = ROUTING['Pentax::Main'] ?? {};
+  for (const entry of ifd.entries) {
+    const subTable = routing[String(entry.tag)];
+    if (subTable && TABLES[subTable] && (entry.value as Uint8Array).length >= 2) {
+      decodePositionalTable(TABLES[subTable], entry.value as Uint8Array, out);
+      continue;
+    }
+    const def = TABLES['Pentax::Main']?.tags[String(entry.tag)];
+    if (!def || def.unknown) continue;
+    let value: TagValue;
+    if (entry.type === 2) {
+      value = asciiOf(entry.value as Uint8Array);
+    } else if (entry.type === 7 || entry.type === 1 || entry.type === 3 || entry.type === 4) {
+      value = readIfdValue(entry, view, le);
+      if (Array.isArray(value)) value = value.map((n) => String(n)).join(' ');
+    } else {
+      value = readIfdValue(entry, view, le);
+    }
+    if (typeof value === 'number' && skipByClass(def.raw, value)) continue;
+    if (def.prio === 0 && prioOut) prioOut[def.name] = 1;
+    out[def.name] = formatMakerValue(def, def.name, value);
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // Dispatch
 // ---------------------------------------------------------------------------
@@ -359,6 +933,11 @@ type VendorDecoder = (
 
 const VENDOR_DECODERS: Array<[string, VendorDecoder]> = [
   ['canon', decodeCanon],
+  ['nikon', decodeNikon],
+  ['sony', decodeSony],
+  ['olympus', decodeOlympus],
+  ['panasonic', decodePanasonic],
+  ['pentax', decodePentax],
 ];
 
 /**

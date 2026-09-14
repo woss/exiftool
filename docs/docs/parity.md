@@ -51,7 +51,7 @@ These are the differences we know about, each with a reason (`KNOWN_DIVERGENCES`
 | `ApplicationRecordVersion` | IPTC record stored raw (bytes) instead of converted to number |
 | `HyperfocalDistance` | Circle-of-confusion lookup not implemented |
 | `ApproximateFocusDistance` | Rational printed as fraction, not decimal |
-| `LensID` | Requires Canon makernote lens-model lookup tables (blocked on MakerNotes) |
+| `LensID` | Canon/Nikon makernote lens-model lookup tables not ported (maker notes now decode; composite lens ID still partial) |
 | `FlashCompensation` | Rational printed as fraction, not decimal |
 | `ScaleFactor35efl` | Crop-factor lookup not implemented (defaults to 1) |
 | `CircleOfConfusion` | Model-specific CoC tables not implemented (default 0.030 mm) |
@@ -69,7 +69,7 @@ The library sweep additionally tracks live divergences found on real-world files
 | EXIF (IFD0 + sub-IFDs + GPS + IFD1) | ✅ both endians |
 | XMP / IPTC-IIM / ICC / Photoshop IRB / JFIF | 🟨 core coverage, not full |
 | MPF embedded-image extraction (`-ee`) | 🟨 partial |
-| TIFF-family RAW reading (TIFF, DNG, CR2, NEF, ARW, ORF, RW2, PEF, ERF, DCR, SRW) | 🟨 read-only; standard IFD0/Exif/GPS/SubIFD/XMP tags with exiftool's NewSubfileType priority. MakerNotes not decoded; RW2/RWL parity partial (PanasonicRaw-specific ids not resolved); CR3 and RAF not supported. |
+| TIFF-family RAW reading (TIFF, DNG, CR2, NEF, ARW, ORF, RW2, PEF, ERF, DCR, SRW) | 🟨 read-only; standard IFD0/Exif/GPS/SubIFD/XMP tags with exiftool's NewSubfileType priority. MakerNotes decoded for the core six vendors (Canon, Nikon, Sony, Olympus, Panasonic, Pentax — partial: encrypted regions and custom sub-tables skipped); RW2 image dimensions now decoded; CR3 and RAF not supported. |
 | Write JPEG / PNG / WebP / AVIF | ✅ IFD0 tag subset, `_original` backups |
 | `-stay_open` daemon protocol | ✅ stdin command loop |
 | CLI: `-j -csv -X -b -d -c -g -G -v -q -if -o -r -ext -i` | ✅ |

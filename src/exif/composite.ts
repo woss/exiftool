@@ -47,8 +47,10 @@ export function computeCompositeTags(tags: Record<string, TagValue>): void {
   if (imageHeight && !('ImageLength' in tags)) {
     tags['ImageLength'] = imageHeight;
   }
-  const compositeWidth = canonW ?? borderW ?? imageWidth;
-  const compositeHeight = canonH ?? borderH ?? imageHeight;
+  const exifW = asNum(tags['ExifImageWidth']);
+  const exifH = asNum(tags['ExifImageHeight']);
+  const compositeWidth = canonW ?? exifW ?? borderW ?? imageWidth;
+  const compositeHeight = canonH ?? exifH ?? borderH ?? imageHeight;
   const fnumber = asNum(tags['FNumber']);
   const exposureTime = asNum(tags['ExposureTime']);
   const iso = asNum(tags['ISO']);

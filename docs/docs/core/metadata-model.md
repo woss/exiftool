@@ -42,7 +42,7 @@ resolved from the tag database's group families:
 | `JFIF` | JPEG File Interchange Format | JPEG stream header |
 | `Composite` | Computed | Derived tags |
 | `File` | File system | File properties |
-| `MakerNotes` | Vendor-specific | Markers only — makernote contents are not decoded |
+| `MakerNotes` | Vendor-specific | Core 6 vendors decoded (Canon, Nikon, Sony, Olympus, Panasonic, Pentax); others keep markers |
 
 With `-G1` the CLI prefixes tags (`EXIF:ExposureTime`, `Composite:Aperture`).
 The library API returns unprefixed names.
@@ -74,7 +74,7 @@ and values as ExifTool:
 | `ImageSize` | ImageWidth, ImageLength/Height |
 | `Megapixels` | ImageWidth, ImageHeight |
 | `GPSPosition` | GPSLatitude, GPSLongitude |
-| `LensID` / `Lens` | LensModel / makernote lookups (limited until MakerNotes land) |
+| `LensID` / `Lens` | LensModel / makernote lookups (partial vendor coverage) |
 | `SubSecCreateDate` | ModifyDate/OffsetTime/SubSecTime |
 | `LightValue`, `DOF`, `HyperfocalDistance`, `FocalLength35efl` | exposure + focal geometry |
 

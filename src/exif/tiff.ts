@@ -167,6 +167,58 @@ function resolveTagName(
     // emission; the pointer tag itself is never emitted (exiftool -j).
     if (opts?.panasonic && opts?.makerNotes !== false && entry.tag === 0x002e) {
       const raw = entry.value as Uint8Array;
+      // RW2 stores a JPEG preview here; its embedded APP1 EXIF carries the
+      // Panasonic makernote that exiftool surfaces in the Panasonic group.
+      if (raw.length > 32 && raw[0] === 0xff && raw[1] === 0xd8) {
+        // Embedded JPEG preview: extract only the makernote tags from its
+        // APP1 EXIF (exiftool surfaces the Panasonic group, not the rest).
+        const e = raw.findIndex(
+          (v, i) =>
+            i + 6 <= raw.length && v === 0x45 && raw[i + 1] === 0x78 && raw[i + 2] === 0x69 && raw[i + 3] === 0x66 && raw[i + 4] === 0 && raw[i + 5] === 0,
+        );
+        if (e > 0) {
+          const segLen = (raw[e - 2] << 8) | raw[e - 1];
+          const inner = raw.slice(e + 6, e + 6 + segLen - 8);
+          const innerDv = new DataView(inner.buffer, inner.byteOffset, inner.byteLength);
+          if (inner.length > 8) {
+            const innerLe = inner[0] === 0x49;
+            const ifd0 = innerDv.getUint32(4, innerLe);
+            const walk = (off: number): void => {
+              if (!off || off + 2 > inner.length) return;
+              const n = innerDv.getUint16(off, innerLe);
+              let subIfd = 0;
+              for (let i = 0; i < n; i++) {
+                const eo = off + 2 + i * 12;
+                const tag = innerDv.getUint16(eo, innerLe);
+                const type = innerDv.getUint16(eo + 2, innerLe);
+                const count = innerDv.getUint32(eo + 4, innerLe);
+                const size = count * { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1 }[type]!;
+                if (tag === 0x8769 && size <= 4) {
+                  subIfd = innerDv.getUint32(eo + 8, innerLe);
+                }
+                if (tag === 0x927c) {
+                  const mnOff = size <= 4 ? eo + 8 : innerDv.getUint32(eo + 8, innerLe);
+                  const mnBytes = inner.slice(mnOff, mnOff + count * 1);
+                  const env = {
+                    bytes: inner,
+                    littleEndian: innerLe,
+                    make: 'Panasonic',
+                    model: String(result['Model'] ?? ''),
+                    tagDb,
+                  };
+                  const mnTags = decodeMakerNote(mnBytes, mnOff, env);
+                  for (const [k, v] of Object.entries(mnTags)) {
+                    if (!(k in result)) put(k, v, 2);
+                  }
+                }
+              }
+              if (subIfd) walk(subIfd);
+            };
+            walk(ifd0);
+          }
+        }
+        continue;
+      }
       if (raw.length >= 16 && String.fromCharCode(...raw.slice(0, 9)) === 'Panasonic') {
         const env = {
           bytes,
@@ -316,7 +368,9 @@ function resolveTagName(
           const mnPrio: Record<string, number> = {};
           const mnTags = decodeMakerNote(mnBytes, entry.offset, env, mnPrio);
           for (const [k, v] of Object.entries(mnTags)) {
-            put(k, v, mnPrio[k] ?? 2);
+            // exiftool: makernote tags outrank EXIF/IFD0 tags read earlier
+            // (default 3); vendor tables with Priority => 0 demote to 1.
+            put(k, v, mnPrio[k] ?? 3);
           }
         }
         continue;

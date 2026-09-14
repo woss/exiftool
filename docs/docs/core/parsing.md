@@ -24,7 +24,7 @@ Format Parser (JPEG/PNG/WebP/AVIF-HEIF/TIFF-family RAW)
 ├── IPTC Parser ──────────► Application Record Parsing
 ├── ICC Profile Parser ───► Tag Decoding
 ├── JUMBF Parser ──────────► Box Walking + CBOR
-└── MakerNote Markers ───► "[MakerNote: N bytes]" placeholders (not decoded)
+└── MakerNote Decoder ───► Vendor tag decoding (Canon, Nikon, Sony, Olympus, Panasonic, Pentax)
          │
          ▼
 Composite Tag Computation

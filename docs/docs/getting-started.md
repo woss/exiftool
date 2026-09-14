@@ -63,7 +63,8 @@ console.log(result.tags.ImageSize);  // "9600x6376"
 ```
 
 RAW containers are read-only: TIFF, DNG, CR2, NEF, ARW, ORF, RW2, PEF,
-ERF, DCR, SRW. MakerNotes are not decoded.
+ERF, DCR, SRW. MakerNotes are decoded for the core six vendors (Canon,
+Nikon, Sony, Olympus, Panasonic, Pentax); other vendors keep markers.
 
 ## CLI Usage
 

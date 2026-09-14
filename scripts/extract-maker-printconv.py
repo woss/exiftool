@@ -31,13 +31,20 @@ SPEC = {
         'Canon::Main', 'Canon::CameraSettings', 'Canon::FocalLength',
         'Canon::ShotInfo', 'Canon::SensorInfo', 'Canon::ColorData1',
         'Canon::Processing', 'Canon::MeasuredColor', 'Canon::MyColors',
-        'Canon::Panorama', 'Canon::ColorInfo',
+        'Canon::Panorama', 'Canon::ColorInfo', 'Canon::FileInfo',
     ],
-    'Nikon.pm': ['Nikon::Main', 'Nikon::Type2'],
-    'Sony.pm': ['Sony::Main'],
+    'Nikon.pm': ['Nikon::Main', 'Nikon::Type2', 'Nikon::LensData01',
+                 'Nikon::LensData00', 'Nikon::ColorBalance0100',
+                 'Nikon::ColorBalance0101', 'Nikon::FlashInfo0102'],
+    'Sony.pm': ['Sony::Main', 'Sony::Minolta', 'Sony::ShotInfo', 'Sony::CameraInfo',
+                'Sony::CameraInfo2', 'Sony::CameraInfo3', 'Sony::MoreSettings',
+                'Sony::MoreInfo0201', 'Sony::MoreInfo0401', 'Sony::Tag2010a',
+                'Sony::Tag2010b', 'Sony::Tag2010c', 'Sony::Tag2010d'],
     'Olympus.pm': ['Olympus::Main', 'Olympus::Equipment', 'Olympus::CameraSettings',
-                   'Olympus::FocusInfo', 'Olympus::ImageProcessing', 'Olympus::RawDev'],
-    'Panasonic.pm': ['Panasonic::Main', 'PanasonicRaw::Main', 'PanasonicRaw::DistortionInfo'],
+                   'Olympus::FocusInfo', 'Olympus::ImageProcessing', 'Olympus::RawDev',
+                   'Olympus::RawDevelopment', 'Olympus::Olympus', 'Olympus::OMSystem'],
+    'Panasonic.pm': ['Panasonic::Main', 'Panasonic::Type2', 'PanasonicRaw::Main',
+                     'PanasonicRaw::DistortionInfo'],
     'Pentax.pm': ['Pentax::Main', 'Pentax::PENT', 'Pentax::CameraInfo'],
 }
 
@@ -212,9 +219,15 @@ def extract_entry(src, ent, info):
     info['name'] = nm.group(1)
     if re.search(r"Unknown => [0-9]", ent) or re.search(r"Flags => ..[^]]*'Unknown'", ent):
         info['unknown'] = 1
+    wm = re.search(r"Writable => '(\w+)'", ent)
+    if wm:
+        info['fmt'] = wm.group(1)
     fm = re.search(r"Format => '(\w+)\[(\d+)\]'", ent)
     if fm:
-        info['count'] = int(fm.group(2))
+        if fm.group(1) == 'string':
+            info['str'] = int(fm.group(2))
+        else:
+            info['count'] = int(fm.group(2))
     rc = re.search(r"RawConv => (.+?),\n(?:\s+)", ent)
     if rc:
         info['raw'] = classify_rawconv(rc.group(1))
@@ -289,6 +302,39 @@ def table_def(src, table):
     }
 
 
+ROUTING_SPEC = {
+    'Canon.pm': ['Canon::Main'],
+    'Nikon.pm': ['Nikon::Main'],
+    'Sony.pm': ['Sony::Main'],
+    'Olympus.pm': ['Olympus::Main'],
+    'Panasonic.pm': ['Panasonic::Main', 'PanasonicRaw::Main'],
+    'Pentax.pm': ['Pentax::Main'],
+}
+
+
+def table_routing(src, table):
+    """Extracts key -> short TagTable name for SubDirectory entries of a
+    main table (e.g. 0x2010 -> 'Olympus::Equipment')."""
+    m = re.search(r'%Image::ExifTool::' + re.escape(table) + r' = \(', src)
+    if not m:
+        return {}
+    start = m.end()
+    end = src.index('\n);', start)
+    body = src[start:end]
+    routing = {}
+    for mm in re.finditer(r'^    (-?0x[0-9a-fA-F]+|\d+) => (\{|\[)', body, re.M):
+        raw = mm.group(1)
+        key = int(raw, 16) if raw.lower().startswith('0x') else int(raw)
+        b = brace_block(body, mm.end() - 1)
+        if not b:
+            continue
+        ent = body[b[0]:b[1] + 1]
+        tt = re.search(r"TagTable => 'Image::ExifTool::(.*?)'", ent)
+        if tt:
+            routing[str(key)] = tt.group(1)
+    return routing
+
+
 def main():
     lib = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_LIB
     out = {}
@@ -298,12 +344,29 @@ def main():
             d = table_def(src, t)
             if d:
                 out[t] = d
+    routing = {}
+    for pm, tables in ROUTING_SPEC.items():
+        src = open(os.path.join(lib, pm)).read()
+        for t in tables:
+            r = table_routing(src, t)
+            if r:
+                routing[t] = r
+    # Nikon decryption tables (Nikon.pm @xlat, 2 x 256 byte arrays)
+    nikon_src = open(os.path.join(lib, 'Nikon.pm')).read()
+    xm = re.search(r'my @xlat = \((.*?)\n\);', nikon_src, re.S)
+    nikon_xlat = None
+    if xm:
+        rows = re.findall(r'\[(.*?)\]', xm.group(1), re.S)
+        nikon_xlat = [[int(v, 16) for v in re.findall(r'0x([0-9a-fA-F]{2})', row)]
+                      for row in rows]
     dest = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..',
                         'src', 'tags', 'generated', 'maker-printconv.json')
     with open(dest, 'w') as f:
-        json.dump(out, f, indent=1, sort_keys=True)
+        json.dump({'tables': out, 'routing': routing, 'nikonXlat': nikon_xlat},
+                  f, indent=1, sort_keys=True)
     total = sum(len(v['tags']) for v in out.values())
-    print(f'wrote {os.path.normpath(dest)}: {len(out)} tables, {total} tags')
+    print(f'wrote {os.path.normpath(dest)}: {len(out)} tables, {total} tags, '
+          f'{sum(len(v) for v in routing.values())} routing entries')
 
 
 if __name__ == '__main__':
