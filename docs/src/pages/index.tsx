@@ -40,24 +40,24 @@ function Features() {
       <div className="container">
         <div className={styles.featureGrid}>
           <div className={clsx('feature-card', styles.featureCard)}>
-            <h3>📸 Full ExifTool Parity</h3>
-            <p>99.93% tag parity with ExifTool 13.55+. Reads EXIF, XMP, IPTC, GPS, ICC, MakerNotes, and more.</p>
+            <h3>📸 ExifTool Parity</h3>
+            <p>Value-level parity suite against ExifTool 13.55+. Reads EXIF, XMP, IPTC, GPS, ICC, and more — every divergence tracked in a public register.</p>
           </div>
           <div className={clsx('feature-card', styles.featureCard)}>
-            <h3>🔐 C2PA Content Credentials</h3>
-            <p>Complete JUMBF/CBOR parsing for C2PA manifests, actions, assertions, and signatures. Byte-exact with ExifTool.</p>
+            <h3>🎞 RAW Container Reading</h3>
+            <p>TIFF, DNG, CR2, NEF, ARW, ORF, RW2, PEF, ERF, DCR, SRW — standard IFD0/Exif/GPS/SubIFD/XMP tags from RAW files, read-only.</p>
           </div>
           <div className={clsx('feature-card', styles.featureCard)}>
-            <h3>⚡ Streaming & Zero-Copy</h3>
-            <p>Parses files incrementally without loading entire files into memory. Handles multi-GB files efficiently.</p>
+            <h3>🧵 Zero-Copy Buffers</h3>
+            <p>In-memory reads return views into the source buffer, not copies. One process, no subprocess per file.</p>
           </div>
           <div className={clsx('feature-card', styles.featureCard)}>
             <h3>📦 Multi-Format Support</h3>
-            <p>JPEG, PNG, TIFF, HEIF, WebP, QuickTime, PDF, AVIF, JPEG XL. One API for all formats.</p>
+            <p>JPEG, PNG, WebP, AVIF/HEIF, and TIFF-family RAW images. One plugin-based API, load only the formats you bundle.</p>
           </div>
           <div className={clsx('feature-card', styles.featureCard)}>
             <h3>🛠 CLI Compatible</h3>
-            <p>Drop-in ExifTool CLI replacement. Supports -j, -csv, -X, -t, -C2PA, -if filters, and more.</p>
+            <p>Drop-in ExifTool CLI replacement. Supports -j, -csv, -X, -t, -if filters, -stay_open, and more.</p>
           </div>
           <div className={clsx('feature-card', styles.featureCard)}>
             <h3>📝 TypeScript Native</h3>
@@ -86,7 +86,7 @@ const result = await exiftool.read('photo.jpg');
 
 console.log(result.tags.Make);        // "Canon"
 console.log(result.tags.Model);       // "EOS R5"
-console.log(result.tags.Claim_generator); // C2PA
+console.log(result.tags.ImageSize);   // "9600x6376"
 `}</code></pre>
           </div>
           <div className={styles.tab}>
@@ -97,8 +97,8 @@ npx exiftool-ts photo.jpg
 # JSON output (ExifTool compatible)
 npx exiftool-ts -j photo.jpg
 
-# C2PA tags
-npx exiftool-ts -C2PA photo.jpg
+# RAW metadata
+npx exiftool-ts -j photo.dng
 
 # All tags with groups
 npx exiftool-ts -G1 -j photo.jpg
@@ -115,7 +115,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title={`Hello from ${siteConfig.title}`}
-      description="TypeScript ExifTool wrapper with full C2PA support">
+      description="ExifTool rewrite in TypeScript — read and write image metadata">
       <HomepageHeader />
       <main>
         <Features />

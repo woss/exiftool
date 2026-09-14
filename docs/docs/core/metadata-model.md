@@ -5,129 +5,90 @@ slug: /core/metadata-model
 
 # Metadata Model
 
-exiftool uses a unified metadata model that normalizes tags across all formats and standards.
+exiftool-ts normalizes tags across all formats into one flat record of
+`TagValue`s, matching ExifTool's tag names and printed representations.
 
-## Tag Structure
+## Tag Record
+
+`read()` returns a `FileInfo`:
 
 ```typescript
-interface Tag {
-  id: string;           // Unique tag identifier (e.g., "EXIF:ExposureTime")
-  group: string;        // Group name (EXIF, XMP, IPTC, GPS, etc.)
-  name: string;         // Human-readable name (e.g., "ExposureTime")
-  value: unknown;       // Normalized value
-  type: string;         // Value type (string, number, rational, date, etc.)
-  raw?: unknown;        // Original raw value before normalization
+interface FileInfo {
+  path: string;                     // Source path
+  format: string;                   // Detected format ("JPEG", "DNG", …)
+  tags: Record<string, TagValue>;   // Flat tag map, ExifTool naming
+  errors?: string[];
+  warnings?: string[];
 }
+
+type TagValue = string | number | boolean | Uint8Array | null | TagValue[];
 ```
+
+There is no nested tag object and no `raw`/`groups` fields — one key per
+tag, ExifTool's name (e.g. `ExposureTime`, `GPSLatitude`, `ImageSize`).
 
 ## Tag Groups
 
+Groups exist for output formatting (CLI `-G[NUM]`, `-g[NUM]`) and are
+resolved from the tag database's group families:
+
 | Group | Standards | Description |
 |-------|-----------|-------------|
-| `EXIF` | Exif 2.3+, TIFF/EP | Camera settings, image properties |
+| `EXIF` (IFD0, ExifIFD) | Exif 2.3+, TIFF/EP | Camera settings, image properties |
 | `GPS` | GPS IFD | Geolocation data |
 | `XMP` | XMP Core, IPTC Core, Dublin Core | Extensible metadata |
 | `IPTC` | IIM, IPTC Core | News/photo agency metadata |
 | `ICC` | ICC Profile | Color management |
-| `JFIF` | JPEG File Interchange Format | JPEG metadata |
-| `C2PA` | C2PA 2.x | Content credentials |
-| `MakerNotes` | Vendor-specific | Camera maker proprietary data |
-| `File` | File system | File properties |
+| `JFIF` | JPEG File Interchange Format | JPEG stream header |
 | `Composite` | Computed | Derived tags |
+| `File` | File system | File properties |
+| `MakerNotes` | Vendor-specific | Markers only — makernote contents are not decoded |
 
-## Normalization Rules
+With `-G1` the CLI prefixes tags (`EXIF:ExposureTime`, `Composite:Aperture`).
+The library API returns unprefixed names.
 
-### Dates/Times
-```typescript
-// Input: "2024:01:15 14:30:22"
-// Output: Date object
-// Display: "2024-01-15T14:30:22.000Z" (ISO 8601)
-```
+## Value Representations
 
-### GPS Coordinates
-```typescript
-// Input: Rational degrees/minutes/seconds + Ref
-// Output: Decimal degrees (number)
-GPSLatitude: 37.758403
-GPSLongitude: -122.4194
-```
+Values mirror what ExifTool prints — exiftool is the ground truth:
 
-### Rational Numbers
-```typescript
-// Input: {num: 1, den: 125}
-// Output: 0.008 (number) or rational object based on context
-```
-
-### Arrays/Sequences
-```typescript
-// XMP Seq → Array
-Keywords: ["nature", "landscape", "mountains"]
-
-// XMP Alt → Object with lang
-Description: { "x-default": "A beautiful landscape" }
-```
-
-### Binary Data
-```typescript
-// Input: Uint8Array
-// Output: Buffer (base64 in JSON)
-ThumbnailImage: <Buffer ff d8 ff e0 ...>
-```
+| Kind | Representation | Example |
+|------|----------------|---------|
+| Strings | plain `string` | `Make: "Canon"` |
+| Numbers | `number` where ExifTool prints one | `FNumber: 2.8` |
+| PrintConv'd enums | `string` | `Orientation: "Horizontal (normal)"` |
+| Rationals/fractions | `string` | `ExposureTime: "1/125"` |
+| Dates | ExifTool date `string` (`YYYY:MM:DD HH:MM:SS±HH:MM`) | `ModifyDate: "2024:09:17 21:46:07+02:00"` |
+| GPS coordinates | DMS `string`, or decimal with `-c %.6f` | `45 deg 11' 15.24" N` |
+| Arrays | `TagValue[]` | `Keywords: ["nature", "landscape"]` |
+| Binary | `Uint8Array` (placeholder string in JSON unless `-b`) | `ThumbnailImage` |
 
 ## Composite Tags
 
-Computed from multiple source tags:
+Computed from multiple source tags (`computeCompositeTags`), same names
+and values as ExifTool:
 
 | Composite Tag | Sources |
 |---------------|---------|
-| `Aperture` | EXIF:FNumber |
-| `FOV` | EXIF:FocalLength, EXIF:FocalLengthIn35mmFormat |
-| `HyperfocalDistance` | EXIF:FNumber, EXIF:FocalLength |
-| `LightValue` | EXIF:ExposureTime, EXIF:FNumber, EXIF:ISO |
-| `GPSPosition` | GPS:GPSLatitude, GPS:GPSLongitude |
-| `Megapixels` | EXIF:ImageWidth, EXIF:ImageHeight |
+| `Aperture` | FNumber |
+| `ShutterSpeed` | ExposureTime |
+| `ImageSize` | ImageWidth, ImageLength/Height |
+| `Megapixels` | ImageWidth, ImageHeight |
+| `GPSPosition` | GPSLatitude, GPSLongitude |
+| `LensID` / `Lens` | LensModel / makernote lookups (limited until MakerNotes land) |
+| `SubSecCreateDate` | ModifyDate/OffsetTime/SubSecTime |
+| `LightValue`, `DOF`, `HyperfocalDistance`, `FocalLength35efl` | exposure + focal geometry |
 
-## Tag ID Format
-
-```
-[Group:]TagName
-```
-
-Examples:
-- `EXIF:ExposureTime`
-- `XMP:Title`
-- `IPTC:ObjectName`
-- `GPS:GPSLatitude`
-- `C2PA:ActionsAction`
-- `Composite:Aperture`
-
-## Value Types
-
-| Type | Examples |
-|------|----------|
-| `string` | "Canon", "EOS R5" |
-| `number` | 125, 2.8, 100 |
-| `rational` | `\{num: 1, den: 125\}` |
-| `date` | Date object |
-| `array` | `["tag1", "tag2"]` |
-| `buffer` | Buffer/Uint8Array |
-| `object` | `\{lang: "en", value: "..."\}` |
 ## Accessing Tags
 
 ```typescript
 const result = await exiftool.read('photo.jpg');
 
-// All tags (flat object)
-console.log(result.tags);
-
-// Specific tag
-console.log(result.tags['EXIF:ExposureTime']);
-
-// By group
-console.log(result.groups.EXIF);
-console.log(result.groups.GPS);
-console.log(result.groups.C2PA);
-
-// Raw values (before normalization)
-console.log(result.rawTags);
+result.format;                    // "JPEG"
+result.tags['Make'];              // "Canon"
+result.tags['ExposureTime'];      // "1/125"
+result.tags['ImageSize'];         // "8256x5504"
+Object.keys(result.tags);         // every tag name
 ```
+
+Group-prefixed views are a CLI/output concern (`-G1 -j`), not part of
+`FileInfo`.

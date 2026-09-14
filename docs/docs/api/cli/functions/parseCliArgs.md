@@ -1,14 +1,14 @@
-[**@woss/exiftool v0.1.0**](../../README.md)
+[**exiftool-ts v0.1.3**](../../README.md)
 
 ***
 
-[@woss/exiftool](../../modules.md) / [cli](../README.md) / parseCliArgs
+[exiftool-ts](../../modules.md) / [cli](../README.md) / parseCliArgs
 
 # Function: parseCliArgs()
 
 > **parseCliArgs**(`argv`): `object`
 
-Defined in: [src/cli/args.ts:83](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/cli/args.ts#L83)
+Defined in: [src/cli/args.ts:83](https://github.com/woss/exiftool/blob/67919f8602e1b01765df081c4fd4df4684ab9c20/src/cli/args.ts#L83)
 
 ## Parameters
 

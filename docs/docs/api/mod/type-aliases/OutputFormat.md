@@ -1,14 +1,14 @@
-[**@woss/exiftool v0.1.0**](../../README.md)
+[**exiftool-ts v0.1.3**](../../README.md)
 
 ***
 
-[@woss/exiftool](../../modules.md) / [mod](../README.md) / OutputFormat
+[exiftool-ts](../../modules.md) / [mod](../README.md) / OutputFormat
 
 # Type Alias: OutputFormat
 
 > **OutputFormat** = `"json"` \| `"xml"` \| `"html"` \| `"csv"` \| `"tabular"` \| `"arg"`
 
-Defined in: [src/types.ts:187](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L187)
+Defined in: [src/types.ts:187](https://github.com/woss/exiftool/blob/67919f8602e1b01765df081c4fd4df4684ab9c20/src/types.ts#L187)
 
 Output format for CLI and programmatic use.
 - 'json': ExifTool-compatible JSON

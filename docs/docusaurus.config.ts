@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'exiftool',
-  tagline: 'TypeScript ExifTool wrapper with C2PA support',
+  tagline: 'ExifTool rewrite in TypeScript — read and write image metadata',
   favicon: 'img/favicon.ico',
 
   future: {
@@ -61,7 +61,6 @@ const config: Config = {
       items: [
         { type: 'docSidebar', sidebarId: 'tutorialSidebar', position: 'left', label: 'Guide' },
         { to: '/getting-started', label: 'Getting Started', position: 'left' },
-        { to: '/c2pa/overview', label: 'C2PA', position: 'left' },
         { to: '/cli/usage', label: 'CLI', position: 'left' },
         { to: '/demo', label: 'Demo', position: 'left' },
         { to: '/api', label: 'API (Docusaurus)', position: 'left' },
@@ -76,7 +75,6 @@ const config: Config = {
           title: 'Docs',
           items: [
             { label: 'Getting Started', to: '/getting-started' },
-            { label: 'C2PA Guide', to: '/c2pa/overview' },
             { label: 'CLI Reference', to: '/cli/usage' },
           ],
         },

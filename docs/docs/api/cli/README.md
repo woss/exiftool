@@ -1,8 +1,8 @@
-[**@woss/exiftool v0.1.0**](../README.md)
+[**exiftool-ts v0.1.3**](../README.md)
 
 ***
 
-[@woss/exiftool](../modules.md) / cli
+[exiftool-ts](../modules.md) / cli
 
 # cli
 

@@ -1,12 +1,12 @@
-[**@woss/exiftool v0.1.0**](../../README.md)
+[**exiftool-ts v0.1.3**](../../README.md)
 
 ***
 
-[@woss/exiftool](../../modules.md) / [mod](../README.md) / WriteOptions
+[exiftool-ts](../../modules.md) / [mod](../README.md) / WriteOptions
 
 # Interface: WriteOptions
 
-Defined in: [src/types.ts:153](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L153)
+Defined in: [src/types.ts:153](https://github.com/woss/exiftool/blob/67919f8602e1b01765df081c4fd4df4684ab9c20/src/types.ts#L153)
 
 Options for write operations.
 
@@ -16,7 +16,7 @@ Options for write operations.
 
 > `optional` **overwriteOriginal?**: `boolean`
 
-Defined in: [src/types.ts:155](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L155)
+Defined in: [src/types.ts:155](https://github.com/woss/exiftool/blob/67919f8602e1b01765df081c4fd4df4684ab9c20/src/types.ts#L155)
 
 Overwrite original file without backup (default: false)
 
@@ -26,6 +26,6 @@ Overwrite original file without backup (default: false)
 
 > `optional` **preserveTime?**: `boolean`
 
-Defined in: [src/types.ts:158](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/types.ts#L158)
+Defined in: [src/types.ts:158](https://github.com/woss/exiftool/blob/67919f8602e1b01765df081c4fd4df4684ab9c20/src/types.ts#L158)
 
 Preserve file modification time (default: false)

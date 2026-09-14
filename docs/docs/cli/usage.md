@@ -88,17 +88,19 @@ exiftool-ts -GPS* image.jpg
 exiftool-ts -EXIF:GPS* image.jpg
 ```
 
-## C2PA Specific Flags
+## C2PA Specific Flags (not yet implemented)
+
+The following flags are designed for ExifTool compatibility and will be implemented per the [C2PA plan](https://github.com/woss/exiftool/blob/main/C2PA_PLAN.md):
 
 ```bash
 # All C2PA tags
 exiftool-ts -C2PA image.jpg
 
 # Specific C2PA tags
-exiftool-ts -Claim_generator -ActionsAction image.jpg
+exiftool-ts -Claim_generator -ActionsAction -ActionsSoftwareAgent image.jpg
 
-# Combined with other groups
-exiftool-ts -EXIF:All -C2PA image.jpg
+# JSON output
+exiftool-ts -j -C2PA image.jpg
 ```
 
 ## Output Options

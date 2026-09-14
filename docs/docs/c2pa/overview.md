@@ -46,9 +46,12 @@ JUMBF Superbox ("jumb")
   └─► Nested JUMBF boxes ──────► Recursive structure
 ```
 
-## Supported C2PA Tags
+## C2PA Tags (reference exiftool)
+
+The following tags are parsed by the reference ExifTool 13.55+. **exiftool-ts does not yet implement JUMBF/C2PA parsing** — these tags will appear as MISSING in parity sweeps until the implementation lands.
 
 ### Manifest Tags
+
 | Tag | Description |
 |-----|-------------|
 | `Claim_generator` | Generator string (e.g., "Adobe Photoshop/25.5.1...") |

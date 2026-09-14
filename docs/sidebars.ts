@@ -15,15 +15,6 @@ const sidebars: SidebarsConfig = {
     },
     {
       type: 'category',
-      label: 'C2PA Support',
-      items: [
-        'c2pa/overview',
-        'c2pa/jumbf-structure',
-        'c2pa/plan',
-      ],
-    },
-    {
-      type: 'category',
       label: 'CLI Reference',
       items: [
         'cli/usage',

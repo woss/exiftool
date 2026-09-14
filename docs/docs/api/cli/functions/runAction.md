@@ -1,14 +1,14 @@
-[**@woss/exiftool v0.1.0**](../../README.md)
+[**exiftool-ts v0.1.3**](../../README.md)
 
 ***
 
-[@woss/exiftool](../../modules.md) / [cli](../README.md) / runAction
+[exiftool-ts](../../modules.md) / [cli](../README.md) / runAction
 
 # Function: runAction()
 
 > **runAction**(`options`, ...`files`): `Promise`\<`number`\>
 
-Defined in: [src/cli.ts:33](https://github.com/woss/exiftool/blob/8010b391b1624473b092fd34b6fdf88658ffb8e7/src/cli.ts#L33)
+Defined in: [src/cli.ts:33](https://github.com/woss/exiftool/blob/67919f8602e1b01765df081c4fd4df4684ab9c20/src/cli.ts#L33)
 
 Runs a single CLI action (read or write) with the given options and files.
 This is the core logic used by both `main()` and the `-stay_open` daemon.

@@ -48,19 +48,22 @@ await exiftool.write('input.jpg', 'output.jpg', {
 });
 ```
 
-### C2PA Content Credentials
+### RAW Images
 
 ```typescript
 import { ExifTool } from '@woss/exiftool';
 
 const exiftool = new ExifTool();
-const result = await exiftool.read('c2pa-image.jpg');
+const result = await exiftool.read('photo.dng');
 
-console.log(result.tags.Claim_generator);           // "Adobe Photoshop/25.5.1..."
-console.log(result.tags.ActionsAction);             // "c2pa.edited"
-console.log(result.tags.Claim_Generator_InfoName);  // "Adobe Photoshop"
-console.log(result.tags.ActionsSoftwareAgent);      // "Adobe Firefly"
+console.log(result.format);          // "DNG"
+console.log(result.tags.Make);       // "SONY"
+console.log(result.tags.Model);      // "ILCE-7RM4"
+console.log(result.tags.ImageSize);  // "9600x6376"
 ```
+
+RAW containers are read-only: TIFF, DNG, CR2, NEF, ARW, ORF, RW2, PEF,
+ERF, DCR, SRW. MakerNotes are not decoded.
 
 ## CLI Usage
 
@@ -74,8 +77,8 @@ npx exiftool-ts -j image.jpg
 # Specific tags
 npx exiftool-ts -Title -Artist -Copyright image.jpg
 
-# C2PA specific
-npx exiftool-ts -C2PA image.jpg
+# All tags with groups
+npx exiftool-ts -G1 -j image.jpg
 ```
 
 ## Next Steps

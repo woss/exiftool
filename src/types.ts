@@ -68,7 +68,7 @@ export interface TagEntry {
   /** Whether tag indicates a problem (e.g., corrupted data) */
   isBad?: boolean;
 
-  /** Value enumeration (e.g., { 1: "Auto", 2: "Manual" }) */
+  /** Value enumeration (e.g., `{ 1: "Auto", 2: "Manual" }`) */
   values?: Record<number | string, string>;
 }
 

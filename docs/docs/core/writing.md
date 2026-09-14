@@ -132,15 +132,6 @@ await exiftool.write('input.jpg', 'output.jpg', {
 });
 ```
 
-## Writing C2PA
-
-```typescript
-// Note: Full C2PA writing requires manifest creation
-// Currently supports reading; writing API in development
-const result = await exiftool.read('c2pa-image.jpg');
-// C2PA tags are read-only in current version
-```
-
 ## Validation
 
 ```typescript
