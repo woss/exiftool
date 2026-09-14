@@ -166,6 +166,18 @@ describe('makernote fixture parity (exiftool 13.55)', () => {
     assertEquals(info.tags['CreativeStyle'], 'Standard');
   });
 
+  test('Pentax JPEG makernote (AOC\0 header, byte-order marker)', async () => {
+    if (!existsSync(assetPath('Pentax.jpg'))) return;
+    const info = await tool.read(assetPath('Pentax.jpg'));
+    assertEquals(info.tags['PentaxVersion'], '3 0 0 0');
+    assertEquals(info.tags['PentaxModelType'], 0);
+    assertEquals(info.tags['PreviewImageSize'], '640 480');
+    assertEquals(info.tags['Quality'], 'Better');
+    assertEquals(info.tags['ImageTone'], 'Natural');
+    assertEquals(info.tags['FocusMode'], 'AF-S (Focus-priority)');
+    assertEquals(info.tags['MeteringMode'], 'Multi-segment');
+  });
+
   test('makerNotes: false suppresses decoded vendor tags', async () => {
     const bytes = new Uint8Array(readFileSync(assetPath('CanonRaw.cr2')));
     const withMn = parseTiff(bytes, undefined, undefined, { subIfds: true });

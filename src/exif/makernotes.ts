@@ -434,58 +434,6 @@ function startsWith(buf: Uint8Array, text: string, off = 0): boolean {
   return true;
 }
 
-/**
- * Emits a positional (ProcessBinaryData) sub-table whose value array is
- * embedded inside an IFD entry value at `index` semantics (ids restart at 0,
- * e.g. Nikon LensData). Canon uses the shared decodePositionalTable.
- */
-function decodeNikonBinaryTable(table: ExtractedTable, bytes: Uint8Array, out: Record<string, TagValue>): void {
-  const signed = table.format === 'int16s' || table.format === 'int32s';
-  const wide = table.format === 'int32s' || table.format === 'int32u';
-  const vals = wide ? readInts(bytes, signed) : readShorts(bytes, signed);
-  for (let i = 0; i < vals.length; ) {
-    const def = table.tags[String(i)];
-    if (!def) {
-      i += 1;
-      continue;
-    }
-    const count = def.count ?? 1;
-    const raw: TagValue = count === 1 ? vals[i] : vals.slice(i, i + count);
-    i += count;
-    if (def.unknown) continue;
-    out[def.name] = formatMakerValue(def, def.name, raw);
-  }
-}
-
-/** Decodes an int8u-tagged binary block: version string + (tag, len, data). */
-function decodeNikonLensData(bytes: Uint8Array, table: ExtractedTable, out: Record<string, TagValue>): void {
-  for (const [idStr, def] of Object.entries(table.tags)) {
-    const id = Number(idStr);
-    if (def.count === 4 || id === 0) {
-      // LensDataVersion: ASCII string of 4 bytes at offset 0
-      if (id === 0) {
-        out[def.name] = asciiOf(bytes.subarray(0, 4));
-        continue;
-      }
-    }
-    let pos = 4;
-    let found = false;
-    while (pos + 2 <= bytes.length) {
-      const tag = bytes[pos];
-      const len = bytes[pos + 1];
-      if (tag === id) {
-        const raw: TagValue = len === 1 ? bytes[pos + 2] : Array.from(bytes.slice(pos + 2, pos + 2 + len));
-        if (typeof raw === 'number' && skipByClass(def.raw, raw)) break;
-        out[def.name] = formatMakerValue(def, def.name, raw);
-        found = true;
-        break;
-      }
-      pos += 2 + len;
-    }
-    if (!found && id === 0) continue;
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Nikon
 // ---------------------------------------------------------------------------
