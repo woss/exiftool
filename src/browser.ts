@@ -11,6 +11,7 @@ export {
   jpegParser,
   pngParser,
   webpParser,
+  tiffRawParser,
 } from './plugins.js';
 export type { FormatParser, ParseHints } from './format/mod.js';
 export type { FileInfo, TagValue, WriteOptions, WriteResult } from './types.js';

@@ -3,6 +3,7 @@ import { avifParser } from './format/avif.js';
 import { jpegParser } from './format/jpeg.js';
 import { pngParser } from './format/png.js';
 import { webpParser } from './format/webp.js';
+import { tiffRawParser } from './format/tiff-raw.js';
 
 /**
  * Built-in format parser plugins.
@@ -26,6 +27,7 @@ export const MODERN_PLUGINS: FormatParser[] = [
   pngParser,
   webpParser,
   avifParser,
+  tiffRawParser,
 ];
 
 /**
@@ -45,3 +47,10 @@ export { pngParser };
 
 /** WebP format parser. Supports VP8/VP8L, EXIF, XMP, ICC in VP8X chunks. */
 export { webpParser };
+
+/**
+ * TIFF-family RAW container parser (read-only). Registers under `'TIFF'`;
+ * per-file type (DNG, CR2, NEF, ARW, ORF, RW2, PEF, ERF, DCR, SRW) is
+ * reported as `FileInfo.format`. MakerNotes are not decoded.
+ */
+export { tiffRawParser };

@@ -99,7 +99,7 @@ function rational(num: number, den: number, le: boolean): Uint8Array {
  * Assemble a full little/big-endian TIFF blob from IFD entry lists.
  * Entries may point at other IFDs by index; out-of-line values land in a pool.
  */
-function buildTiff(le: boolean, ifds: Val[][]): Uint8Array {
+function buildTiff(le: boolean, ifds: Val[][], magic = 42): Uint8Array {
   let pos = 8;
   const ifdOffsets = ifds.map((es) => {
     const off = pos;
@@ -122,7 +122,7 @@ function buildTiff(le: boolean, ifds: Val[][]): Uint8Array {
   const dv = new DataView(buf.buffer);
   buf[0] = le ? 0x49 : 0x4d;
   buf[1] = le ? 0x49 : 0x4d;
-  dv.setUint16(2, 42, le);
+  dv.setUint16(2, magic, le);
   dv.setUint32(4, 8, le);
   const w16 = (o: number, v: number) => dv.setUint16(o, v, le);
   const w32 = (o: number, v: number) => dv.setUint32(o, v, le);
@@ -295,7 +295,7 @@ test('parseTiff renames IFD1 entries to Thumbnail* tags', () => {
   const dv = new DataView(bytes.buffer);
   dv.setUint32(10, 8 + 2 + 4, true); // next-IFD slot of an empty IFD0 -> IFD1
   const tags = parseTiff(bytes);
-  assertEquals(tags['ThumbnailCompression'], 'JPEG');
+  assertEquals(tags['ThumbnailCompression'], 'JPEG (old-style)');
   assertEquals(tags['ThumbnailLength'], 512);
 });
 
@@ -401,4 +401,81 @@ test('DMS fallback renders minute-only form without ref', () => {
 
 test('DMS fallback handles deg/min pairs without seconds', () => {
   assertEquals(formatGPSWithRef([43, 28], 'N'), `43 deg 28.0000' N`);
+});
+
+// ---------------------------------------------------------------------------
+// Container options (TiffParseOptions)
+// ---------------------------------------------------------------------------
+
+test('parseTiff walks SubIFDs and emits their tags when opts.subIfds is set', () => {
+  const bytes = buildTiff(true, [
+    [{ tag: 0x014a, ptr: 1 }],
+    [
+      { tag: 0x0100, type: 3, raw: pack([9600], 2, true) },
+      { tag: 0x0101, type: 3, raw: pack([6376], 2, true) },
+    ],
+  ]);
+  const tags = parseTiff(bytes, undefined, undefined, { subIfds: true });
+  assertEquals(tags['ImageWidth'], 9600);
+  assertEquals(tags['ImageLength'], 6376);
+  assertEquals('ImageWidth' in parseTiff(bytes), false); // off by default
+});
+
+test('parseTiff walks one chained SubIFD level via the next-IFD pointer', () => {
+  const bytes = buildTiff(true, [
+    [{ tag: 0x014a, ptr: 1 }],
+    [{ tag: 0x0100, type: 3, raw: pack([9600], 2, true) }],
+    [{ tag: 0x0101, type: 3, raw: pack([6376], 2, true) }],
+  ]);
+  // ifd0@8 (18 bytes), sub@26 (18 bytes), chained@44. Point sub's
+  // next-IFD slot (26 + 2 + 12) at the chained IFD.
+  new DataView(bytes.buffer).setUint32(40, 44, true);
+  const tags = parseTiff(bytes, undefined, undefined, { subIfds: true });
+  assertEquals(tags['ImageWidth'], 9600);
+  assertEquals(tags['ImageLength'], 6376);
+});
+
+test('full-resolution SubIFD overrides a demoted (reduced) IFD0, exiftool priority', () => {
+  const bytes = buildTiff(true, [
+    [
+      { tag: 0x00fe, type: 4, raw: pack([1], 4, true) }, // reduced-resolution IFD0
+      { tag: 0x0100, type: 3, raw: pack([256], 2, true) },
+      { tag: 0x014a, ptr: 1 },
+    ],
+    [
+      { tag: 0x00fe, type: 4, raw: pack([0], 4, true) }, // full-resolution SubIFD
+      { tag: 0x0100, type: 3, raw: pack([9600], 2, true) },
+    ],
+  ]);
+  const tags = parseTiff(bytes, undefined, undefined, { subIfds: true });
+  assertEquals(tags['SubfileType'], 'Reduced-resolution image'); // first SubfileType read is kept
+});
+
+test('SubIFD entries are suppressed by default and kept with the duplicates hint', () => {
+  const bytes = buildTiff(true, [
+    [{ tag: 0x010f, type: 2, raw: ascii('IFD0Make') }, { tag: 0x014a, ptr: 1 }],
+    [{ tag: 0x010f, type: 2, raw: ascii('SubMake') }],
+  ]);
+  const def = parseTiff(bytes, undefined, undefined, { subIfds: true });
+  assertEquals(def['Make'], 'IFD0Make');
+  const all = parseTiff(bytes, undefined, { duplicates: true }, { subIfds: true });
+  assertEquals(all['Make'], 'SubMake');
+});
+
+test('parseTiff decodes IFD0 XMP packet when opts.xmp is set', () => {
+  const xml =
+    '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">' +
+    '<rdf:Description rdf:about="" xmp:Rating="5"/></rdf:RDF></x:xmpmeta>';
+  const bytes = buildTiff(true, [[{ tag: 0x02bc, type: 7, raw: encoder.encode(xml) }]]);
+  const tags = parseTiff(bytes, undefined, undefined, { xmp: true });
+  assertEquals(tags['Rating'], '5');
+  assertEquals('XMP' in tags, false); // blob key not emitted
+  assertEquals('Rating' in parseTiff(bytes), false); // off by default
+});
+
+test('parseTiff accepts Panasonic magic 85 only when opts.panasonic is set', () => {
+  const bytes = buildTiff(true, [[{ tag: 0x010f, type: 2, raw: ascii('Panasonic') }]], 85);
+  assertEquals(parseTiff(bytes), {}); // magic 85 rejected by default
+  const tags = parseTiff(bytes, undefined, undefined, { panasonic: true });
+  assertEquals(tags['Make'], 'Panasonic');
 });
