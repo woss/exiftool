@@ -16,15 +16,15 @@ Input (File/Stream/Buffer)
 Format Detection (Magic Bytes)
          │
          ▼
-Format Parser (JPEG/PNG/TIFF/HEIF/QuickTime/WebP)
+Format Parser (JPEG/PNG/WebP/AVIF-HEIF/TIFF-family RAW)
          │
          ▼
 ├── EXIF/TIFF Parser ──────► IFD Walking
 ├── XMP Parser ───────────► XML + RDF Parsing
 ├── IPTC Parser ──────────► Application Record Parsing
 ├── ICC Profile Parser ───► Tag Decoding
-├── JUMBF/C2PA Parser ────► Box Walking + CBOR
-└── MakerNotes ───────────► Vendor-specific Decoding
+├── JUMBF Parser ──────────► Box Walking + CBOR
+└── MakerNote Decoder ───► Vendor tag decoding (Canon, Nikon, Sony, Olympus, Panasonic, Pentax)
          │
          ▼
 Composite Tag Computation
@@ -33,26 +33,23 @@ Composite Tag Computation
 Output Normalization (JSON/CSV/Tabular)
 ```
 
-## Streaming Design
+## Memory Design
 
-- **Zero-copy**: Operates on `Uint8Array` views without copying
-- **Incremental**: Parses as data arrives (no full file load required)
-- **Lazy evaluation**: Only parses requested tag groups
-- **Memory bounded**: Max memory = largest IFD/box + buffer
+- **Zero-copy**: tag values are `Uint8Array` views into the source buffer where possible — copy out before retaining
+- **Whole-buffer reads**: files are read fully into memory; there is no streaming or partial-load mode
+- **No subprocesses**: parsing happens in-process, one `read()` per file, no `exiftool` binary involved
 
 ## Format Parsers
 
-Each format has a dedicated parser in `src/format/`:
+Each format has a dedicated parser plugin in `src/format/`:
 
 | Format | Parser | Key Features |
 |--------|--------|--------------|
-| JPEG | `jpeg.ts` | APP1/APP13/APP11 segments, JFIF, MPF |
-| PNG | `png.ts` | iTXt/tEXt/zTXt, caBX for C2PA |
-| TIFF | `tiff.ts` | BigTIFF, multi-IFD, sub-IFDs |
-| HEIF | `heif.ts` | ISOBMFF boxes, Exif/TIFF in meta |
+| JPEG | `jpeg.ts` | APP1 EXIF/XMP, APP13 IPTC, APP11 JUMBF, JFIF, MPF |
+| PNG | `png.ts` | iTXt/tEXt/zTXt, eXIf, caBX (JUMBF) |
 | WebP | `webp.ts` | VP8/VP8L, EXIF/XMP in VP8X |
-| QuickTime | `quicktime.ts` | ISOBMFF atoms, meta box |
-| PDF | `pdf.ts` | XMP streams, Info dict |
+| AVIF/HEIF | `avif.ts` | ISOBMFF boxes, Exif/XMP/ICC in meta |
+| TIFF-family RAW | `tiff-raw.ts` | TIFF, DNG, CR2, NEF, ARW, ORF, RW2, PEF, ERF, DCR, SRW (read-only) |
 
 ## IFD Walking (TIFF/EXIF)
 

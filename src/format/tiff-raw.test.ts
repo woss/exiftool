@@ -313,7 +313,7 @@ test('tiff-raw: real NEF (reduced IFD0 + primary SubIFD) matches exiftool dims',
   assertEquals(info.tags['SubfileType'], 'Reduced-resolution image');
 });
 
-test('tiff-raw: real RW2 (magic 85) parses standard tags; PanasonicRaw dims are a known gap', async () => {
+test('tiff-raw: real RW2 (magic 85) parses standard tags incl. sensor-border dimensions', async () => {
   const info = await tool.read(assetPath('Panasonic.rw2'));
   assertEquals(info.format, 'RW2');
   assertEquals(info.tags['FileType'], 'RW2');
@@ -324,9 +324,9 @@ test('tiff-raw: real RW2 (magic 85) parses standard tags; PanasonicRaw dims are 
   assertEquals(info.tags['FNumber'], 4);
   assertEquals(info.tags['ISO'], 80);
   assertEquals(info.tags['BitsPerSample'], 12);
-  // Known gap (documented partial parity): RW2 image dimensions live in
-  // PanasonicRaw-specific tag ids that don't resolve through the tag db.
-  assertEquals('ImageWidth' in info.tags, false);
+  // RW2 dimensions are the sensor-border spread (exiftool Composite values).
+  assertEquals(info.tags['ImageWidth'], 3648);
+  assertEquals(info.tags['ImageHeight'], 2736);
 });
 
 // User's own fixture (never committed): full 61 MP Sony in-camera DNG.

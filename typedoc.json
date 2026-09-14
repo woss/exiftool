@@ -3,7 +3,7 @@
   "out": "docs/docs/api",
   "tsconfig": "tsconfig.json",
   "readme": "README.md",
-  "name": "@woss/exiftool",
+  "name": "exiftool-ts",
   "includeVersion": true,
   "excludePrivate": true,
   "excludeProtected": true,

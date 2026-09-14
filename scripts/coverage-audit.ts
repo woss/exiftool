@@ -78,6 +78,10 @@ export const COVERAGE_ALLOWLIST: Record<string, string> = {
     'best-effort temp cleanup catch fires only when rm rejects on real filesystem errors (EACCES/EBUSY), which the fixtures cannot produce',
   'src/exif/cbor.ts':
     'unreachable default-major throw (byte>>5 is always 0..7) and bigint epoch fallback: the decoder emits JS numbers, never bigint',
+  'src/exif/makernotes.ts':
+    'vendor dispatch arms and malformed-input guards whose fixtures do not exist (OLYMPUS\\0/OM SYSTEM headers, Sony headered DSC bodies, truncated Pentax/Canon makernotes); every branch that emits on real fixtures is exercised by makernotes.test.ts',
+  'src/exif/tiff.ts':
+    'malformed MakN/RW2-embedded guards (bad section sizes, missing Exif marker, negative makernote offsets) that the committed fixtures do not produce; fixture-covered paths run in makernotes.test.ts',
 };
 
 /**

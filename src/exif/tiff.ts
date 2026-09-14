@@ -1,4 +1,5 @@
 import { parseIFD } from './ifd.js';
+import { decodeMakerNote } from './makernotes.js';
 import { parseXMP } from './xmp.js';
 import type { ParseHints } from '../format/mod.js';
 import { formatExifValue, getTagName, readIfdValue, readRationalRaw, EXIF_POINTER_TAGS } from './values.js';
@@ -23,6 +24,11 @@ export interface TiffParseOptions {
   xmp?: boolean;
   /** Accept Panasonic magic 85 ('IIU\0') in addition to 42. */
   panasonic?: boolean;
+  /**
+   * Decode vendor MakerNotes (ExifIFD 0x927c and format-specific carriers).
+   * Default true — opt out for a raw-marker-free parse.
+   */
+  makerNotes?: boolean;
 }
 
 function isTiffHeader(bytes: Uint8Array, opts?: TiffParseOptions): boolean {
@@ -156,6 +162,114 @@ function resolveTagName(
       }
       continue;
     }
+    // RW2 keeps the Panasonic makernote in IFD0 tag 0x002e (12-byte
+    // "Panasonic\0\0\0" header + makernote IFD). Decoded before generic
+    // emission; the pointer tag itself is never emitted (exiftool -j).
+    if (opts?.panasonic && opts?.makerNotes !== false && entry.tag === 0x002e) {
+      const raw = entry.value as Uint8Array;
+      // RW2 stores a JPEG preview here; its embedded APP1 EXIF carries the
+      // Panasonic makernote that exiftool surfaces in the Panasonic group.
+      if (raw.length > 32 && raw[0] === 0xff && raw[1] === 0xd8) {
+        // Embedded JPEG preview: extract only the makernote tags from its
+        // APP1 EXIF (exiftool surfaces the Panasonic group, not the rest).
+        const e = raw.findIndex(
+          (v, i) =>
+            i + 6 <= raw.length && v === 0x45 && raw[i + 1] === 0x78 && raw[i + 2] === 0x69 && raw[i + 3] === 0x66 && raw[i + 4] === 0 && raw[i + 5] === 0,
+        );
+        if (e > 0) {
+          const segLen = (raw[e - 2] << 8) | raw[e - 1];
+          const inner = raw.slice(e + 6, e + 6 + segLen - 8);
+          const innerDv = new DataView(inner.buffer, inner.byteOffset, inner.byteLength);
+          if (inner.length > 8) {
+            const innerLe = inner[0] === 0x49;
+            const ifd0 = innerDv.getUint32(4, innerLe);
+            const walk = (off: number): void => {
+              if (!off || off + 2 > inner.length) return;
+              const n = innerDv.getUint16(off, innerLe);
+              let subIfd = 0;
+              for (let i = 0; i < n; i++) {
+                const eo = off + 2 + i * 12;
+                const tag = innerDv.getUint16(eo, innerLe);
+                const type = innerDv.getUint16(eo + 2, innerLe);
+                const count = innerDv.getUint32(eo + 4, innerLe);
+                const size = count * { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8, 7: 1 }[type]!;
+                if (tag === 0x8769 && size <= 4) {
+                  subIfd = innerDv.getUint32(eo + 8, innerLe);
+                }
+                if (tag === 0x927c) {
+                  const mnOff = size <= 4 ? eo + 8 : innerDv.getUint32(eo + 8, innerLe);
+                  const mnBytes = inner.slice(mnOff, mnOff + count * 1);
+                  const env = {
+                    bytes: inner,
+                    littleEndian: innerLe,
+                    make: 'Panasonic',
+                    model: String(result['Model'] ?? ''),
+                    tagDb,
+                  };
+                  const mnTags = decodeMakerNote(mnBytes, mnOff, env);
+                  for (const [k, v] of Object.entries(mnTags)) {
+                    if (!(k in result)) put(k, v, 2);
+                  }
+                }
+              }
+              if (subIfd) walk(subIfd);
+            };
+            walk(ifd0);
+          }
+        }
+        continue;
+      }
+      if (raw.length >= 16 && String.fromCharCode(...raw.slice(0, 9)) === 'Panasonic') {
+        const env = {
+          bytes,
+          littleEndian,
+          make: 'Panasonic',
+          model: String(result['Model'] ?? ''),
+          tagDb,
+        };
+        const mnTags = decodeMakerNote(raw, entry.offset, env);
+        for (const [k, v] of Object.entries(mnTags)) {
+          put(k, v, 2);
+        }
+      }
+      continue;
+    }
+    // Sony ARW-in-DNG keeps the makernote in DNGPrivateData (0xc634) inside
+    // an "Adobe\0MakN\0" block: section header + II/MM marker + original
+    // file position of the makernote IFD + the makernote itself.
+    if (opts?.makerNotes !== false && entry.tag === 0xc634 && (entry.value as Uint8Array).length > 20) {
+      const p = entry.value as Uint8Array;
+      if (String.fromCharCode(...p.slice(0, 5)) === 'Adobe' && p[5] === 0) {
+        // Adobe section layout: 4-char type + big-endian uint32 size + data.
+        // Walk sections to find 'MakN'.
+        let o = 6;
+        let makn: Uint8Array | undefined;
+        while (o + 8 <= p.length) {
+          const type = String.fromCharCode(...p.slice(o, o + 4));
+          const size = (p[o + 4] << 24) | (p[o + 5] << 16) | (p[o + 6] << 8) | p[o + 7];
+          if (size < 0 || o + 8 + size > p.length) break;
+          if (type === 'MakN') {
+            makn = p.subarray(o + 8, o + 8 + size);
+            break;
+          }
+          o += 8 + size;
+        }
+        if (makn && makn.length > 20) {
+          const env = {
+            bytes,
+            littleEndian: makn[0] === 0x49,
+            make: String(result['Make'] ?? ''),
+            model: String(result['Model'] ?? ''),
+            tagDb,
+          };
+          const mnTags = decodeMakerNote(makn, entry.offset + o + 8, env);
+          for (const [k, v] of Object.entries(mnTags)) {
+            put(k, v, 2);
+          }
+        }
+        continue;
+      }
+    }
     const name = resolveTagName(entry.tag, 'ifd0', tagDb);
     if (!name) continue;
     if (EXIF_POINTER_TAGS.has(name)) continue;
@@ -164,6 +278,26 @@ function resolveTagName(
       // the rest of this IFD (exiftool keeps the first SubfileType read).
       put(name, formatExifValue(val, name), 2);
       if (val === 1 || val === 2 || val === 3) demoted = true;
+      continue;
+    }
+    // Canon TIFF-RAW files carry their preview in IFD0 tags 0x0111/0x0117;
+    // exiftool names them PreviewImageStart/PreviewImageLength (not
+    // StripOffsets/StripByteCounts) for Canon and emits the data block.
+    if (
+      (entry.tag === 0x0111 || entry.tag === 0x0117) &&
+      String(result['Make'] ?? '').startsWith('Canon') &&
+      opts?.subIfds
+    ) {
+      if (entry.tag === 0x0111) {
+        put('PreviewImageStart', val, 2);
+      } else {
+        put('PreviewImageLength', val, 2);
+        const start = Number(result['PreviewImageStart'] ?? 0);
+        const len = Number(val);
+        if (start > 0 && len > 0 && start + len <= bytes.length) {
+          put('PreviewImage', `(Binary data ${len} bytes, use -b option to extract)`, 2);
+        }
+      }
       continue;
     }
     put(name, formatExifValue(val, name), demoted ? 1 : 2);
@@ -213,6 +347,34 @@ function resolveTagName(
         continue;
       }
       const val = readIfdValue(entry, view, littleEndian);
+      if (opts?.makerNotes !== false && entry.tag === 0x927c) {
+        // Decode the vendor makernote before generic emission. Returned tags
+        // merge at full priority with first-wins, so EXIF tags already read
+        // keep their values (exiftool's same behaviour at equal priority).
+        // The raw MakerNote marker itself is never emitted (exiftool -j).
+        const mnBytes = val instanceof Uint8Array
+          ? val
+          : Array.isArray(val) && val.every((n) => typeof n === 'number')
+            ? Uint8Array.from(val as number[])
+            : undefined;
+        if (mnBytes && mnBytes.length >= 4) {
+          const env = {
+            bytes,
+            littleEndian,
+            make: String(result['Make'] ?? ''),
+            model: String(result['Model'] ?? ''),
+            tagDb,
+          };
+          const mnPrio: Record<string, number> = {};
+          const mnTags = decodeMakerNote(mnBytes, entry.offset, env, mnPrio);
+          for (const [k, v] of Object.entries(mnTags)) {
+            // exiftool: makernote tags outrank EXIF/IFD0 tags read earlier
+            // (default 3); vendor tables with Priority => 0 demote to 1.
+            put(k, v, mnPrio[k] ?? 3);
+          }
+        }
+        continue;
+      }
       // Canon's sensor-diagonal algorithm needs the raw rational pair
       // (numerator = pixels * 1000, denominator = sensor size in inches *
       // 1000) — the quotient we normally store loses that information.
@@ -222,7 +384,10 @@ function resolveTagName(
       }
       if (name) {
         if (EXIF_POINTER_TAGS.has(name)) continue;
-        result[name] = formatExifValue(val, name);
+        // Priority-aware put (not a direct assign): makernote tags decoded
+        // earlier in this loop at equal priority fill gaps without
+        // clobbering EXIF values, matching exiftool's first-read-wins.
+        put(name, formatExifValue(val, name), 2);
       }
     }
   }
@@ -251,15 +416,49 @@ function resolveTagName(
     }
   }
 
-  if (ifd0.nextIfdOffset && ifd0.nextIfdOffset < bytes.length) {
-    const ifd1 = parseIFD(view, ifd0.nextIfdOffset, littleEndian);
-    for (const entry of ifd1.entries) {
-      const name = resolveTagName(entry.tag, 'ifd0', tagDb);
-      if (!name || EXIF_POINTER_TAGS.has(name)) continue;
-      const val = readIfdValue(entry, view, littleEndian);
-      const strippedName = name.startsWith('Thumbnail') ? name.slice('Thumbnail'.length) : name;
-      if (!duplicates && strippedName in result) continue;
-      result[`Thumbnail${strippedName}`] = formatExifValue(val, name);
+  // Walk the IFD0 next-IFD chain (IFD1 = thumbnail IFD; CR2 continues with
+  // IFD2/IFD3). IFD1 keeps the Thumbnail* renaming byte-for-byte; later
+  // chain members emit plain names at priority 1 (exiftool default), so
+  // IFD0/ExifIFD full-priority values win on collision while later chain
+  // members (CR2 IFD3 vs IFD2) replace earlier ones.
+  {
+    let next = ifd0.nextIfdOffset && ifd0.nextIfdOffset < bytes.length ? ifd0.nextIfdOffset : 0;
+    let level = 0;
+    let thumbnailOffset: TagValue | undefined;
+    let thumbnailLength: TagValue | undefined;
+    while (next && next < bytes.length && level < 8) {
+      const ifdN = parseIFD(view, next, littleEndian);
+      for (const entry of ifdN.entries) {
+        const name = resolveTagName(entry.tag, 'ifd0', tagDb);
+        if (!name || EXIF_POINTER_TAGS.has(name)) continue;
+        const val = readIfdValue(entry, view, littleEndian);
+        if (level === 0) {
+          if (entry.tag === 0x0201) thumbnailOffset = val;
+          if (entry.tag === 0x0202) thumbnailLength = val;
+          const strippedName = name.startsWith('Thumbnail') ? name.slice('Thumbnail'.length) : name;
+          if (!duplicates && strippedName in result) continue;
+          result[`Thumbnail${strippedName}`] = formatExifValue(val, name);
+        } else {
+          // exiftool renders numeric lists ("8 8 8"); join number arrays.
+          const v = Array.isArray(val) && val.every((n) => typeof n === 'number')
+            ? val.join(' ')
+            : formatExifValue(val, name);
+          put(name, v, 1);
+        }
+      }
+      next = ifdN.nextIfdOffset && ifdN.nextIfdOffset < bytes.length ? ifdN.nextIfdOffset : 0;
+      level++;
+    }
+    // JPEG thumbnail block (exiftool emits it when offset+length resolve).
+    if (thumbnailOffset !== undefined && thumbnailLength !== undefined) {
+      const off = Number(thumbnailOffset);
+      const len = Number(thumbnailLength);
+      if (off > 0 && len > 0 && off + len <= bytes.length) {
+        const data = bytes.subarray(off, off + len);
+        if (data[0] === 0xff && data[1] === 0xd8) {
+          result['ThumbnailImage'] = `(Binary data ${len} bytes, use -b option to extract)`;
+        }
+      }
     }
   }
 

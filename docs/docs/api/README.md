@@ -1,8 +1,8 @@
-**@woss/exiftool v0.1.0**
+**exiftool-ts v0.1.3**
 
 ***
 
-# exiftool
+# exiftool-ts
 
 TypeScript rewrite of [ExifTool](https://exiftool.org) for Node.js. Read and write
 metadata from JPEG, PNG, WebP, AVIF/HEIF, and TIFF-family images — with a fully
@@ -14,7 +14,7 @@ ExifTool is the gold standard for metadata — but it's a 30k-line Perl program.
 Every invocation pays a Perl startup cost, embedding it in a JS/TS service means
 shelling out or managing sidecars, and there are no types.
 
-exiftool-ts exists to bring that capability natively into the TypeScript
+exiftool exists to bring that capability natively into the TypeScript
 ecosystem:
 
 - **Typed end to end** — `read()` returns an inferred `FileInfo`; no parsing strings.
@@ -27,19 +27,9 @@ ecosystem:
 
 ## Status & parity
 
-Early development, moving fast. Full detail lives in
-[`docs/PARITY_MATRIX.md`](./docs/PARITY_MATRIX.md). Summary:
-
-| Area                                                     | State                                   |
-| -------------------------------------------------------- | --------------------------------------- |
-| Read JPEG / PNG / WebP / AVIF-HEIF                       | ✅ verified against reference exiftool  |
-| EXIF (IFD0 + sub-IFDs + GPS + IFD1)                      | ✅ both endians                         |
-| XMP / IPTC-IIM / ICC / Photoshop IRB / JFIF              | 🟨 core coverage                        |
-| MPF embedded-image extraction (`-ee`)                    | 🟨                                      |
-| Write JPEG / PNG / WebP / AVIF                           | ✅ IFD0 tag subset, `_original` backups |
-| `-stay_open` daemon protocol                             | ✅ stdin command loop                   |
-| CLI: `-j -csv -X -b -d -c -g -G -v -q -if -o -r -ext -i` | ✅                                      |
-| MakerNotes, RAW containers (CR2/DNG/…), PDF/video        | ❌ not started                          |
+Early development, moving fast. The full, maintained status matrix lives in the
+[parity docs](https://woss.github.io/exiftool/parity) and the working register
+in [`DIVERGENCES.md`](_media/DIVERGENCES.md).
 
 Value-level parity is enforced by `src/cli/exiftool-parity.test.ts`, which runs
 the real `exiftool` binary on shared fixtures and fails on any undocumented
@@ -99,11 +89,11 @@ can restrict an instance to a set — the bundler then ships only those parsers:
 import { ExifTool } from "@woss/exiftool";
 import { MODERN_PLUGINS } from "@woss/exiftool/plugins";
 
-const tool = new ExifTool({ plugins: MODERN_PLUGINS }); // JPEG, PNG, WebP, AVIF only
+const tool = new ExifTool({ plugins: MODERN_PLUGINS }); // JPEG, PNG, WebP, AVIF, TIFF-family RAW (read-only)
 ```
 
 `MODERN_PLUGINS` / `ALL_PLUGINS` cover the shipped formats; individual parsers
-(`jpegParser`, `pngParser`, `webpParser`, `avifParser`) and fully custom plugins
+(`jpegParser`, `pngParser`, `webpParser`, `avifParser`, `tiffRawParser`) and fully custom plugins
 (`{ format, extensions, canParse, parse, writeBytes? }`) come from the same
 subpath. A plugin without `writeBytes` is read-only. The default — every
 built-in — loads lazily, so `new ExifTool()` keeps working unchanged.
@@ -207,7 +197,7 @@ npx vitest run src/cli/exiftool-parity.test.ts
 Near term: deepen EXIF/XMP/IPTC writing, add maker-note decoding, extend the
 container list toward the formats exiftool covers. The long-term target remains
 parity with ExifTool's reading surface across its supported formats — tracked in
-the parity matrix above.
+the [parity docs](https://woss.github.io/exiftool/parity).
 
 ## License
 

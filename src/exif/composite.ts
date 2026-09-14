@@ -24,11 +24,33 @@ import type { TagValue } from '../types.js';
  * reach user output.
  */
 export function computeCompositeTags(tags: Record<string, TagValue>): void {
+  // Canon RAW (and Panasonic RW2 via sensor borders) report the true image
+  // dimensions through vendor tags; exiftool's Composite ImageSize /
+  // Megapixels prefer them over the thumbnail dimensions IFD0 carries.
+  // Canon: CanonImageWidth/Height feed the composites only (the visible
+  // ImageWidth/ImageHeight stay at their IFD values, as in exiftool).
+  // RW2: the sensor-border spread IS the visible image size (plan step 10).
+  const canonW = asNum(tags['CanonImageWidth']);
+  const canonH = asNum(tags['CanonImageHeight']);
+  const sensorLeft = asNum(tags['SensorLeftBorder']);
+  const sensorRight = asNum(tags['SensorRightBorder']);
+  const sensorTop = asNum(tags['SensorTopBorder']);
+  const sensorBottom = asNum(tags['SensorBottomBorder']);
+  const borderW = sensorLeft !== undefined && sensorRight !== undefined && sensorRight > sensorLeft
+    ? sensorRight - sensorLeft : undefined;
+  const borderH = sensorTop !== undefined && sensorBottom !== undefined && sensorBottom > sensorTop
+    ? sensorBottom - sensorTop : undefined;
+  if (!canonW && borderW !== undefined && !('ImageWidth' in tags)) tags['ImageWidth'] = borderW;
+  if (!canonH && borderH !== undefined && !('ImageHeight' in tags)) tags['ImageHeight'] = borderH;
   const imageWidth = asNum(tags['ImageWidth']);
   const imageHeight = asNum(tags['ImageHeight']) || asNum(tags['ImageLength']);
   if (imageHeight && !('ImageLength' in tags)) {
     tags['ImageLength'] = imageHeight;
   }
+  const exifW = asNum(tags['ExifImageWidth']);
+  const exifH = asNum(tags['ExifImageHeight']);
+  const compositeWidth = canonW ?? exifW ?? borderW ?? imageWidth;
+  const compositeHeight = canonH ?? exifH ?? borderH ?? imageHeight;
   const fnumber = asNum(tags['FNumber']);
   const exposureTime = asNum(tags['ExposureTime']);
   const iso = asNum(tags['ISO']);
@@ -47,10 +69,8 @@ export function computeCompositeTags(tags: Record<string, TagValue>): void {
   const offsetTime = asStr(tags['OffsetTime']);
   const offsetTimeOriginal = asStr(tags['OffsetTimeOriginal']);
   const offsetTimeDigitized = asStr(tags['OffsetTimeDigitized']);
-  const shutterSpeedValue = asNum(tags['ShutterSpeedValue']);
-
-  if (imageWidth && imageHeight) {
-    const mp = Math.round(imageWidth * imageHeight / 100000) / 10;
+  if (compositeWidth && compositeHeight) {
+    const mp = Math.round(compositeWidth * compositeHeight / 100000) / 10;
     if (!('Megapixels' in tags)) tags['Megapixels'] = mp;
   }
 
@@ -187,8 +207,44 @@ export function computeCompositeTags(tags: Record<string, TagValue>): void {
     if (!('LightValue' in tags)) tags['LightValue'] = lv;
   }
 
-  if (imageWidth && imageHeight && !('ImageSize' in tags)) {
-    tags['ImageSize'] = `${imageWidth}x${imageHeight}`;
+  if (compositeWidth && compositeHeight && !('ImageSize' in tags)) {
+    tags['ImageSize'] = `${compositeWidth}x${compositeHeight}`;
+  }
+
+  // --- Canon RAW composites ------------------------------------------------
+  // Ported from the Composite entries in ExifTool's Canon.pm. Values use the
+  // decoded vendor tags produced by makernotes.ts.
+  const wbAsShot = asStr(tags['WB_RGGBLevelsAsShot']);
+  if (wbAsShot) {
+    const levels = wbAsShot.split(' ').map(Number);
+    if (levels.length === 4 && levels.every((n) => Number.isFinite(n) && n > 0)) {
+      const green = (levels[1] + levels[2]) / 2;
+      if (!('RedBalance' in tags)) {
+        tags['RedBalance'] = Number((levels[0] / green).toFixed(6));
+      }
+      if (!('BlueBalance' in tags)) {
+        tags['BlueBalance'] = Number((levels[3] / green).toFixed(6));
+      }
+      if (!('WB_RGGBLevels' in tags)) tags['WB_RGGBLevels'] = wbAsShot;
+    }
+  }
+
+  const canonExposureMode = asStr(tags['CanonExposureMode']);
+  if (canonExposureMode && !('ShootingMode' in tags)) {
+    const aeb = asStr(tags['AutoExposureBracketing']);
+    tags['ShootingMode'] = aeb && aeb !== 'Off' ? `Bracketing (${canonExposureMode})` : canonExposureMode;
+  }
+
+  const continuousDrive = asStr(tags['ContinuousDrive']);
+  if (continuousDrive && !('DriveMode' in tags)) {
+    const DRIVE_MODE: Record<string, string> = {
+      Single: 'Single-frame Shooting',
+      Continuous: 'Continuous Shooting',
+      'Continuous, Speed Priority': 'Continuous Shooting (Speed Priority)',
+      'Continuous Low': 'Continuous Shooting (Low)',
+      'Continuous High': 'Continuous Shooting (High)',
+    };
+    tags['DriveMode'] = DRIVE_MODE[continuousDrive] ?? continuousDrive;
   }
 
   if (imageWidth && imageHeight && !('ImageHeight' in tags)) {
