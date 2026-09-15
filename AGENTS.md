@@ -119,6 +119,7 @@
 - NEVER ask for tool/repo/file-provided info
 - NEVER narrate session limits, token budgets, effort estimates
 - NEVER re-audit applied edits or routinely run git for validation
+- NEVER push directly to `main` — branch protection enforces this (PRs required, admins included). Branch → PR → merge; release tags only after the merge lands on `main`.
 
 ---
 
