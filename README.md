@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/static/img/logo.svg" alt="exiftool-ts logo" width="96">
+</p>
+
 # exiftool-ts
 
 TypeScript rewrite of [ExifTool](https://exiftool.org) for Node.js. Read and write
@@ -199,3 +203,7 @@ the [parity docs](https://woss.github.io/exiftool/parity).
 ## License
 
 MIT
+
+---
+
+Made with Human and AI effort — [woss.io](https://woss.io)

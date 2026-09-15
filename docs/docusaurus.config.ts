@@ -94,7 +94,7 @@ const config: Config = {
           ],
         },
       ],
-      copyright: `Copyright © ${new Date().getFullYear()} exiftool. Built with Docusaurus.`,
+      copyright: `Copyright © ${new Date().getFullYear()} exiftool. Built with Docusaurus. Made with Human and AI effort — <a href="https://woss.io" target="_blank" rel="noopener noreferrer">woss.io</a>.`,
     },
     prism: {
       theme: prismThemes.github,
