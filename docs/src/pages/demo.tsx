@@ -259,9 +259,12 @@ export default function Demo(): React.ReactElement {
     try {
       const arrayBuffer = await f.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
-      const t0 = performance.now();
       const t = await getTool();
+      // Measure the parse only — getTool() may fetch the 5 MB bundle on first
+      // use, which is load time, not parse time.
+      const t0 = performance.now();
       const info = await t.readBytes(bytes);
+      setParseTimeMs(performance.now() - t0);
       setTool(t);
       setTags(info.tags);
       setFormat(info.format);
