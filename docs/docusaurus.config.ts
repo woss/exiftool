@@ -49,6 +49,7 @@ const config: Config = {
 
   themeConfig: {
     image: 'img/exiftool-social-card.jpg',
+    metadata: [{ name: 'algolia-site-verification', content: 'FBAECA7265DDF53B' }],
     colorMode: {
       respectPrefersColorScheme: true,
     },
