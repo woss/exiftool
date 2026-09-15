@@ -12,7 +12,7 @@ export interface BuildTiffResult {
   skipped: string[];
 }
 
-interface IfdTagSpec {
+export interface IfdTagSpec {
   id: number;
   type: 1 | 2 | 3 | 4 | 5 | 7 | 10; // BYTE, ASCII, SHORT, LONG, RATIONAL, UNDEFINED, SRATIONAL
   name: string;
@@ -20,7 +20,7 @@ interface IfdTagSpec {
   count?: number;
 }
 
-const IFD0_TAGS: Record<string, IfdTagSpec> = {
+export const IFD0_TAGS: Record<string, IfdTagSpec> = {
   imagedescription: { id: 0x010E, type: 2, name: 'ImageDescription' },
   make: { id: 0x010F, type: 2, name: 'Make' },
   model: { id: 0x0110, type: 2, name: 'Model' },
@@ -36,7 +36,7 @@ const IFD0_TAGS: Record<string, IfdTagSpec> = {
 };
 
 /** ExifIFD (0x8769) tags. Pointers (0x8769/0x8825/0xA005) and MakerNote (0x927C) are never written. */
-const EXIF_IFD_TAGS: Record<string, IfdTagSpec> = {
+export const EXIF_IFD_TAGS: Record<string, IfdTagSpec> = {
   exposuretime: { id: 0x829A, type: 5, name: 'ExposureTime' },
   fnumber: { id: 0x829D, type: 5, name: 'FNumber' },
   exposureprogram: { id: 0x8822, type: 3, name: 'ExposureProgram' },
@@ -77,7 +77,7 @@ const EXIF_IFD_TAGS: Record<string, IfdTagSpec> = {
 };
 
 /** GPS IFD (0x8825) tags. */
-const GPS_IFD_TAGS: Record<string, IfdTagSpec> = {
+export const GPS_IFD_TAGS: Record<string, IfdTagSpec> = {
   gpsversionid: { id: 0x0000, type: 1, name: 'GPSVersionID', count: 4 },
   gpslatituderef: { id: 0x0001, type: 2, name: 'GPSLatitudeRef' },
   gpslatitude: { id: 0x0002, type: 5, name: 'GPSLatitude', count: 3 },
@@ -192,24 +192,25 @@ function refFromCoordinate(value: TagValue, fallback: string): string | undefine
   return fallback;
 }
 
-function rationals(pairs: [number, number][], signed: boolean): Uint8Array {
+function rationals(pairs: [number, number][], signed: boolean, le: boolean): Uint8Array {
   const buf = new ArrayBuffer(pairs.length * 8);
   const dv = new DataView(buf);
   pairs.forEach(([num, den], i) => {
     if (signed) {
-      dv.setInt32(i * 8, num, true);
-      dv.setInt32(i * 8 + 4, den, true);
+      dv.setInt32(i * 8, num, le);
+      dv.setInt32(i * 8 + 4, den, le);
     } else {
-      dv.setUint32(i * 8, num >>> 0, true);
-      dv.setUint32(i * 8 + 4, den >>> 0, true);
+      dv.setUint32(i * 8, num >>> 0, le);
+      dv.setUint32(i * 8 + 4, den >>> 0, le);
     }
   });
   return new Uint8Array(buf);
 }
 
-function encodeValue(
+export function encodeValue(
   spec: IfdTagSpec,
   value: TagValue,
+  le = true,
 ): { data: Uint8Array; count: number } | undefined {
   if (spec.type === 2) {
     const ascii = toAscii(value);
@@ -223,7 +224,9 @@ function encodeValue(
       n = Number.isFinite(parsed) ? Math.round(parsed) : undefined;
     }
     if (n === undefined || n < 0 || n > 0xFFFF) return undefined;
-    return { data: new Uint8Array([n & 255, n >> 8]), count: 1 };
+    return le
+      ? { data: new Uint8Array([n & 255, (n >> 8) & 255]), count: 1 }
+      : { data: new Uint8Array([(n >> 8) & 255, n & 255]), count: 1 };
   }
   if (spec.type === 1 || spec.type === 4 || spec.type === 7) {
     if (typeof value === 'number' && Number.isFinite(value)) {
@@ -234,7 +237,7 @@ function encodeValue(
       if (spec.type === 4) {
         if (value < 0 || value > 0xFFFFFFFF) return undefined;
         const dv = new DataView(new ArrayBuffer(4));
-        dv.setUint32(0, value, true);
+        dv.setUint32(0, value, le);
         return { data: new Uint8Array(dv.buffer), count: 1 };
       }
       return undefined;
@@ -259,7 +262,7 @@ function encodeValue(
         if (nums.some((n) => n < 0 || n > 0xFFFFFFFF)) return undefined;
         const buf = new ArrayBuffer(nums.length * 4);
         const dv = new DataView(buf);
-        nums.forEach((n, i) => dv.setUint32(i * 4, n, true));
+        nums.forEach((n, i) => dv.setUint32(i * 4, n, le));
         return { data: new Uint8Array(buf), count: nums.length };
       }
       return { data: new Uint8Array(nums), count: nums.length };
@@ -289,11 +292,11 @@ function encodeValue(
       }
     }
     if (pairs.length === 0) return undefined;
-    return { data: rationals(pairs, signed), count: pairs.length };
+    return { data: rationals(pairs, signed, le), count: pairs.length };
   }
   const r = toRational(value);
   if (!r || !encodePair(r)) return undefined;
-  return { data: rationals([r], signed), count: 1 };
+  return { data: rationals([r], signed, le), count: 1 };
 }
 
 interface Prepared {

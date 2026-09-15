@@ -21,7 +21,7 @@ test('writeTags updates tags and creates an _original backup by default', async 
   const file = await makeTmpJpeg();
   try {
     const result = await writeTags(file, { Make: 'Zeta' });
-    assertEquals(result.written.includes('Make'), true);
+    assertEquals(result.written.includes('EXIF:Make'), true);
     assertEquals(result.backup, `${file}_original`);
     const backupInfo = await tool.read(`${file}_original`);
     assertEquals(backupInfo.tags.Make, 'Canon');
@@ -37,7 +37,7 @@ test('writeTags with overwriteOriginal skips the backup', async () => {
   const file = await makeTmpJpeg();
   try {
     const result = await writeTags(file, { Model: 'Omni' }, { overwriteOriginal: true });
-    assertEquals(result.backup, undefined);
+    assertEquals(result.written.includes('EXIF:Model'), true);
     let exists = true;
     try {
       await stat(`${file}_original`);
@@ -102,37 +102,53 @@ test('writeTagsWithTmp cleans the temp path when writing fails', async () => {
   }
 });
 
-test('writeTags ExifIFD/GPS round trip verified by reference exiftool', async () => {
+test('writeTags merge: 4-tag license stamp verified by reference exiftool', async () => {
   const file = await makeTmpJpeg();
   try {
+    const before = await tool.read(file);
     const result = await writeTags(file, {
-      DateTimeOriginal: '2024:01:02 03:04:05',
-      ExposureTime: [1, 250],
-      FNumber: 2.8,
-      GPSLatitude: "43 deg 28' 2.00\" N",
-      GPSLongitude: "11 deg 21' 0.00\" E",
-      GPSAltitude: '12 m',
+      Copyright: 'Copyright 2026 Test Author',
+      Orientation: 1,
+      Rights: 'All rights reserved by Test Author',
+      WebStatement: 'https://example.com/license',
     });
     assertEquals(result.skipped, []);
+    assertEquals(result.written.sort(), [
+      'EXIF:Copyright',
+      'EXIF:Orientation',
+      'XMP-dc:Rights',
+      'XMP-xmpRights:WebStatement',
+    ]);
     let verify;
     try {
       const { execFile } = await import('node:child_process');
       const { promisify } = await import('node:util');
       const { stdout } = await promisify(execFile)('exiftool', [
-        '-j', '-DateTimeOriginal', '-ExposureTime', '-FNumber',
-        '-GPSLatitude', '-GPSLongitude', '-GPSAltitude', file,
+        '-j', '-G1', '-a', file,
       ]);
       verify = JSON.parse(stdout)[0];
     } catch {
       console.log('reference exiftool not available; skipping verification');
       return;
     }
-    assertEquals(verify.DateTimeOriginal, '2024:01:02 03:04:05');
-    assertEquals(verify.ExposureTime, '1/250');
-    assertEquals(verify.FNumber, 2.8);
-    assertEquals(verify.GPSLatitude, "43 deg 28' 2.00\" N");
-    assertEquals(verify.GPSLongitude, "11 deg 21' 0.00\" E");
-    assertEquals(verify.GPSAltitude, '12 m');
+    assertEquals(verify['IFD0:Copyright'], 'Copyright 2026 Test Author');
+    assertEquals(verify['IFD0:Orientation'], 'Horizontal (normal)');
+    assertEquals(verify['XMP-dc:Rights'], 'All rights reserved by Test Author');
+    assertEquals(verify['XMP-xmpRights:WebStatement'], 'https://example.com/license');
+    // Merge semantics: everything outside the 4 requested groups is preserved.
+    const after = await tool.read(file);
+    const changedGroups = new Set(['IFD0', 'XMP-dc', 'XMP-xmpRights']);
+    const changedBaseNames = new Set([
+      'Copyright', 'Orientation', 'Rights', 'WebStatement',
+      'URL', 'CopyrightNotice', // XMP reader aliases of WebStatement/Rights
+      'ThumbnailOffset', // thumbnail bytes are preserved; their offset moves
+    ]);
+    for (const [k, v] of Object.entries(before.tags)) {
+      const base = k.includes(':') ? k.split(':')[1]! : k;
+      const group = k.includes(':') ? k.split(':')[0]! : '';
+      if (changedGroups.has(group) || changedBaseNames.has(base)) continue;
+      assertEquals(JSON.stringify(after.tags[k]), JSON.stringify(v), `changed: ${k}`);
+    }
   } finally {
     await rm(file, { force: true });
     await rm(`${file}_original`, { force: true });

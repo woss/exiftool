@@ -5,7 +5,9 @@ slug: /core/writing
 
 # Writing Metadata
 
-exiftool supports writing metadata to all supported formats with full ExifTool compatibility.
+exiftool-ts writes metadata **merge-style**: only the tags you pass change,
+every other metadata byte is preserved. This mirrors `exiftool -overwrite_original`
+semantics for license stamping and targeted edits.
 
 ## Basic Write
 
@@ -13,135 +15,69 @@ exiftool supports writing metadata to all supported formats with full ExifTool c
 import { ExifTool } from '@woss/exiftool';
 
 const exiftool = new ExifTool();
-await exiftool.write('input.jpg', 'output.jpg', {
-  Title: 'My Photo',
-  Artist: 'John Doe',
-  Copyright: '© 2024 John Doe',
+const result = await exiftool.write('photo.jpg', {
+  Copyright: '© 2026 Woss. All rights reserved.',
+  Orientation: 1,
+  Rights: 'All rights reserved. Unauthorized use prohibited.',
+  WebStatement: 'https://woss.photo/license',
 });
+
+console.log(result.written); // ['EXIF:Copyright', 'EXIF:Orientation', 'XMP-dc:Rights', 'XMP-xmpRights:WebStatement']
+console.log(result.skipped); // tags that could not be encoded
 ```
 
-## Tag Groups
+`write` overwrites the file in place and creates a `<file>_original` backup
+unless `{ overwriteOriginal: true }` is passed.
 
-Tags are organized by group prefix:
+## Merge Semantics (JPEG)
+
+Writing to a JPEG changes **only the requested tags**:
+
+- EXIF tags are merged into the existing APP1 EXIF block: existing entries are
+  patched in place or their values re-pointed; untouched entries are copied
+  verbatim — including the ExifIFD (SerialNumber, DateTimeOriginal, LensSerialNumber,
+  …), GPS IFD, MakerNotes (byte-for-byte), and the IFD1 thumbnail image.
+- XMP properties are spliced into the first top-level `rdf:Description` of the
+  existing packet without re-serializing the rest. When the file has no XMP
+  packet, a minimal conformant one is created.
+- All other segments (IPTC APP13, ICC APP2, C2PA APP11, …) are copied verbatim.
+- If the file has no EXIF APP1 at all, one is created from scratch.
+
+## Key Convention
+
+The writable keys are exported as `MERGE_TAG_KEYS` (`MergeTagKey` type):
+
+| Key | Value | Target |
+|-----|-------|--------|
+| `EXIF:Copyright` | string | IFD0 Copyright (0x8298) |
+| `EXIF:Orientation` | number 1-8 | IFD0 Orientation (0x0112) |
+| `XMP-dc:Rights` | string | XMP `dc:rights` (`rdf:Alt/li`, `xml:lang="x-default"`) |
+| `XMP-xmpRights:WebStatement` | string | XMP `xmpRights:WebStatement` |
+
+The group prefix is optional and matching is case-insensitive:
+`'Copyright'` ≡ `'exif:Copyright'`, `'WebStatement'` ≡ `'XMP-xmpRights:WebStatement'`.
+
+Any other tag from the IFD0/ExifIFD/GPS writable maps can be written with an
+`EXIF:` prefix (e.g. `'EXIF:Make'`, `'EXIF:DateTimeOriginal'`). The entry is
+patched in place when it exists, appended when its home IFD exists, and
+reported in `skipped` when the file has no ExifIFD/GPS IFD.
+
+## In-Memory Writes
 
 ```typescript
-await exiftool.write('input.jpg', 'output.jpg', {
-  // EXIF tags
-  'EXIF:Title': 'Photo Title',
-  'EXIF:Artist': 'Photographer',
-  'EXIF:Copyright': '© 2024',
-
-  // XMP tags
-  'XMP:Title': 'Photo Title',
-  'XMP:Creator': ['Photographer'],
-  'XMP:Rights': '© 2024',
-
-  // IPTC tags
-  'IPTC:ObjectName': 'Photo Title',
-  'IPTC:ByLine': 'Photographer',
-  'IPTC:CopyrightNotice': '© 2024',
-
-  // GPS tags
-  'GPS:GPSLatitude': 37.7749,
-  'GPS:GPSLongitude': -122.4194,
+const outcome = await exiftool.writeBytes(imageBuffer, {
+  Copyright: '© 2026',
+  Rights: 'All rights reserved',
 });
+// outcome.bytes — new image bytes
+// outcome.written / outcome.skipped
 ```
 
-## Supported Types
+## Scope Notes
 
-| Type | Example | Notes |
-|------|---------|-------|
-| String | `'Hello'` | UTF-8 encoded |
-| Number | `42` / `3.14` | Auto-converts to rational if needed |
-| Date | `new Date()` | ISO 8601 format |
-| Array | `['a', 'b']` | Seq/Bag/Alt by context |
-| Buffer | `Buffer.from(...)` | Binary data |
-| Rational | `{num: 1, den: 2}` | For GPS, exposure, etc. |
-
-## Rational Numbers
-
-```typescript
-// GPS coordinates
-'GPS:GPSLatitude': { num: 37, den: 1 },
-'GPS:GPSLatitudeRef': 'N',
-
-// Exposure
-'EXIF:ExposureTime': { num: 1, den: 125 },
-'EXIF:FNumber': { num: 28, den: 10 },  // f/2.8
-
-// Focal length
-'EXIF:FocalLength': { num: 50, den: 1 },  // 50mm
-```
-
-## Batch Writing
-
-```typescript
-const tags = {
-  Title: 'Batch Photo',
-  Artist: 'Batch Photographer',
-  Copyright: '© 2024',
-};
-
-await exiftool.write('input1.jpg', 'output1.jpg', tags);
-await exiftool.write('input2.jpg', 'output2.jpg', tags);
-await exiftool.write('input3.jpg', 'output3.jpg', tags);
-```
-
-## In-Place Editing
-
-```typescript
-// Overwrite original (creates backup by default)
-await exiftool.write('photo.jpg', 'photo.jpg', {
-  Title: 'Updated Title',
-});
-
-// No backup
-await exiftool.write('photo.jpg', 'photo.jpg', {
-  Title: 'Updated Title',
-}, { backup: false });
-```
-
-## Delete Tags
-
-```typescript
-// Delete specific tags
-await exiftool.write('input.jpg', 'output.jpg', {
-  'Title': null,
-  'Artist': null,
-});
-
-// Delete all tags in group
-await exiftool.write('input.jpg', 'output.jpg', {
-  'EXIF:All': null,
-  'XMP:All': null,
-});
-
-// Delete all metadata
-await exiftool.write('input.jpg', 'output.jpg', {
-  'All': null,
-});
-```
-
-## Preserving Original Timestamps
-
-```typescript
-await exiftool.write('input.jpg', 'output.jpg', {
-  Title: 'New Title',
-}, {
-  preserveTimestamps: true,
-});
-```
-
-## Validation
-
-```typescript
-const result = await exiftool.write('input.jpg', 'output.jpg', {
-  Title: 'Test',
-});
-
-// result.success = true/false
-// result.warnings = [] (non-fatal issues)
-if (!result.success) {
-  throw new Error(result.error);
-}
-```
+- Merge writes are JPEG-only today; PNG/WebP/AVIF writers rebuild their EXIF
+  block and do not yet support XMP splicing.
+- There are no delete or clear-all semantics: an empty string overwrites the
+  value, omitted keys are untouched.
+- XMP writing beyond the two rights properties is on the roadmap
+  (see the project scope in the README).

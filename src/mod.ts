@@ -47,6 +47,13 @@ export { writeTags } from './write/pipeline.js';
 export type { WriteResult } from './write/pipeline.js';
 
 /**
+ * Documented key convention for merge writes (JPEG): the four license-stamp
+ * keys plus their canonical names. See docs/docs/core/writing.md.
+ */
+export { MERGE_TAG_KEYS } from './write/jpeg-merge.js';
+export type { MergeTagKey } from './write/jpeg-merge.js';
+
+/**
  * Optional parsing hints for format-specific behavior.
  * @see {@link ParseHints}
  */
