@@ -10,7 +10,7 @@ test('writeBytes rewrites a JPEG buffer in memory', async () => {
   const original = await readFile('assets/01.jpg');
   const tool = new ExifToolCore({ plugins: MODERN_PLUGINS });
   const out = await tool.writeBytes(original, { Artist: 'core' });
-  assertEquals(out.written, ['Artist']);
+  assertEquals(out.written, ['EXIF:Artist']);
   assertEquals(out.skipped, []);
   assertEquals(out.bytes[0], 0xff);
   assertEquals(out.bytes[1], 0xd8);

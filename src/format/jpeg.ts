@@ -1,5 +1,5 @@
 import type { FormatParser, ParseHints } from './mod.js';
-import { jpegWriter } from '../write/writers.js';
+import { jpegMergeWriter } from '../write/jpeg-merge.js';
 import type { FileInfo, TagValue } from '../types.js';
 import type { TagDb } from '../tag-db.js';
 import { parseTiff } from '../exif/tiff.js';
@@ -13,8 +13,8 @@ import { parseJUMBFFromSegment } from './jumbf.js';
  * Handles EXIF (APP1), ICC Profile (APP2), XMP (APP1), IPTC (APP13),
  * MPF (APP2), and JUMBF/C2PA (APP11) segments.
  */
- export const jpegParser: FormatParser = {
-  writeBytes: jpegWriter,
+export const jpegParser: FormatParser = {
+  writeBytes: jpegMergeWriter,
   format: 'JPEG',
   extensions: ['.jpg', '.jpeg', '.jpe', '.jif', '.jfif', '.jfi'],
   canParse(bytes: Uint8Array): boolean {
