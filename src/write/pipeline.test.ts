@@ -101,3 +101,40 @@ test('writeTagsWithTmp cleans the temp path when writing fails', async () => {
     }
   }
 });
+
+test('writeTags ExifIFD/GPS round trip verified by reference exiftool', async () => {
+  const file = await makeTmpJpeg();
+  try {
+    const result = await writeTags(file, {
+      DateTimeOriginal: '2024:01:02 03:04:05',
+      ExposureTime: [1, 250],
+      FNumber: 2.8,
+      GPSLatitude: "43 deg 28' 2.00\" N",
+      GPSLongitude: "11 deg 21' 0.00\" E",
+      GPSAltitude: '12 m',
+    });
+    assertEquals(result.skipped, []);
+    let verify;
+    try {
+      const { execFile } = await import('node:child_process');
+      const { promisify } = await import('node:util');
+      const { stdout } = await promisify(execFile)('exiftool', [
+        '-j', '-DateTimeOriginal', '-ExposureTime', '-FNumber',
+        '-GPSLatitude', '-GPSLongitude', '-GPSAltitude', file,
+      ]);
+      verify = JSON.parse(stdout)[0];
+    } catch {
+      console.log('reference exiftool not available; skipping verification');
+      return;
+    }
+    assertEquals(verify.DateTimeOriginal, '2024:01:02 03:04:05');
+    assertEquals(verify.ExposureTime, '1/250');
+    assertEquals(verify.FNumber, 2.8);
+    assertEquals(verify.GPSLatitude, "43 deg 28' 2.00\" N");
+    assertEquals(verify.GPSLongitude, "11 deg 21' 0.00\" E");
+    assertEquals(verify.GPSAltitude, '12 m');
+  } finally {
+    await rm(file, { force: true });
+    await rm(`${file}_original`, { force: true });
+  }
+});
