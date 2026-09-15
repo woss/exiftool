@@ -102,10 +102,14 @@ const config: Config = {
       darkTheme: prismThemes.dracula,
       additionalLanguages: ['typescript', 'json', 'bash', 'yaml'],
     },
+    // Presence of this block activates the search theme plugin. The swizzled
+    // src/theme/SearchBar replaces its UI and queries the crawler index
+    // directly — DocSearch's own UI can't render these records because the
+    // crawler stores generic documents without the hierarchy schema.
     algolia: {
-      appId: 'BH4D9OD16A',
-      apiKey: 'f9e9c9a5f5c7d5e5f5f5f5f5f5f5f5f5f5f5f',
-      indexName: 'exiftool',
+      appId: 'JPLV42CAR7',
+      apiKey: 'a4d8070414e4d9729c3365cd47cbffc6',
+      indexName: 'woss_github_io_jplv42car7_pages',
     },
   } satisfies Preset.ThemeConfig,
 };
