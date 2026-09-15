@@ -239,7 +239,6 @@ export const jpegParser: FormatParser = {
     }
     computeCompositeTags(result);
     addFileMetadata(result, filePath);
-    result['ExifToolVersion'] = 13.55;
     delete result['ImageLength'];
     return Promise.resolve({ path: filePath, format: 'JPEG', tags: result });
   },

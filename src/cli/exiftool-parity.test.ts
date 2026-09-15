@@ -95,17 +95,6 @@ if (!exiftoolPath || !argvHealthy) {
 } else {
   const tool = new ExifTool();
 
-  test('parity: declared ExifTool version matches reference major.minor', async () => {
-    const { stdout } = await spawnExifTool(['-ver']);
-    const refVer = stdout.trim();
-    const info = await tool.read('assets/01.jpg');
-    const oursVer = String(info.tags.ExifToolVersion);
-    assertEquals(
-      oursVer.split('.').slice(0, 2).join('.'),
-      refVer.split('.').slice(0, 2).join('.'),
-    );
-  });
-
   test('parity: JSON values match reference for every shared tag', async () => {
     const mismatches: string[] = [];
     let compared = 0;
