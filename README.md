@@ -190,8 +190,9 @@ npx vitest run src/cli/exiftool-parity.test.ts
 
 ## Project scope
 
-Near term: deepen EXIF/XMP/IPTC writing, add maker-note decoding, extend the
-container list toward the formats exiftool covers. The long-term target remains
+Near term: deepen XMP/IPTC writing, extend the container list toward the
+formats exiftool covers. EXIF (IFD0/ExifIFD/GPS) writing and MakerNote
+decoding for the core 6 vendors are shipped. The long-term target remains
 parity with ExifTool's reading surface across its supported formats — tracked in
 the [parity docs](https://woss.github.io/exiftool/parity).
 

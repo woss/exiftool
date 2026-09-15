@@ -28,6 +28,15 @@ const sidebars: SidebarsConfig = {
       ],
     },
     {
+      type: 'category',
+      label: 'C2PA',
+      items: [
+        'c2pa/overview',
+        'c2pa/jumbf-structure',
+        'c2pa/plan',
+      ],
+    },
+    {
       type: 'link',
       label: 'Live Demo',
       href: '/demo',
