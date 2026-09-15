@@ -1,4 +1,5 @@
 import React, {
+  useMemo,
   useState,
   type ChangeEvent,
   type DragEvent,
@@ -171,6 +172,56 @@ function groupHue(group: string): number {
   return h;
 }
 
+/** Fixed hue per metadata group — one color per group, no per-tag hashing. */
+const GROUP_HUES: Record<string, number> = {
+  EXIF: 210,
+  XMP: 280,
+  File: 30,
+  Composite: 340,
+  MakerNotes: 55,
+  IPTC: 185,
+  Photoshop: 320,
+  GPS: 95,
+  ICC_Profile: 260,
+  Other: 0,
+};
+
+const GROUP_ORDER = Object.keys(GROUP_HUES);
+
+/** Tool-injected parity keys (jpeg.ts addFileMetadata) — never real file metadata. */
+const PARITY_KEYS = new Set(['ExifToolVersion', 'FileName', 'SourceFile']);
+
+/**
+ * Bare tag names collide across groups in the tag DB (XMP registers exif:Make
+ * under "Make", ZIP registers "ModifyDate"...), and getByName keeps only the
+ * last registration. Resolve by scanning groups in exiftool's output
+ * precedence order — first group containing the name wins.
+ */
+
+const GROUP_PRIORITY = ['EXIF', 'GPS', 'IPTC', 'Photoshop', 'ICC_Profile', 'Composite', 'MakerNotes', 'File', 'XMP'];
+
+function buildGroupIndex(tool: ExifTool): Map<string, string> {
+  const index = new Map<string, string>();
+  for (const group of GROUP_PRIORITY) {
+    for (const entry of tool.tagDb.getByGroup(group)) {
+      const key = entry.name.toLowerCase();
+      if (!index.has(key)) index.set(key, group);
+    }
+  }
+  return index;
+}
+
+/** Metadata group a tag belongs to, via the tag DB; 'Other' fallback. */
+function tagGroup(index: Map<string, string> | null, key: string): string {
+  return index?.get(key.toLowerCase()) ?? 'Other';
+}
+
+/** Hue for a group: fixed palette entry, hash fallback for unlisted groups. */
+function hueFor(group: string): number {
+  return GROUP_HUES[group] ?? groupHue(group);
+}
+
+
 
 export default function Demo(): React.ReactElement {
   const [file, setFile] = useState<File | null>(null);
@@ -186,6 +237,8 @@ export default function Demo(): React.ReactElement {
   const [dragOver, setDragOver] = useState(false);
   const [query, setQuery] = useState('');
 
+  const [tool, setTool] = useState<ExifTool | null>(null);
+  const groupIndex = useMemo(() => (tool ? buildGroupIndex(tool) : null), [tool]);
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const input = event.target as HTMLInputElement;
     if (!input.files?.length) return;
@@ -207,8 +260,9 @@ export default function Demo(): React.ReactElement {
       const arrayBuffer = await f.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
       const t0 = performance.now();
-      const info = await (await getTool()).readBytes(bytes);
-      setParseTimeMs(performance.now() - t0);
+      const t = await getTool();
+      const info = await t.readBytes(bytes);
+      setTool(t);
       setTags(info.tags);
       setFormat(info.format);
       setMetadataBytes(findMetadataBytes(bytes));
@@ -288,7 +342,9 @@ export default function Demo(): React.ReactElement {
                 <h2 className={styles.fileName}>{file?.name}</h2>
                 <div className={styles.heroMeta}>
                   <span className={styles.formatBadge}>{format}</span>
-                  <span className={styles.heroMetaNote}>{Object.keys(tags).length} tags</span>
+                  <span className={styles.heroMetaNote}>
+                    {Object.keys(tags).filter((k) => !PARITY_KEYS.has(k)).length} tags
+                  </span>
                 </div>
               </div>
             </div>
@@ -311,7 +367,7 @@ export default function Demo(): React.ReactElement {
 
             <div className={styles.groups}>
               {(() => {
-                const all = Object.entries(tags);
+                const all = Object.entries(tags).filter(([key]) => !PARITY_KEYS.has(key));
                 const q = query.trim().toLowerCase();
                 const visible = q
                   ? all.filter(
@@ -319,7 +375,14 @@ export default function Demo(): React.ReactElement {
                         key.toLowerCase().includes(q) ||
                         formatValue(value).toLowerCase().includes(q),
                     )
-                  : all;
+                    : all;
+                const groups = [...new Set(visible.map(([k]) => tagGroup(groupIndex, k)))].sort((a, b) => {
+                  const rank = (g: string) => {
+                    const i = GROUP_ORDER.indexOf(g);
+                    return i === -1 ? GROUP_ORDER.length : i;
+                  };
+                  return rank(a) - rank(b) || a.localeCompare(b);
+                });
                 return (
                   <>
                     <div className={styles.filterBar}>
@@ -352,6 +415,14 @@ export default function Demo(): React.ReactElement {
                       )}
                     </div>
 
+                    <div className={styles.legend}>
+                      {groups.map((g) => (
+                        <span key={g} className={styles.legendItem}>
+                          <span className={styles.flatDot} style={{ '--hue': hueFor(g) } as React.CSSProperties} aria-hidden="true" />
+                          {g}
+                        </span>
+                      ))}
+                    </div>
                     {visible.length === 0 ? (
                       <div className={styles.empty}>
                         No tags match “{query.trim()}”.
@@ -362,7 +433,7 @@ export default function Demo(): React.ReactElement {
                           <div
                             key={key}
                             className={styles.row}
-                            style={{ '--hue': groupHue(key), '--stagger': i } as React.CSSProperties}
+                            style={{ '--hue': hueFor(tagGroup(groupIndex, key)), '--stagger': i } as React.CSSProperties}
                           >
                             <span className={styles.tagName}>
                               <span className={styles.flatDot} aria-hidden="true" />
