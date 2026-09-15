@@ -3,7 +3,9 @@
 .container {
   max-width: 860px;
   margin: 0 auto;
-  padding: 1rem 0 3rem;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 1rem 1.25rem 3rem;
 }
 
 .uploadArea {
@@ -278,7 +280,10 @@
 
 .row {
   display: grid;
-  grid-template-columns: minmax(130px, 32%) 1fr;
+  /* minmax(0, …) is load-bearing: a grid column defaults to min-width:auto,
+     so one unbreakable value (base64 thumbnail, long JSON) would otherwise
+     stretch the row — and the page — past the fixed container. */
+  grid-template-columns: minmax(130px, 32%) minmax(0, 1fr);
   gap: 0.9rem;
   padding: 0.5rem 1.25rem;
   transition: background 0.12s;
@@ -308,12 +313,38 @@
   padding: 0.35rem 0 0.75rem;
 }
 
-.legendItem {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-size: 0.8rem;
-  color: var(--ifm-color-emphasis-700);
+.tagValue {
+  font-family: 'JetBrains Mono', var(--ifm-font-family-monospace);
+  font-size: 0.82rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+  .container {
+    padding: 0.75rem 1rem 2.5rem;
+  }
+
+  .uploadArea {
+    padding: 1.75rem 1rem;
+    border-radius: 12px;
+  }
+
+  .statBar {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  .row {
+    /* Stack name above value — two columns don't fit on a phone. */
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.25rem;
+    padding: 0.6rem 1rem;
+  }
+
+  .row .flatDot {
+    margin-right: 0.4rem;
+  }
 }
 
 .tagName {
