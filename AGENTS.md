@@ -127,8 +127,8 @@
 This is **exiftool-ts** — TypeScript wrapper for ExifTool.
 - Check `package.json` for scripts, deps, version
 - Check `tsconfig.json` for build config
-- Tests: `bun test` (bun:test framework)
-- Lint/format: Check for `biome.json`, `eslint.config.js`, `prettier.config.js`
+- Tests: `vitest run` (vitest framework; 564 tests / 40 files). Verify with `node node_modules/vitest/vitest.mjs run` — dev tooling needs Node ≥20 (vitest 4 floor); library `engines` is Node ≥18.
+- Lint/format: none configured — do not invent one.
 
 ---
 
