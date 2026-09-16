@@ -114,7 +114,7 @@ export default function Home(): ReactNode {
   const {siteConfig} = useDocusaurusContext();
   return (
     <Layout
-      title={`Hello from ${siteConfig.title}`}
+      title={siteConfig.tagline}
       description="ExifTool rewrite in TypeScript — read and write image metadata">
       <HomepageHeader />
       <main>
