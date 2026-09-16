@@ -202,7 +202,14 @@ the [parity docs](https://woss.github.io/exiftool/parity).
 
 ## License
 
-MIT
+[MIT](LICENSE) — © woss (woss.io).
+
+This project is an independent clean-room TypeScript implementation. It is
+**not** affiliated with, endorsed by, or derived from Phil Harvey's ExifTool
+(licensed under the same terms as Perl: Artistic License or GPL) — his tool is
+used only as a behavioral reference for output parity. The name "exiftool" here
+refers to this package; for the original, see
+[exiftool.org](https://exiftool.org).
 
 ---
 
