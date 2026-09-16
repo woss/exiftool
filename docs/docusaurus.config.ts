@@ -60,9 +60,6 @@ const config: Config = {
         src: 'img/logo.svg',
       },
       items: [
-        // Algolia Experiences search renders itself into #autocomplete; the
-        // bridge script makes results clickable (see static/experiences-bridge.js).
-        { type: 'html', value: '<div id="autocomplete"></div>', position: 'right' },
         { type: 'docSidebar', sidebarId: 'tutorialSidebar', position: 'left', label: 'Guide' },
         { to: '/getting-started', label: 'Getting Started', position: 'left' },
         { to: '/cli/usage', label: 'CLI', position: 'left' },
@@ -105,16 +102,16 @@ const config: Config = {
       darkTheme: prismThemes.dracula,
       additionalLanguages: ['typescript', 'json', 'bash', 'yaml'],
     },
+    // Presence of this block activates the search theme plugin. The swizzled
+    // src/theme/SearchBar replaces its UI and queries the crawler index
+    // directly — DocSearch's own UI can't render these records because the
+    // crawler stores generic documents without the hierarchy schema.
+    algolia: {
+      appId: 'JPLV42CAR7',
+      apiKey: 'a4d8070414e4d9729c3365cd47cbffc6',
+      indexName: 'woss_github_io_jplv42car7_pages',
+    },
   } satisfies Preset.ThemeConfig,
-  scripts: [
-    // Algolia Experiences search (app JPLV42CAR7). The crawler index holds
-    // generic records, so the built-in DocSearch UI can't be used; the widget
-    // renders into the #autocomplete navbar item. The second script bridges
-    // result clicks to record URLs until the experience's link mapping is
-    // configured in the Algolia dashboard.
-    'https://cdn.jsdelivr.net/npm/@algolia/experiences/dist/experiences.js?appId=JPLV42CAR7&apiKey=a4d8070414e4d9729c3365cd47cbffc6&experienceId=JPLV42CAR7&env=prod',
-    '/exiftool/experiences-bridge.js',
-  ],
 };
 
 export default config;
