@@ -1,0 +1,13 @@
+<svg width="64" height="64" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="exiftool-ts favicon">
+  <!-- Camera aperture iris on a dark rounded tile: legible on light and dark tab bars -->
+  <rect width="200" height="200" rx="44" fill="#0F172A"/>
+  <circle cx="100" cy="100" r="88" fill="none" stroke="#0EA5E9" stroke-width="10"/>
+  <g stroke="#0EA5E9" stroke-width="10" stroke-linecap="round" fill="none">
+    <line x1="100"   y1="20"    x2="180"   y2="100"/>
+    <line x1="169.3" y1="60"    x2="140"   y2="169.3"/>
+    <line x1="169.3" y1="140"   x2="60"    y2="169.3"/>
+    <line x1="100"   y1="180"   x2="20"    y2="100"/>
+    <line x1="30.7"  y1="140"   x2="60"    y2="30.7"/>
+    <line x1="30.7"  y1="60"    x2="140"   y2="30.7"/>
+  </g>
+</svg>

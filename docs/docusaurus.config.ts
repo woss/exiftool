@@ -5,7 +5,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 const config: Config = {
   title: 'exiftool',
   tagline: 'ExifTool rewrite in TypeScript — read and write image metadata',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon-32.png',
 
   future: {
     v4: true,
