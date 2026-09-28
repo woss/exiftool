@@ -5,74 +5,14 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { UnsupportedFormatError } from './writers.js';
 import {
-  buildXmpPacket,
   jpegMergeWriter,
   mergeExifTiff,
-  mergeXmpPacket,
   parseJpegSegments,
 } from './jpeg-merge.js';
 import { parseXMP } from '../exif/xmp.js';
 import { extractExifFromTiff } from '../exif/tiff.js';
 
 const execFileP = promisify(execFile);
-
-test('mergeXmpPacket splices properties without re-serializing the packet', () => {
-  const original = [
-    '<?xpacket begin="" id="W5M0MpCehiHzreSzNTczkc9d"?>',
-    '<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="Test Tool">',
-    '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">',
-    '<rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/"',
-    ' dc:title="My Title" dc:creator="Woss">',
-    '<dc:description><rdf:Alt><rdf:li xml:lang="x-default">Original description</rdf:li></rdf:Alt></dc:description>',
-    '</rdf:Description>',
-    '</rdf:RDF>',
-    '</x:xmpmeta>',
-    '<?xpacket end="w"?>',
-  ].join('\n');
-  const merged = mergeXmpPacket(original, {
-    rights: 'Copyright 2026 Test & Co. <legal>',
-    webStatement: 'https://example.com/license',
-  });
-  // Prior properties preserved verbatim.
-  assertEquals(merged.includes('dc:title="My Title"'), true);
-  assertEquals(merged.includes('dc:creator="Woss"'), true);
-  assertEquals(merged.includes('<dc:description><rdf:Alt><rdf:li xml:lang="x-default">Original description</rdf:li></rdf:Alt></dc:description>'), true);
-  // Namespaces added on rdf:RDF.
-  assertEquals(merged.includes(`xmlns:dc="http://purl.org/dc/elements/1.1/"`), true);
-  assertEquals(merged.includes(`xmlns:xmpRights="http://ns.adobe.com/xap/1.0/rights/"`), true);
-  // New properties with xml:lang="x-default" Alt/li and XML escaping.
-  assertEquals(merged.includes('<dc:rights><rdf:Alt><rdf:li xml:lang="x-default">Copyright 2026 Test &amp; Co. &lt;legal&gt;</rdf:li></rdf:Alt></dc:rights>'), true);
-  assertEquals(merged.includes('<xmpRights:WebStatement>https://example.com/license</xmpRights:WebStatement>'), true);
-  const parsed = parseXMP(merged);
-  assertEquals(parsed.Rights, 'Copyright 2026 Test & Co. <legal>');
-  assertEquals(parsed.WebStatement, 'https://example.com/license');
-  assertEquals(parsed.Title, 'My Title');
-});
-
-test('mergeXmpPacket replaces existing dc:rights and attribute forms', () => {
-  const original =
-    '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:xmpRights="http://ns.adobe.com/xap/1.0/rights/"><rdf:Description rdf:about="" xmpRights:WebStatement="https://old.example"><dc:rights><rdf:Alt><rdf:li xml:lang="x-default">Old rights</rdf:li></rdf:Alt></dc:rights></rdf:Description></rdf:RDF></x:xmpmeta>';
-  const merged = mergeXmpPacket(original, {
-    rights: 'New rights',
-    webStatement: 'https://new.example',
-  });
-  assertEquals(merged.includes('Old rights'), false);
-  assertEquals(merged.includes('https://old.example'), false);
-  assertEquals(merged.includes('<dc:rights><rdf:Alt><rdf:li xml:lang="x-default">New rights</rdf:li></rdf:Alt></dc:rights>'), true);
-  assertEquals(merged.includes('<xmpRights:WebStatement>https://new.example</xmpRights:WebStatement>'), true);
-  const parsed = parseXMP(merged);
-  assertEquals(parsed.Rights, 'New rights');
-  assertEquals(parsed.WebStatement, 'https://new.example');
-});
-
-test('buildXmpPacket creates a minimal conformant packet', () => {
-  const packet = buildXmpPacket({ rights: 'R', webStatement: 'https://w.example' });
-  const parsed = parseXMP(packet);
-  assertEquals(parsed.Rights, 'R');
-  assertEquals(parsed.WebStatement, 'https://w.example');
-  assertEquals(packet.includes('x:xmptk="exiftool-ts"'), true);
-  assertEquals(packet.startsWith('<?xpacket'), true);
-});
 
 test('jpegMergeWriter preserves every non-EXIF/XMP segment byte-for-byte', () => {
   const original = new Uint8Array(readFileSync('assets/01.jpg'));
@@ -340,40 +280,6 @@ test('jpegMergeWriter fresh EXIF creation reports unencodable tags as skipped', 
   assertEquals(tags.GPSLatitude, undefined);
 });
 
-test('mergeXmpPacket inserts into the top-level description, not nested ones', () => {
-  // Camera Raw style: nested rdf:Description inside crs structures.
-  const original = [
-    '<x:xmpmeta xmlns:x="adobe:ns:meta/">',
-    '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">',
-    '<rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/">',
-    '<dc:title>Outer</dc:title>',
-    '<crs:Look xmlns:crs="http://ns.adobe.com/camera-raw-settings/1.0/">',
-    '<rdf:Description crs:Version="15.0"><crs:Parameters><crs:ToneCurve><rdf:Seq><rdf:li>0, 0</rdf:li></rdf:Seq></crs:ToneCurve></rdf:Description>',
-    '</crs:Parameters>',
-    '</crs:Look>',
-    '</rdf:Description>',
-    '</rdf:RDF>',
-    '</x:xmpmeta>',
-  ].join('\n');
-  const merged = mergeXmpPacket(original, {
-    rights: 'Top-level rights',
-    webStatement: 'https://example.com/top',
-  });
-  // crs block closes, before the top-level description closes.
-  const crsLookEnd = merged.indexOf('</crs:Look>');
-  const topDescEnd = merged.indexOf('</rdf:Description>', crsLookEnd);
-  const webStatementAt = merged.indexOf('<xmpRights:WebStatement>');
-  const rightsAt = merged.indexOf('<dc:rights>');
-  assertEquals(webStatementAt > crsLookEnd, true);
-  assertEquals(rightsAt > crsLookEnd, true);
-  assertEquals(webStatementAt < topDescEnd, true);
-  assertEquals(rightsAt < topDescEnd, true);
-  // Nested crs content untouched.
-  // NOTE: our own parseXMP cannot see properties placed after a nested
-  // rdf:Description close (pre-existing reader limitation); reference
-  // exiftool parses this placement correctly (verified in the 03.jpg parity run).
-});
-
 test('jpegMergeWriter leaves the XMP APP1 byte-identical when no XMP keys requested', () => {
   const original = new Uint8Array(readFileSync('assets/01.jpg'));
   const out = jpegMergeWriter(original, { Copyright: 'Only EXIF changes' });
@@ -388,18 +294,3 @@ test('jpegMergeWriter leaves the XMP APP1 byte-identical when no XMP keys reques
   );
 });
 
-test('mergeXmpPacket tolerates packets without rdf:RDF or rdf:Description', () => {
-  assertEquals(mergeXmpPacket('<nothing/>', { rights: 'R' }), '<nothing/>');
-  // rdf:RDF gains the missing namespace but no Description is invented.
-  const patched = mergeXmpPacket('<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"></rdf:RDF>', { rights: 'R' });
-  assertEquals(patched.includes('xmlns:dc='), true);
-  assertEquals(patched.includes('dc:rights'), false);
-});
-
-test('upsert leaves malformed packets (unterminated rdf:Description) unchanged', () => {
-  const malformed = '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="">body</rdf:RDF>';
-  const out = mergeXmpPacket(malformed, { rights: 'R' });
-  // Namespace is added to rdf:RDF, but no property is inserted anywhere.
-  assertEquals(out.includes('xmlns:dc='), true);
-  assertEquals(out.includes('dc:rights'), false);
-});

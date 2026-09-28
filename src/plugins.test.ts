@@ -7,13 +7,9 @@ test('MODERN_PLUGINS covers all built-in formats incl. TIFF-family RAW', () => {
   assertEquals(ALL_PLUGINS, MODERN_PLUGINS);
 });
 
-test('preset parsers carry write support except read-only TIFF-family RAW', () => {
+test('preset parsers carry write support, TIFF restricted to TIFF/DNG', () => {
   for (const p of MODERN_PLUGINS) {
-    if (p.format === 'TIFF') {
-      assertEquals(p.writeBytes, undefined); // read-only: writeTags throws UnsupportedFormatError
-    } else {
-      assertEquals(typeof p.writeBytes, 'function');
-    }
+    assertEquals(typeof p.writeBytes, 'function');
   }
   assertEquals([jpegParser.format, pngParser.format, webpParser.format, avifParser.format], [
     'JPEG',

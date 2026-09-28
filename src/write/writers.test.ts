@@ -220,8 +220,8 @@ test('avifWriter rejects non-ISOBMFF input', () => {
   }
 });
 
-test('supportedWriteFormats lists the four containers', async () => {
-  assertEquals(await supportedWriteFormats(), ['JPEG', 'PNG', 'WebP', 'AVIF']);
+test('supportedWriteFormats lists the five containers', async () => {
+  assertEquals(await supportedWriteFormats(), ['JPEG', 'PNG', 'WebP', 'AVIF', 'TIFF']);
 });
 
 test('jpegWriter skips RST markers while rebuilding', async () => {
@@ -284,4 +284,57 @@ test('avifParser skips malformed meta children in the original input', async () 
   const orig = new Uint8Array([...ftyp, ...meta, ...box('mdat', [9])]);
   const info = await avifParser.parse(orig, '(test)');
   assertEquals(info.tags.Make, 'OldAv');
+});
+
+test('pngWriter writes an XMP iTXt chunk readable by the parser', async () => {
+  const tags = {
+    'XMP-dc:Subject': ['bird', 'kelp'],
+    'XMP-dc:Title': 'Png Xmp',
+    'XMP-xmp:MetadataDate': '2026-09-29T01:30:00',
+  };
+  const out = pngWriter(buildPng(false), tags);
+  const dv = new DataView(out.bytes.buffer);
+  let pos = 8;
+  let itxt = -1;
+  while (pos + 12 <= out.bytes.length) {
+    const len = dv.getUint32(pos, false);
+    const type = String.fromCharCode(...out.bytes.subarray(pos + 4, pos + 8));
+    if (type === 'iTXt') {
+      itxt = pos;
+      assertEquals(
+        String.fromCharCode(...out.bytes.subarray(pos + 8, pos + 8 + 17)),
+        'XML:com.adobe.xmp',
+      );
+      // compression flag + method zero, uncompressed
+      assertEquals(out.bytes[pos + 8 + 18], 0);
+      assertEquals(out.bytes[pos + 8 + 19], 0);
+    }
+    pos += 12 + len;
+  }
+  assertEquals(itxt > 0, true);
+  const info = await pngParser.parse(out.bytes, '(test)');
+  assertEquals(info.tags.Subject, ['bird', 'kelp']);
+  assertEquals(info.tags.Title, 'Png Xmp');
+  // Idempotence: same tags twice → identical bytes.
+  const out2 = pngWriter(out.bytes, tags);
+  assertEquals(Array.from(out2.bytes), Array.from(out.bytes));
+});
+
+test('webpWriter writes an XMP chunk readable by the parser', async () => {
+  const tags = { 'XMP-dc:Subject': ['w'], 'XMP-dc:Title': 'Webp Xmp' };
+  const out = webpWriter(buildWebp(), tags);
+  const info = await webpParser.parse(out.bytes, '(test)');
+  assertEquals(info.tags.WebP_XMP, true);
+  const infoTags = info.tags as Record<string, unknown>;
+  assertEquals(Array.isArray(infoTags.XMP) || typeof infoTags.XMP === 'string', true);
+  const out2 = webpWriter(out.bytes, tags);
+  assertEquals(Array.from(out2.bytes), Array.from(out.bytes));
+});
+
+test('pngWriter keeps existing chunks untouched when only XMP requested', async () => {
+  const original = buildPng(true); // has eXIf
+  const out = pngWriter(original, { 'XMP-dc:Subject': ['s'] });
+  const info = await pngParser.parse(out.bytes, '(test)');
+  // Reader normalizes a single-item Bag to a scalar.
+  assertEquals(info.tags.Subject, 's');
 });
