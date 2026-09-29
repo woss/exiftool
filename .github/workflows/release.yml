@@ -25,7 +25,7 @@ jobs:
       - name: Reference exiftool (pinned submodule)
         run: |
           echo "$GITHUB_WORKSPACE/vendor/exiftool" >> "$GITHUB_PATH"
-          exiftool -ver
+          PATH="$GITHUB_WORKSPACE/vendor/exiftool:$PATH" exiftool -ver
       - run: pnpm install --frozen-lockfile
       - name: Version sync (tag vs package.json / jsr.json)
         run: |
