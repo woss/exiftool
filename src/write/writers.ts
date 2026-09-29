@@ -1,6 +1,7 @@
 import type { ContainerWriter, TagValue, WriteOutcome } from '../types.js';
 import { buildTiff } from '../exif/tiff-builder.js';
 import { crc32 } from '../utils/crc32.js';
+import { toXmpPropertyRequest, writeXmpPacket, type XmpPropertyRequest } from './xmp-writer.js';
 
 /**
  * Error thrown when a format does not support writing tags.
@@ -58,16 +59,60 @@ export const jpegWriter: ContainerWriter = (original, tags) => {
 
 const PNG_SIG = [137, 80, 78, 71, 13, 10, 26, 10];
 
-/** PNG: drops existing eXIf chunks and inserts one after IHDR. */
+const PNG_XMP_KEYWORD = 'XML:com.adobe.xmp';
+
+/**
+ * Splits flat write tags into EXIF-tag requests and XMP property requests
+ * ('XMP-group:Property' keys or bare aliases).
+ */
+export function splitWriteTags(tags: Record<string, TagValue>): {
+  exif: Record<string, TagValue>;
+  xmp: XmpPropertyRequest[];
+  xmpKeys: string[];
+  skipped: string[];
+} {
+  const exif: Record<string, TagValue> = {};
+  const xmp: XmpPropertyRequest[] = [];
+  const xmpKeys: string[] = [];
+  const skipped: string[] = [];
+  for (const [key, value] of Object.entries(tags)) {
+    const prop = toXmpPropertyRequest(key, value);
+    if (prop) {
+      xmp.push(prop);
+      xmpKeys.push(key);
+    } else {
+      exif[key] = value;
+    }
+  }
+  return { exif, xmp, xmpKeys, skipped };
+}
+
+/** PNG iTXt chunk carrying an uncompressed XMP packet (XMP spec §1.1.1). */
+function pngXmpItxt(packet: string): { type: string; data: Uint8Array } {
+  const text = new TextEncoder().encode(packet);
+  const prefix = new TextEncoder().encode(`${PNG_XMP_KEYWORD}\0\0\0\0\0`);
+  const data = new Uint8Array(prefix.length + text.length);
+  data.set(prefix);
+  data.set(text, prefix.length);
+  return { type: 'iTXt', data };
+}
+
+/**
+ * PNG: drops existing eXIf chunks (when EXIF tags requested) and existing
+ * XMP iTXt chunks (when XMP tags requested), inserting fresh ones after
+ * IHDR. The XMP iTXt is uncompressed with keyword XML:com.adobe.xmp.
+ */
 export const pngWriter: ContainerWriter = (original, tags) => {
   for (let i = 0; i < 8; i++) {
     if (original[i] !== PNG_SIG[i]) throw new UnsupportedFormatError('not a PNG stream');
   }
-  const { bytes: tiff, written, skipped } = buildTiff(tags);
+  const { exif, xmp, xmpKeys, skipped } = splitWriteTags(tags);
   const dv = new DataView(original.buffer, original.byteOffset, original.byteLength);
 
   const kept: Array<{ type: string; data: Uint8Array }> = [];
+  let existingXmp: string | null = null;
   let inserted = false;
+  const written: string[] = [];
   let pos = 8;
   while (pos + 12 <= original.length) {
     const length = dv.getUint32(pos, false);
@@ -75,10 +120,29 @@ export const pngWriter: ContainerWriter = (original, tags) => {
     const data = original.slice(pos + 8, pos + 8 + length);
     if (pos + 12 + length > original.length) break; // truncated tail
     pos += 12 + length;
-    if (type === 'IEND' || type === 'eXIf') continue;
+    if (type === 'IEND') continue;
+    if (type === 'eXIf' && Object.keys(exif).length > 0) continue;
+    if (type === 'iTXt' && xmp.length > 0) {
+      // Existing XMP packet (keyword XML:com.adobe.xmp): decode for merge.
+      const kwEnd = data.indexOf(0);
+      const keyword = kwEnd > 0 ? String.fromCharCode(...data.subarray(0, kwEnd)) : '';
+      if (keyword === PNG_XMP_KEYWORD) {
+        existingXmp = new TextDecoder().decode(data.subarray(kwEnd + 4));
+        continue;
+      }
+    }
     kept.push({ type, data });
     if (type === 'IHDR') {
-      kept.push({ type: 'eXIf', data: tiff });
+      if (Object.keys(exif).length > 0) {
+        const { bytes: tiff, written: exifWritten, skipped: exifSkipped } = buildTiff(exif);
+        kept.push({ type: 'eXIf', data: tiff });
+        written.push(...exifWritten);
+        skipped.push(...exifSkipped);
+      }
+      if (xmp.length > 0) {
+        kept.push(pngXmpItxt(writeXmpPacket(existingXmp, xmp)));
+        written.push(...xmpKeys);
+      }
       inserted = true;
     }
   }
@@ -100,8 +164,9 @@ export const pngWriter: ContainerWriter = (original, tags) => {
 };
 
 /**
- * WebP: requires an existing VP8X chunk (sets its EXIF flag), removes old
- * EXIF chunks and inserts the fresh one directly after VP8X.
+ * WebP: requires an existing VP8X chunk (sets its EXIF and XMP flags as
+ * needed), removes old EXIF/XMP chunks and inserts fresh ones directly
+ * after VP8X. XMP chunk ids are 'XMP ' with even-padded payloads.
  */
 export const webpWriter: ContainerWriter = (original, tags) => {
   const riff = String.fromCharCode(...original.subarray(0, 4));
@@ -109,23 +174,31 @@ export const webpWriter: ContainerWriter = (original, tags) => {
   if (riff !== 'RIFF' || webp !== 'WEBP') {
     throw new UnsupportedFormatError('not a WebP stream');
   }
-  const { bytes: tiff, written, skipped } = buildTiff(tags);
+  const { exif, xmp, xmpKeys, skipped } = splitWriteTags(tags);
+  const writtenOut: string[] = [];
   const dv = new DataView(original.buffer, original.byteOffset, original.byteLength);
 
   interface Chunk { id: string; data: Uint8Array }
   const chunks: Chunk[] = [];
+  let existingXmp: string | null = null;
   let pos = 12;
   while (pos + 8 <= original.length) {
     const id = String.fromCharCode(...original.subarray(pos, pos + 4));
     const size = dv.getUint32(pos + 4, true);
-    chunks.push({ id, data: original.slice(pos + 8, pos + 8 + size) });
+    const data = original.slice(pos + 8, pos + 8 + size);
+    if (id === 'XMP ' && xmp.length > 0) {
+      existingXmp = new TextDecoder().decode(data);
+    } else {
+      chunks.push({ id, data });
+    }
     pos += 8 + size + (size % 2);
   }
 
   const vp8x = chunks.find((c) => c.id === 'VP8X');
   if (!vp8x) throw new UnsupportedFormatError('WebP writing requires a VP8X chunk');
   const vp8xData = Uint8Array.from(vp8x.data);
-  vp8xData[0] |= 0x08; // EXIF flag
+  if (Object.keys(exif).length > 0) vp8xData[0] |= 0x08; // EXIF flag
+  if (xmp.length > 0) vp8xData[0] |= 0x04; // XMP flag
 
   const out: number[] = [];
   for (const c of 'RIFF') out.push(c.charCodeAt(0));
@@ -141,7 +214,17 @@ export const webpWriter: ContainerWriter = (original, tags) => {
   };
 
   pushChunk('VP8X', vp8xData);
-  pushChunk('EXIF', new Uint8Array([0x45, 0x78, 0x69, 0x66, 0x00, 0x00, ...tiff])); // 'Exif\0\0' prefix
+  if (Object.keys(exif).length > 0) {
+    const { bytes: tiff, written, skipped: exifSkipped } = buildTiff(exif);
+    pushChunk('EXIF', new Uint8Array([0x45, 0x78, 0x69, 0x66, 0x00, 0x00, ...tiff])); // 'Exif\0\0' prefix
+    skipped.push(...exifSkipped);
+    writtenOut.push(...written);
+  }
+  if (xmp.length > 0) {
+    const packet = new TextEncoder().encode(writeXmpPacket(existingXmp, xmp));
+    pushChunk('XMP ', packet);
+    for (const k of xmpKeys) writtenOut.push(k);
+  }
   for (const c of chunks) {
     if (c.id === 'EXIF' || c.id === 'VP8X') continue;
     pushChunk(c.id, c.data);
@@ -152,7 +235,7 @@ export const webpWriter: ContainerWriter = (original, tags) => {
   out[sizeHolder + 1] = (payloadSize >> 8) & 255;
   out[sizeHolder + 2] = (payloadSize >> 16) & 255;
   out[sizeHolder + 3] = (payloadSize >> 24) & 255;
-  return { bytes: new Uint8Array(out), written, skipped };
+  return { bytes: new Uint8Array(out), written: writtenOut, skipped };
 };
 
 function box(type: string, payload: number[]): number[] {

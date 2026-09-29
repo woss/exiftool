@@ -8,6 +8,8 @@ import {
   type IfdTagSpec,
 } from '../exif/tiff-builder.js';
 import { UnsupportedFormatError } from './writers.js';
+import { writeXmpPacket, type XmpPropertyRequest, type XmpWriteValue } from './xmp-writer.js';
+import { mergePhotoshopIrb } from './iptc.js';
 
 /**
  * Merge-write key convention (exported, documented):
@@ -28,16 +30,26 @@ export type MergeTagKey =
   | 'EXIF:Copyright'
   | 'EXIF:Orientation'
   | 'XMP-dc:Rights'
-  | 'XMP-xmpRights:WebStatement';
+  | 'XMP-xmpRights:WebStatement'
+  | 'XMP-dc:Subject'
+  | 'XMP-dc:Title'
+  | 'XMP-dc:Description'
+  | 'XMP-xmp:MetadataDate'
+  | 'IPTC:Keywords';
 
 export const MERGE_TAG_KEYS: Record<string, MergeTagKey> = {
   'exif:copyright': 'EXIF:Copyright',
   'exif:orientation': 'EXIF:Orientation',
   'xmp-dc:rights': 'XMP-dc:Rights',
   'xmp-xmprights:webstatement': 'XMP-xmpRights:WebStatement',
+  'xmp-dc:subject': 'XMP-dc:Subject',
+  'xmp-dc:title': 'XMP-dc:Title',
+  'xmp-dc:description': 'XMP-dc:Description',
+  'xmp-xmp:metadatadate': 'XMP-xmp:MetadataDate',
+  'iptc:keywords': 'IPTC:Keywords',
 };
 
-interface ExifRequest {
+export interface ExifRequest {
   /** Canonical reported name */
   key: string;
   spec: IfdTagSpec;
@@ -46,10 +58,15 @@ interface ExifRequest {
   home: 0 | 0x8769 | 0x8825;
 }
 
-interface XmpProps {
-  rights?: string;
-  webStatement?: string;
-}
+/** Canonical XMP property name for each merge key. */
+const XMP_PROPERTY_NAMES: Partial<Record<MergeTagKey, string>> = {
+  'XMP-dc:Rights': 'dc:rights',
+  'XMP-xmpRights:WebStatement': 'xmpRights:WebStatement',
+  'XMP-dc:Subject': 'dc:subject',
+  'XMP-dc:Title': 'dc:title',
+  'XMP-dc:Description': 'dc:description',
+  'XMP-xmp:MetadataDate': 'xmp:MetadataDate',
+};
 
 /** Bare aliases (prefix optional): 'Copyright', 'Rights', 'WebStatement', … */
 const MERGE_TAG_KEYS_BARE: Record<string, MergeTagKey> = {
@@ -57,21 +74,29 @@ const MERGE_TAG_KEYS_BARE: Record<string, MergeTagKey> = {
   orientation: 'EXIF:Orientation',
   rights: 'XMP-dc:Rights',
   webstatement: 'XMP-xmpRights:WebStatement',
+  subject: 'XMP-dc:Subject',
+  keywords: 'XMP-dc:Subject',
+  title: 'XMP-dc:Title',
+  description: 'XMP-dc:Description',
+  metadatadate: 'XMP-xmp:MetadataDate',
 };
 
-interface MergeRequests {
+export interface MergeRequests {
   exif: ExifRequest[];
-  xmp: XmpProps;
+  xmp: XmpPropertyRequest[];
   xmpKeys: string[];
+  /** Keywords for the IPTC IIM writer (JPEG APP13). */
+  iptcKeywords: string[];
   skipped: string[];
 }
 
 const EXIF_IFD_POINTERS = new Set([0x8769, 0x8825, 0xa005]);
 
-function resolveMergeRequests(tags: Record<string, TagValue>): MergeRequests {
+export function resolveMergeRequests(tags: Record<string, TagValue>): MergeRequests {
   const exif: ExifRequest[] = [];
-  const xmp: XmpProps = {};
+  const xmp: XmpPropertyRequest[] = [];
   const xmpKeys: string[] = [];
+  const iptcKeywords: string[] = [];
   const skipped: string[] = [];
   for (const [key, value] of Object.entries(tags)) {
     const canonical =
@@ -80,16 +105,22 @@ function resolveMergeRequests(tags: Record<string, TagValue>): MergeRequests {
       exif.push({ key: canonical, spec: IFD0_TAGS.copyright, value, home: 0 });
     } else if (canonical === 'EXIF:Orientation') {
       exif.push({ key: canonical, spec: IFD0_TAGS.orientation, value, home: 0 });
-    } else if (canonical === 'XMP-dc:Rights') {
-      if (typeof value === 'string') {
-        xmp.rights = value;
+    } else if (canonical === 'IPTC:Keywords') {
+      const kws = typeof value === 'string' ? [value] : Array.isArray(value) ? value : null;
+      if (kws && kws.every((v) => typeof v === 'string')) {
+        iptcKeywords.push(...(kws as string[]));
         xmpKeys.push(canonical);
       } else skipped.push(key);
-    } else if (canonical === 'XMP-xmpRights:WebStatement') {
-      if (typeof value === 'string') {
-        xmp.webStatement = value;
-        xmpKeys.push(canonical);
-      } else skipped.push(key);
+    } else if (canonical && XMP_PROPERTY_NAMES[canonical]) {
+      const ok =
+        typeof value === 'string' ||
+        (Array.isArray(value) && value.every((v) => typeof v === 'string'));
+      if (!ok) {
+        skipped.push(key);
+        continue;
+      }
+      xmp.push({ name: XMP_PROPERTY_NAMES[canonical]!, value: value as XmpWriteValue });
+      xmpKeys.push(canonical);
     } else {
       // Generic EXIF tag via optional group prefix.
       const name = key.toLowerCase().replace(/^exif:/, '');
@@ -102,7 +133,7 @@ function resolveMergeRequests(tags: Record<string, TagValue>): MergeRequests {
       exif.push({ key: `EXIF:${spec.name}`, spec, value, home });
     }
   }
-  return { exif, xmp, xmpKeys, skipped };
+  return { exif, xmp, xmpKeys, iptcKeywords, skipped };
 }
 
 // ---------------------------------------------------------------------------
@@ -396,118 +427,6 @@ export function mergeExifTiff(
 }
 
 // ---------------------------------------------------------------------------
-// XMP packet merge / create
-// ---------------------------------------------------------------------------
-
-const NS_DC = 'http://purl.org/dc/elements/1.1/';
-const NS_XMP_RIGHTS = 'http://ns.adobe.com/xap/1.0/rights/';
-
-function xmlEscape(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
-
-function ensureRdfNamespace(xml: string, attr: string, ns: string): string {
-  const open = xml.indexOf('<rdf:RDF');
-  if (open === -1) return xml;
-  const close = xml.indexOf('>', open);
-  const tag = xml.slice(open, close);
-  if (tag.includes(`${attr}=`)) return xml;
-  return xml.slice(0, close) + ` ${attr}="${ns}"` + xml.slice(close);
-}
-
-/**
- * Span of the first TOP-LEVEL rdf:Description (Camera Raw packets nest
- * further rdf:Description elements inside crs structures — those must be
- * left untouched). Returns [openTagEnd, closeTagStart], or undefined.
- */
-function topLevelDescriptionSpan(xml: string): [number, number] | undefined {
-  const first = xml.indexOf('<rdf:Description');
-  if (first === -1) return undefined;
-  const selfClosing = /^<rdf:Description[^>]*\/>/;
-  const openEnd = xml.indexOf('>', first);
-  if (openEnd === -1) return undefined;
-  if (selfClosing.test(xml.slice(first, openEnd + 1))) return undefined;
-  const tokenRe = /<rdf:Description(?:\s[^>]*)?>|<\/rdf:Description>/g;
-  tokenRe.lastIndex = openEnd + 1;
-  let depth = 1;
-  let m: RegExpExecArray | null;
-  while ((m = tokenRe.exec(xml)) !== null) {
-    if (m[0].startsWith('</')) {
-      depth--;
-      if (depth === 0) return [openEnd + 1, m.index];
-    } else {
-      depth++;
-    }
-  }
-  return undefined;
-}
-
-function upsertXmpProperty(xml: string, name: string, element: string): string {
-  // Attribute form on the top-level description open tag: drop it first
-  // (element form wins), so the span below is computed on the final xml.
-  const descOpen = xml.indexOf('<rdf:Description');
-  if (descOpen !== -1) {
-    const descClose = xml.indexOf('>', descOpen);
-    const tag = xml.slice(descOpen, descClose);
-    const attrRe = new RegExp(`\\s${name}="[^"]*"`);
-    if (attrRe.test(tag)) {
-      xml = xml.slice(0, descOpen) + tag.replace(attrRe, '') + xml.slice(descClose);
-    }
-  }
-  const span = topLevelDescriptionSpan(xml);
-  if (!span) return xml;
-  const [start, end] = span;
-  const inner = xml.slice(start, end);
-  // Existing element form inside the top-level description: replace it.
-  const elRe = new RegExp(`<${name}(?:\\s[^>]*)?/>|<${name}(?:\\s[^>]*)?>[\\s\\S]*?</${name}>`);
-  if (elRe.test(inner)) {
-    return xml.slice(0, start) + inner.replace(elRe, element) + xml.slice(end);
-  }
-  // Insert before the top-level description's closing tag.
-  return xml.slice(0, end) + element + xml.slice(end);
-}
-
-/**
- * Splices rights/webStatement into an existing XMP packet without
- * re-serializing anything else: namespaces are added to rdf:RDF when
- * missing, properties are upserted inside the first top-level
- * rdf:Description.
- */
-export function mergeXmpPacket(packet: string, props: XmpProps): string {
-  let out = packet;
-  if (props.rights !== undefined) {
-    out = ensureRdfNamespace(out, 'xmlns:dc', NS_DC);
-    const el = `<dc:rights><rdf:Alt><rdf:li xml:lang="x-default">${xmlEscape(props.rights)}</rdf:li></rdf:Alt></dc:rights>`;
-    out = upsertXmpProperty(out, 'dc:rights', el);
-  }
-  if (props.webStatement !== undefined) {
-    out = ensureRdfNamespace(out, 'xmlns:xmpRights', NS_XMP_RIGHTS);
-    const el = `<xmpRights:WebStatement>${xmlEscape(props.webStatement)}</xmpRights:WebStatement>`;
-    out = upsertXmpProperty(out, 'xmpRights:WebStatement', el);
-  }
-  return out;
-}
-/** Minimal conformant XMP packet carrying the requested rights properties. */
-export function buildXmpPacket(props: XmpProps): string {
-  let children = '';
-  if (props.rights !== undefined) {
-    children += `<dc:rights><rdf:Alt><rdf:li xml:lang="x-default">${xmlEscape(props.rights)}</rdf:li></rdf:Alt></dc:rights>`;
-  }
-  if (props.webStatement !== undefined) {
-    children += `<xmpRights:WebStatement>${xmlEscape(props.webStatement)}</xmpRights:WebStatement>`;
-  }
-  return (
-    `<?xpacket begin="\uFEFF" id="W5M0MpCehiHzreSzNTczkc9d"?>\n` +
-    `<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="exiftool-ts">\n` +
-    `<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="${NS_DC}" xmlns:xmpRights="${NS_XMP_RIGHTS}">\n` +
-    `<rdf:Description rdf:about="">${children}</rdf:Description>\n` +
-    `</rdf:RDF>\n` +
-    `</x:xmpmeta>\n` +
-    `<?xpacket end="w"?>`
-  );
-}
-
-// ---------------------------------------------------------------------------
 // JPEG merge writer
 // ---------------------------------------------------------------------------
 
@@ -527,6 +446,17 @@ function app1Segment(payload: Uint8Array): Uint8Array {
   return seg;
 }
 
+function app13Segment(payload: Uint8Array): Uint8Array {
+  const seg = new Uint8Array(4 + payload.length);
+  seg[0] = 0xff;
+  seg[1] = 0xed;
+  const len = payload.length + 2;
+  seg[2] = (len >> 8) & 0xff;
+  seg[3] = len & 0xff;
+  seg.set(payload, 4);
+  return seg;
+}
+
 /**
  * JPEG merge writer: changes ONLY the requested tags.
  *
@@ -537,6 +467,14 @@ function app1Segment(payload: Uint8Array): Uint8Array {
  * two rights properties are spliced into the existing packet, or a minimal
  * conformant packet is created when none exists. All other segments
  * (IPTC APP13, ICC APP2, C2PA APP11, …) are copied verbatim.
+ *
+ * Known limitation (pre-existing, shared with the whole mergeExifTiff
+ * path): the TIFF rebuild shifts value areas, so MakerNotes blobs whose
+ * internal offsets are absolute from the TIFF header (e.g. Olympus) lose
+ * their internal offsets when entries are ADDED. Existing-entry patches
+ * and makernote-relative formats (Canon, Nikon) are unaffected. Reference
+ * exiftool fixes this with per-maker offset logic — out of scope here;
+ * XMP/IPTC-only writes never touch the EXIF TIFF block.
  */
 export const jpegMergeWriter: ContainerWriter = (original, tags) => {
   if (original.length < 4 || original[0] !== 0xff || original[1] !== 0xd8) {
@@ -549,6 +487,9 @@ export const jpegMergeWriter: ContainerWriter = (original, tags) => {
   );
   const xmpSeg = segments.find(
     (s) => s.marker === 0xe1 && payloadStartsWith(original, s, XMP_APP1_HEADER),
+  );
+  const psApp13 = segments.find(
+    (s) => s.marker === 0xed && payloadStartsWith(original, s, 'Photoshop 3.0\0'),
   );
 
   const written: string[] = [];
@@ -575,13 +516,26 @@ export const jpegMergeWriter: ContainerWriter = (original, tags) => {
 
   // --- XMP ---
   let xmpPayload: Uint8Array | null = null;
-  if (reqs.xmp.rights !== undefined || reqs.xmp.webStatement !== undefined) {
+  if (reqs.xmp.length > 0) {
     const packet = xmpSeg
       ? new TextDecoder().decode(original.subarray(xmpSeg.payloadStart + XMP_APP1_HEADER.length, xmpSeg.payloadEnd))
       : null;
-    const merged = packet ? mergeXmpPacket(packet, reqs.xmp) : buildXmpPacket(reqs.xmp);
+    const merged = writeXmpPacket(packet, reqs.xmp);
     xmpPayload = new TextEncoder().encode(merged);
     written.push(...reqs.xmpKeys);
+  }
+
+  // --- IPTC (APP13 Photoshop IRB) ---
+  let iptcPayload: Uint8Array | null = null;
+  if (reqs.iptcKeywords.length > 0) {
+    const existingPayload = psApp13
+      ? original.subarray(psApp13.payloadStart, psApp13.payloadEnd)
+      : null;
+    iptcPayload = mergePhotoshopIrb(existingPayload, reqs.iptcKeywords);
+    if (iptcPayload.length + 2 > 0xffff) {
+      throw new UnsupportedFormatError('APP13 segment exceeds 64 KiB JPEG limit');
+    }
+    written.push('IPTC:Keywords');
   }
 
   // --- Reassemble: sorted splice list over the original bytes ---
@@ -608,6 +562,16 @@ export const jpegMergeWriter: ContainerWriter = (original, tags) => {
       // Both fresh: insert both at the SOI boundary; stable sort keeps
       // EXIF first, XMP second.
       edits.push({ at: 2, end: 2, bytes: seg });
+    }
+  }
+  if (iptcPayload) {
+    const seg = app13Segment(iptcPayload);
+    if (psApp13) {
+      edits.push({ at: psApp13.start, end: psApp13.end, bytes: seg });
+    } else {
+      // Fresh APP13: after the last APP0/APP1 metadata segment, else SOI.
+      const anchor = xmpSeg ?? exifSeg;
+      edits.push(anchor ? { at: anchor.end, end: anchor.end, bytes: seg } : { at: 2, end: 2, bytes: seg });
     }
   }
   edits.sort((a, b) => a.at - b.at);

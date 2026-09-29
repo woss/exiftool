@@ -2,8 +2,11 @@ import { test } from 'vitest';
 import { assertEquals } from '../src/test/asserts.js';
 import { ExifTool } from './exiftool.js';
 import { jpegParser } from './format/jpeg.js';
+import { parseXMP } from './exif/xmp.js';
 import type { FormatParser } from './format/mod.js';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 function captureConsole() {
   const origLog = console.log;
@@ -148,4 +151,42 @@ test('a custom plugin participates in detection', async () => {
   const info = await tool.readBytes(new TextEncoder().encode('# hello'));
   assertEquals(info.format, 'TXT');
   assertEquals(info.tags['Kind'], 'hash-file');
+});
+
+test('writeSidecar creates, merges, and is idempotent', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'exiftool-ts-sidecar-'));
+  try {
+    const tool = new ExifTool();
+    const media = join(dir, 'IMG_0001.ARW');
+    const sidecar = join(dir, 'IMG_0001.ARW.xmp');
+
+    const first = await tool.writeSidecar(media, {
+      'XMP-dc:Subject': ['bird', 'kelp'],
+      'XMP-dc:Title': 'Sidecar test',
+      'XMP-xmp:MetadataDate': '2026-09-29T01:00:00',
+      'EXIF:Make': 'ignored-for-sidecar',
+    });
+    assertEquals(first.sidecarPath, sidecar);
+    assertEquals(first.written.sort(), ['XMP-dc:Subject', 'XMP-dc:Title', 'XMP-xmp:MetadataDate']);
+
+    // Read-merge: second run adds a property, keeps the first ones.
+    await tool.writeSidecar(media, { 'XMP-dc:Description': 'Added later' });
+    const packet = await readFile(sidecar, 'utf8');
+    const info = parseXMP(packet);
+    assertEquals(info.Subject, ['bird', 'kelp']);
+    assertEquals(info.Title, 'Sidecar test');
+    assertEquals(info.Description, 'Added later');
+
+    // Idempotence: identical run → byte-identical file.
+    const before = await readFile(sidecar, 'utf8');
+    await tool.writeSidecar(media, {
+      'XMP-dc:Subject': ['bird', 'kelp'],
+      'XMP-dc:Title': 'Sidecar test',
+      'XMP-xmp:MetadataDate': '2026-09-29T01:00:00',
+      'XMP-dc:Description': 'Added later',
+    });
+    assertEquals(await readFile(sidecar, 'utf8'), before);
+  } finally {
+    await rm(dir, { recursive: true });
+  }
 });

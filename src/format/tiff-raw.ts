@@ -5,6 +5,7 @@ import { parseTiff } from '../exif/tiff.js';
 import { parseIFD } from '../exif/ifd.js';
 import { readIfdValue } from '../exif/values.js';
 import { computeCompositeTags } from '../exif/composite.js';
+import { tiffMergeWriter } from '../write/tiff-merge.js';
 
 const TIFF_MAGIC_LITTLE = 0x4949; // 'II'
 const TIFF_MAGIC_BIG = 0x4d4d; // 'MM'
@@ -33,11 +34,12 @@ const TAG_DNG_VERSION = 0xc612;
  *   through TagDb/built-ins are emitted (PanasonicRaw-specific ids live in
  *   a different tag group). DNG `DNGVersion` renders via TagDb if a
  *   PrintConv exists, else as its raw value — it is never hand-formatted.
- * - No `writeBytes`: `writeTags` on a RAW file keeps throwing
- *   `UnsupportedFormatError` as before.
+ * - `writeBytes` (tiffMergeWriter) accepts plain TIFF and DNG only; camera
+ *   RAW variants throw `UnsupportedFormatError` (provenance rule).
  */
  export const tiffRawParser: FormatParser = {
   format: 'TIFF',
+  writeBytes: tiffMergeWriter,
   extensions: [
     '.tif', '.tiff', '.dng', '.cr2', '.nef', '.arw', '.erf', '.pef',
     '.orf', '.rw2', '.rwl', '.srw', '.dcr', '.kdc',
@@ -112,7 +114,7 @@ const MAKE_TO_FORMAT: Record<string, string> = {
  * DNG by DNGVersion, otherwise by the IFD0 Make string, else plain TIFF.
  * Malformed buffers fall back to `'TIFF'` — no throwing.
  */
-function classifyTiffRaw(bytes: Uint8Array, panasonic: boolean): string {
+export function classifyTiffRaw(bytes: Uint8Array, panasonic: boolean): string {
   if (panasonic) return 'RW2';
   if (bytes.length < 8) return 'TIFF';
   const littleEndian = bytes[0] === 0x49;
