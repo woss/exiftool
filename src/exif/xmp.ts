@@ -326,6 +326,28 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     'stEvt:parameters': 'HistoryParameters',
     'stEvt:softwareAgent': 'HistorySoftwareAgent',
     'stEvt:when': 'HistoryWhen',
+    // AI-forensics surface (Kelp): unknown-namespace locals already
+    // capitalize correctly, but pin the contract entries explicitly.
+    'exif:UserComment': 'UserComment',
+    'invokeai:metadata': 'Metadata',
+    'invokeai:graph': 'Graph',
+    'dmi:DigitalSourceType': 'DigitalSourceType',
+    'Iptc4xmpExt:DigitalSourceType': 'DigitalSourceType',
+    // GPano panorama namespace (flat remap only — no compositing).
+    'GPano:CroppedAreaLeftPixels': 'CroppedAreaLeftPixels',
+    'GPano:CroppedAreaTopPixels': 'CroppedAreaTopPixels',
+    'GPano:CroppedAreaImageWidthPixels': 'CroppedAreaImageWidthPixels',
+    'GPano:CroppedAreaImageHeightPixels': 'CroppedAreaImageHeightPixels',
+    'GPano:FullPanoWidthPixels': 'FullPanoWidthPixels',
+    'GPano:FullPanoHeightPixels': 'FullPanoHeightPixels',
+    'GPano:UsePanoramaViewer': 'UsePanoramaViewer',
+    'IGPano:CroppedAreaLeft': 'CroppedAreaLeftPixels',
+    'IGPano:CroppedAreaTop': 'CroppedAreaTopPixels',
+    'IGPano:CroppedAreaWidth': 'CroppedAreaImageWidthPixels',
+    'IGPano:CroppedAreaHeight': 'CroppedAreaImageHeightPixels',
+    'IGPano:FullPanoWidth': 'FullPanoWidthPixels',
+    'IGPano:FullPanoHeight': 'FullPanoHeightPixels',
+    'IGPano:UsePanoramaViewer': 'UsePanoramaViewer',
   };
 
   // MaskGroup flattening semantics (verified against exiftool on multi-mask
@@ -383,7 +405,9 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
   function mapTagName(prefix: string, local: string): string {
     const fullKey = `${prefix}:${local}`;
     if (TAG_REMAP[fullKey]) return TAG_REMAP[fullKey];
-    return local;
+    // Unmapped properties (unknown namespaces like InvokeAI, DMI, GPano)
+    // surface with the local name capitalized, matching reference exiftool.
+    return local.charAt(0).toUpperCase() + local.slice(1);
   }
 
   /**
@@ -434,7 +458,11 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
           if (defaultVal) result[tagName] = defaultVal;
         } else {
           if (items.length === 1) {
-            result[tagName] = items[0];
+            // Struct-content items (rdf:parseType="Resource", e.g.
+            // xmpMM:History) are flattened field-by-field by the child
+            // passes; the container itself is never emitted (exiftool
+            // behavior). Only store plain text items.
+            if (!items[0].startsWith('<')) result[tagName] = items[0];
           } else {
             const existing = result[tagName];
             if (existing) {
@@ -550,7 +578,8 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     let attrMatch2: RegExpExecArray | null;
     while ((attrMatch2 = attrPattern2.exec(structMatch[1])) !== null) {
       const [_, fullName, value] = attrMatch2;
-      if (fullName.startsWith('rdf:')) continue;
+      if (fullName.startsWith('rdf:') || fullName.startsWith('xmlns:') ||
+        fullName.startsWith('x:') || fullName.startsWith('xml:')) continue;
 
       const parsed = lookupPrefix(fullName);
       const tagName = mapTagName(parsed.prefix, parsed.local);
@@ -605,7 +634,8 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
     let attrMatch3: RegExpExecArray | null;
     while ((attrMatch3 = attrPattern3.exec(liMatch[1])) !== null) {
       const [_, fullName, value] = attrMatch3;
-      if (fullName.startsWith('rdf:')) continue;
+      if (fullName.startsWith('rdf:') || fullName.startsWith('xmlns:') ||
+        fullName.startsWith('x:') || fullName.startsWith('xml:')) continue;
       const parsed = lookupPrefix(fullName);
       const tagName = mapTagName(parsed.prefix, parsed.local);
 
@@ -668,11 +698,6 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
   if (Array.isArray(result['MaskGroupBasedCorrMaskMasksDabs'])) {
     result['MaskGroupBasedCorrMaskMasksDabs'] = (result['MaskGroupBasedCorrMaskMasksDabs'] as string[]).join(',');
   }
-  for (const key of Object.keys(result)) {
-    if (key === 'XMP' || key === 'action' || key === 'changed' || key === 'instanceID' || key === 'parameters' || key === 'softwareAgent' || key === 'when' || key === 'lang' || key === 'pick' || key === 'Parameters' || key === 'Look') {
-      delete result[key];
-    }
-  }
 
   // ExifTool prints XMP booleans lowercase, trims numeric tails and
   // renders ISO dates in EXIF style; normalize to match.
@@ -705,7 +730,7 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
         // XMP rationals ("39/100"): exiftool renders them as plain floats.
         const [, num, den] = v.match(/^(-?\d+)\/(\d+)$/) as RegExpMatchArray;
         if (Number(den) !== 0) result[k] = String(Number(num) / Number(den));
-      } else if (/^\d{4}-\d{2}-\d{2}T[0-9:+.-]+$/.test(v)) {
+      } else if (/^\d{4}-\d{2}-\d{2}T[0-9:+.\-Z]+$/.test(v)) {
         result[k] = v.replace(/^([\d-]+)T/, (_, d) => d.replaceAll('-', ':') + ' ');
       }
     } else if (Array.isArray(v)) {
@@ -715,6 +740,20 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
           : item,
       );
     }
+  }
+  // GPano panorama tags: exiftool's GPano table types the pixel-extent
+  // fields as integers, so -j emits numbers.
+  const GPANO_INT_TAGS = [
+    'CroppedAreaLeftPixels',
+    'CroppedAreaTopPixels',
+    'CroppedAreaImageWidthPixels',
+    'CroppedAreaImageHeightPixels',
+    'FullPanoWidthPixels',
+    'FullPanoHeightPixels',
+  ];
+  for (const tag of GPANO_INT_TAGS) {
+    const v = result[tag];
+    if (typeof v === 'string' && /^-?\d+$/.test(v)) result[tag] = Number(v);
   }
   // PerspectiveUpright: exiftool renders the crs enum with words.
   if (result['PerspectiveUpright'] !== undefined) {

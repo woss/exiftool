@@ -6,6 +6,7 @@ import { parseTiff } from '../exif/tiff.js';
 import { parseXMP } from '../exif/xmp.js';
 import { computeCompositeTags } from '../exif/composite.js';
 import { parseJUMBFFromSegment } from './jumbf.js';
+import { inflateSync } from 'node:zlib';
 const PNG_HEADER = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 function readChunk(
@@ -39,6 +40,9 @@ function readChunk(
   },
   parse(bytes: Uint8Array, filePath: string, tagDb?: TagDb, hints?: ParseHints): Promise<FileInfo> {
     const result: Record<string, TagValue> = {};
+    // PNG text-chunk tags (tEXt/iTXt/zTXt) have the lowest precedence:
+    // EXIF/eXIf-derived and XMP-derived keys always win, text chunks yield.
+    const textTags: Record<string, TagValue> = {};
     let offset = 8;
 
     while (offset < bytes.length) {
@@ -61,8 +65,12 @@ function readChunk(
         const ct = view.getUint8(9);
         result['ColorType'] = colorTypes[ct] ?? String(ct);
         result['Compression'] = view.getUint8(10) === 0 ? 'Deflate/Inflate' : 'Unknown';
-        result['FilterMethod'] = view.getUint8(11);
-        result['InterlaceMethod'] = view.getUint8(12);
+        result['Filter'] = view.getUint8(11) === 0 ? 'Adaptive' : 'Unknown';
+        result['Interlace'] = view.getUint8(12) === 0
+          ? 'Noninterlaced'
+          : view.getUint8(12) === 1
+          ? 'Adam7'
+          : 'Unknown';
       }
 
       if (chunk.type === 'eXIf') {
@@ -84,7 +92,22 @@ function readChunk(
         if (nullIdx > 0) {
           const key = new TextDecoder().decode(chunk.data.slice(0, nullIdx));
           const val = new TextDecoder().decode(chunk.data.slice(nullIdx + 1));
-          result[`PNG_${key}`] = val;
+          textTags[key] = val;
+        }
+      }
+
+      if (chunk.type === 'zTXt') {
+        // zTXt: keyword NUL compressionMethod deflateData. Node parser layer
+        // uses zlib (the compression method byte must be 0 = zlib/deflate).
+        const nullIdx = chunk.data.indexOf(0);
+        if (nullIdx > 0 && chunk.data[nullIdx + 1] === 0) {
+          const key = new TextDecoder().decode(chunk.data.slice(0, nullIdx));
+          try {
+            const val = inflateSync(chunk.data.slice(nullIdx + 2));
+            textTags[key] = new TextDecoder().decode(val);
+          } catch {
+            // Malformed compressed stream: skip, like exiftool ignoring it.
+          }
         }
       }
 
@@ -121,7 +144,16 @@ function readChunk(
           }
           continue;
         }
-        result[keyword] = text;
+        textTags[keyword] = text;
+      }
+      if (chunk.type === 'sRGB') {
+        const intents: Record<number, string> = {
+          0: 'Perceptual',
+          1: 'Relative Colorimetric',
+          2: 'Saturation',
+          3: 'Absolute Colorimetric',
+        };
+        result['SRGBRendering'] = intents[chunk.data[0]] ?? String(chunk.data[0]);
       }
       if (chunk.type === 'gAMA') {
         const view = new DataView(chunk.data.buffer, chunk.data.byteOffset, chunk.data.byteLength);
@@ -142,6 +174,14 @@ function readChunk(
       }
 
       if (chunk.type === 'IEND') break;
+    }
+
+    // PNG text-chunk keywords surface capitalized (exiftool behavior:
+    // tEXt keyword "parameters" reads as Parameters). EXIF/eXIf- and
+    // XMP-derived keys always win, text chunks yield.
+    for (const [k, v] of Object.entries(textTags)) {
+      const name = k.charAt(0).toUpperCase() + k.slice(1);
+      if (!(name in result)) result[name] = v;
     }
 
     computeCompositeTags(result);

@@ -39,10 +39,9 @@ test('parseXMP extracts attribute-form properties and skips xmlns/rdf/x attribut
 
 test('parseXMP parses self-closing attribute-form rdf:Description', () => {
   const xml = xmpDoc(`<rdf:Description xmlns:tiff="urn:tiff" tiff:Make="Sony" tiff:Model="A7 IV"/>`);
-  // Quirk: the self-closing-description pass skips rdf:-prefixed attributes but
-  // NOT xmlns:-prefixed ones, so an inline namespace declaration leaks through
-  // under its local name. Pinned as-is.
-  assertEquals(parseXMP(xml), { Make: 'Sony', Model: 'A7 IV', tiff: 'urn:tiff' });
+  // Namespace declarations never surface as tags (reference exiftool
+  // behavior); every attribute pass skips xmlns:/x:/xml:-prefixed names.
+  assertEquals(parseXMP(xml), { Make: 'Sony', Model: 'A7 IV' });
 });
 
 test('parseXMP maps rdf:Bag with multiple items to an array', () => {
@@ -212,16 +211,16 @@ test('parseXMP parses simple (non-list) elements like photoshop:DateCreated', ()
   });
 });
 
-test('parseXMP skips x-prefixed description attributes and strips history bookkeeping keys', () => {
+test('parseXMP skips x-prefixed description attributes; unknown-namespace locals capitalize', () => {
   const xml = `<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="XMP Core 6.0">
 <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
 <rdf:Description rdf:about="" x:xmptk="XMP Core 6.0" acme:action="converted" dc:title="T"/>
 </rdf:RDF>
 </x:xmpmeta>`;
   assertEquals(parseXMP(xml), {
-    xmptk: 'XMP Core 6.0',
     Title: 'T',
     XMPToolkit: 'XMP Core 6.0',
+    Action: 'converted',
   });
 });
 
