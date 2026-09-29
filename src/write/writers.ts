@@ -160,6 +160,9 @@ export const pngWriter: ContainerWriter = (original, tags) => {
   }
   u32be(out, 0);
   for (const c of 'IEND') out.push(c.charCodeAt(0));
+  const iendCrc = new Uint8Array(4);
+  iendCrc[0] = 0x49; iendCrc[1] = 0x45; iendCrc[2] = 0x4e; iendCrc[3] = 0x44;
+  u32be(out, crc32(iendCrc));
   return { bytes: new Uint8Array(out), written, skipped };
 };
 

@@ -2,6 +2,7 @@ import { test } from 'vitest';
 import { assertEquals } from '../../src/test/asserts.js';
 import { detectParser } from './mod.js';
 import { pngParser } from './png.js';
+import { deflateSync } from 'node:zlib';
 
 const encoder = new TextEncoder();
 
@@ -118,7 +119,7 @@ test('png iCCP without name NUL yields no tag', async () => {
 test('png tEXt keyword/value split on first NUL', async () => {
   const payload = encoder.encode('Title\0A Scene');
   const result = await pngParser.parse(png(chunk('tEXt', payload), chunk('IEND', new Uint8Array(0))), 'text.png');
-  assertEquals(result.tags['PNG_Title'], 'A Scene');
+  assertEquals(result.tags['Title'], 'A Scene');
 });
 
 test('png tEXt without separator or leading NUL is skipped', async () => {
@@ -127,8 +128,15 @@ test('png tEXt without separator or leading NUL is skipped', async () => {
     png(chunk('tEXt', new Uint8Array([0, 0x41])), chunk('IEND', new Uint8Array(0))),
     'b.png',
   );
-  assertEquals(Object.keys(noSep.tags).filter((k) => k.startsWith('PNG_')).length, 0);
-  assertEquals(Object.keys(leadNul.tags).filter((k) => k.startsWith('PNG_')).length, 0);
+  assertEquals(noSep.tags['Title'], undefined);
+  assertEquals(leadNul.tags['Title'], undefined);
+});
+
+test('png zTXt inflates to bare keyword tag', async () => {
+  const compressed = deflateSync(Buffer.from('hello compressed'));
+  const payload = concat(encoder.encode('Comment\0'), new Uint8Array([0]), new Uint8Array(compressed));
+  const result = await pngParser.parse(png(chunk('zTXt', payload), chunk('IEND', new Uint8Array(0))), 'ztxt.png');
+  assertEquals(result.tags['Comment'], 'hello compressed');
 });
 
 test('png iTXt uncompressed text extracted', async () => {

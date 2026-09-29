@@ -1,12 +1,10 @@
-# omp project config — mirrors .opencode/opencode.jsonc + opencode-swarm.json
-# Models: opencode/* in OpenCode == built-in `opencode-zen` provider in omp.
+# omp project config
 
 modelRoles:
-  # architect/coder: opencode/deepseek-v4-flash @ reasoningEffort high
-  default: openrouter/z-ai/glm-5.3-flash:auto
+  default: opencode-zen/glm-5.3-flash:auto
   # cheap tier: swarm fallback model, also drives tiny/smol background work (titles, memory LLM)
   smol: opencode-zen/big-pickle
-  # reviewer/test_engineer/explorer/sme/researcher/critic/docs/designer/curators: opencode/big-pickle
+  # reviewer/test_engineer/explorer/sme/researcher/critic/docs/designer/curators
   slow: opencode-zen/big-pickle
 
 # Swarm agent fallback_models -> retry fallback chains
