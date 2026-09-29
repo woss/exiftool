@@ -6,6 +6,27 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-09-29
+
+### Added
+- PNG IHDR read parity: `Filter` and `Interlace` with reference PrintConv
+  strings, `SRGBRendering` from the sRGB chunk.
+- PNG zTXt chunk support (zlib/deflate; Node parser layer).
+- PNG tEXt/iTXt/zTXt keywords surface as bare capitalized tag names
+  (`parameters` → `Parameters`), yielding to EXIF/eXIf/XMP-derived keys.
+- XMP read parity: unknown-namespace properties surface with capitalized
+  local names (InvokeAI `Metadata`/`Graph`, DMI `DigitalSourceType`,
+  GPano panorama tags with integer typing); `xmpMM:History` flattens to
+  `History*` fields and the raw container is no longer emitted; XMP dates
+  with `Z` suffix normalize to EXIF-style rendering; TAG_REMAP entries
+  pinned for `exif:UserComment`, InvokeAI, DMI, GPano/IGPano.
+- `src/ai-parity.test.ts`: reference-equal tests against real exiftool on
+  A1111 (`tEXt parameters`) and InvokeAI (XMP/DMI/History) fixtures.
+
+### Fixed
+- `pngWriter` omitted the IEND CRC — every PNG written by the library was
+  truncated by 4 bytes and unreadable by strict parsers.
+
 ## [0.4.0] — 2026-09-29
 
 ### Added
