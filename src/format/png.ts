@@ -6,8 +6,21 @@ import { parseTiff } from '../exif/tiff.js';
 import { parseXMP } from '../exif/xmp.js';
 import { computeCompositeTags } from '../exif/composite.js';
 import { parseJUMBFFromSegment } from './jumbf.js';
-import { inflateSync } from 'node:zlib';
 const PNG_HEADER = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+/** zTXt payloads are zlib streams (RFC 1950); DecompressionStream('deflate')
+ * is the platform-free decoder (Node ≥18 global, all browsers). */
+async function inflateZtxt(data: Uint8Array): Promise<Uint8Array | null> {
+  try {
+    const stream = new Blob([data as unknown as BlobPart])
+      .stream()
+      .pipeThrough(new DecompressionStream('deflate'));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  } catch {
+    // Malformed compressed stream: skip, like exiftool ignoring it.
+    return null;
+  }
+}
 
 function readChunk(
   bytes: Uint8Array,
@@ -38,11 +51,12 @@ function readChunk(
     return bytes[0] === PNG_HEADER[0] && bytes[1] === PNG_HEADER[1] &&
       bytes[2] === PNG_HEADER[2] && bytes[3] === PNG_HEADER[3];
   },
-  parse(bytes: Uint8Array, filePath: string, tagDb?: TagDb, hints?: ParseHints): Promise<FileInfo> {
+  async parse(bytes: Uint8Array, filePath: string, tagDb?: TagDb, hints?: ParseHints): Promise<FileInfo> {
     const result: Record<string, TagValue> = {};
     // PNG text-chunk tags (tEXt/iTXt/zTXt) have the lowest precedence:
     // EXIF/eXIf-derived and XMP-derived keys always win, text chunks yield.
     const textTags: Record<string, TagValue> = {};
+    const ztxtEntries: Array<[string, Uint8Array]> = [];
     let offset = 8;
 
     while (offset < bytes.length) {
@@ -97,17 +111,13 @@ function readChunk(
       }
 
       if (chunk.type === 'zTXt') {
-        // zTXt: keyword NUL compressionMethod deflateData. Node parser layer
-        // uses zlib (the compression method byte must be 0 = zlib/deflate).
+        // zTXt: keyword NUL compressionMethod deflateData. Compression
+        // method byte must be 0 = zlib/deflate; inflate after the chunk
+        // walk (DecompressionStream is async).
         const nullIdx = chunk.data.indexOf(0);
         if (nullIdx > 0 && chunk.data[nullIdx + 1] === 0) {
           const key = new TextDecoder().decode(chunk.data.slice(0, nullIdx));
-          try {
-            const val = inflateSync(chunk.data.slice(nullIdx + 2));
-            textTags[key] = new TextDecoder().decode(val);
-          } catch {
-            // Malformed compressed stream: skip, like exiftool ignoring it.
-          }
+          ztxtEntries.push([key, chunk.data.slice(nullIdx + 2)]);
         }
       }
 
@@ -176,6 +186,11 @@ function readChunk(
       if (chunk.type === 'IEND') break;
     }
 
+    for (const [key, compressed] of ztxtEntries) {
+      const inflated = await inflateZtxt(compressed);
+      if (inflated) textTags[key] = new TextDecoder().decode(inflated);
+    }
+
     // PNG text-chunk keywords surface capitalized (exiftool behavior:
     // tEXt keyword "parameters" reads as Parameters). EXIF/eXIf- and
     // XMP-derived keys always win, text chunks yield.
@@ -185,7 +200,7 @@ function readChunk(
     }
 
     computeCompositeTags(result);
-    return Promise.resolve({ path: filePath, format: 'PNG', tags: result });
+    return { path: filePath, format: 'PNG', tags: result };
   },
 };
 
