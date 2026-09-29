@@ -204,14 +204,21 @@ the [parity docs](https://woss.github.io/exiftool/parity).
 
 [MIT](LICENSE) — © woss (woss.io), covering this repository's TypeScript code only.
 
+One exception, documented in [NOTICE](NOTICE) and
+[src/tags/generated/LICENSE.md](src/tags/generated/LICENSE.md): the embedded
+tag-database JSON (`src/tags/generated/`) is derived from Phil Harvey's
+ExifTool (`exiftool -listx` tables and PrintConv values) and is subject to
+ExifTool's own license — GPL-3.0-or-later **or** Artistic License 2.0 —
+redistributed here under the Artistic License 2.0.
+
 ## Credits
 
 **ExifTool was created by [Phil Harvey](https://exiftool.org), who maintains
 it single-handedly since 2003.** This project exists because of his work and
-would not be possible without it. Phil's ExifTool is licensed under the same
-terms as Perl (Artistic License or GPL); nothing from his codebase is used
-here — this is an independent clean-room TypeScript implementation that uses
-his tool only as a behavioral reference for output parity. All credit for the
+would not be possible without it. The TypeScript code is an independent
+implementation that uses his tool only as a behavioral reference for output
+parity; the embedded tag-database tables are derived from ExifTool and
+carried under his dual license (see License above). All credit for the
 ExifTool concept, design, and decades of metadata expertise belongs to him.
 Consider [supporting his work](https://exiftool.org/#pay).
 
