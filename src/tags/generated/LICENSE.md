@@ -22,3 +22,17 @@ text and value tables are ExifTool's expression — hence this notice.
 The TypeScript code in this repository is NOT derived from ExifTool and
 remains MIT-licensed (see /LICENSE). If you redistribute this package,
 these data files must keep the ExifTool notice above.
+
+Upgrading
+---------
+The reference ExifTool source is vendored as a git submodule pinned to the
+release we generated these files from:
+
+    git submodule update --init --depth 1   # clone/refresh
+    cd vendor/exiftool && git fetch --depth 1 origin tag <newer> && git checkout --detach <newer>
+
+Then regenerate and commit the (reviewed) diff:
+
+    python3 scripts/extract-maker-printconv.py          # maker PrintConv tables
+    exiftool -listx > /tmp/listx.xml                    # + scripts/generate-tags.ts
+
