@@ -2,6 +2,12 @@ MIT License
 
 Copyright (c) 2026 woss (woss.io)
 
+This license covers this repository's TypeScript source code only. The
+embedded tag-database files under src/tags/generated/ are derived from
+ExifTool (copyright Phil Harvey) and are redistributed under the Artistic
+License 2.0 or GPL-3.0-or-later — see NOTICE and
+src/tags/generated/LICENSE.md.
+
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
 in the Software without restriction, including without limitation the rights

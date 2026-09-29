@@ -1,0 +1,19 @@
+@woss/exiftool — notices
+========================
+
+This package's TypeScript code is MIT-licensed (see LICENSE) and is an
+independent implementation, not derived from ExifTool's codebase.
+
+However, it embeds tag-data tables derived from Phil Harvey's ExifTool
+(https://exiftool.org), copyright Phil Harvey, licensed under GPL-3.0-or-later
+OR Artistic License 2.0, redistributed here under the Artistic License 2.0:
+
+- Tag names/identifiers, descriptions, and PrintConv value tables
+  (generated from `exiftool -listx`)
+- Maker-notes PrintConv tables (extracted from the ExifTool Perl source)
+
+See https://github.com/woss/exiftool/blob/main/src/tags/generated/LICENSE.md
+for the full notice.
+
+ExifTool was created and is single-handedly maintained by Phil Harvey since
+2003. All credit for ExifTool itself belongs to him: https://exiftool.org/#pay
