@@ -90,10 +90,12 @@ replaced), so writing the same values twice is byte-identical.
 | JPEG | APP1 merge | APP1 packet splice/create | APP13 Photoshop IRB merge |
 | PNG | eXIf chunk | `iTXt` (uncompressed, keyword `XML:com.adobe.xmp`) | — |
 | WebP | EXIF chunk (VP8X flag) | `XMP ` RIFF chunk (VP8X flag) | — |
-| TIFF / DNG | IFD structural merge | IFD0 XMP tag (0xBC01) | — |
+| TIFF (plain) | IFD structural merge | IFD0 XMP tag (0x02BC) | — |
 
-Camera RAW (CR2, NEF, ARW, ORF, RAF, RW2, …) is **never rewritten in place** —
-writes to those throw `UnsupportedFormatError`. Use the sidecar mode instead.
+Camera RAW (CR2, NEF, ARW, ORF, RAF, RW2, …) and TIFF/DNG files carrying
+SubIFDs (0x014A: raw image data, previews, tiles) are **never rewritten in
+place** — writes to those throw `UnsupportedFormatError`. Use the sidecar
+mode instead.
 
 ## Sidecar Writes
 

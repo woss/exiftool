@@ -294,3 +294,46 @@ test('jpegMergeWriter leaves the XMP APP1 byte-identical when no XMP keys reques
   );
 });
 
+
+test('jpegMergeWriter reports non-string XMP values as skipped', () => {
+  const out = jpegMergeWriter(new Uint8Array(readFileSync('assets/01.jpg')), {
+    'XMP-dc:Subject': 42 as unknown as string,
+  });
+  assertEquals(out.skipped, ['XMP-dc:Subject']);
+  assertEquals(out.written, []);
+});
+
+test('jpegMergeWriter throws when merged APP13 exceeds the 64 KiB segment limit', () => {
+  // Existing Photoshop IRB with a large 0x040f block; adding the IPTC
+  // 0x0404 block pushes the merged payload past the segment limit.
+  const header = new TextEncoder().encode('Photoshop 3.0\0');
+  const big = new Uint8Array(0xffe0);
+  const block = (id: number, data: Uint8Array): number[] => [
+    ...[0x38, 0x42, 0x49, 0x4d], id >> 8, id & 255, 0, 0,
+    data.length >> 24 & 255, data.length >> 16 & 255, data.length >> 8 & 255, data.length & 255,
+    ...data, ...(data.length % 2 ? [0] : []),
+  ];
+  const payload = new Uint8Array([...header, ...block(0x040f, big)]);
+  const dvLen = payload.length + 2;
+  const jpeg = new Uint8Array([
+    0xff, 0xd8,
+    0xff, 0xed, dvLen >> 8, dvLen & 255,
+    ...payload,
+    0xff, 0xd9,
+  ]);
+  let threw = false;
+  try {
+    jpegMergeWriter(jpeg, { 'IPTC:Keywords': ['k'] });
+  } catch (e) {
+    threw = e instanceof Error && e.message.includes('APP13');
+  }
+  assertEquals(threw, true);
+});
+
+test('jpegMergeWriter reports non-array IPTC:Keywords as skipped', () => {
+  const out = jpegMergeWriter(new Uint8Array(readFileSync('assets/01.jpg')), {
+    'IPTC:Keywords': 42 as unknown as string,
+  });
+  assertEquals(out.skipped, ['IPTC:Keywords']);
+  assertEquals(out.written, []);
+});

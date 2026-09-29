@@ -34,8 +34,8 @@ const TAG_DNG_VERSION = 0xc612;
  *   through TagDb/built-ins are emitted (PanasonicRaw-specific ids live in
  *   a different tag group). DNG `DNGVersion` renders via TagDb if a
  *   PrintConv exists, else as its raw value — it is never hand-formatted.
- * - `writeBytes` (tiffMergeWriter) accepts plain TIFF and DNG only; camera
- *   RAW variants throw `UnsupportedFormatError` (provenance rule).
+ * - `writeBytes` (tiffMergeWriter) accepts plain TIFF only; camera RAW and
+ *   files with SubIFDs throw `UnsupportedFormatError` (provenance rule).
  */
  export const tiffRawParser: FormatParser = {
   format: 'TIFF',

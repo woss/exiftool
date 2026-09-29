@@ -4,6 +4,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { ExifToolCore } from '../exiftool-core.js';
+import { UnsupportedFormatError } from './writers.js';
 import { pngParser } from '../format/png.js';
 
 const execFileP = promisify(execFile);
@@ -60,13 +61,16 @@ test('JPEG: IPTC+XMP write adds keywords without touching anything else', async 
   }, ['IPTC:Keywords', 'IPTC:CodedCharacterSet', 'File:CurrentIPTCDigest', 'XMP-dc:Subject', 'XMP-x:XMPToolkit']);
 });
 
-test('DNG: XMP+EXIF write changes only the requested tags', async () => {
-  // IFD1:ThumbnailOffset is a recomputed structural offset (thumbnail bytes
-  // copied verbatim); XMP-x:XMPToolkit is the writer's packet tool stamp.
-  await assertOnlyRequestedChanged('assets/02.dng', new Uint8Array(readFileSync('assets/02.dng')), {
-    'XMP-dc:Subject': ['smoke'],
-    'EXIF:Copyright': '2026 woss',
-  }, ['XMP-dc:Subject', 'IFD0:Copyright', 'IFD1:ThumbnailOffset']);
+test('DNG with SubIFDs is refused, not corrupted', async () => {
+  const dng = new Uint8Array(readFileSync('assets/raw/DNG.dng'));
+  const core = new ExifToolCore();
+  let threw = false;
+  try {
+    await core.writeBytes(dng, { 'XMP-dc:Subject': ['smoke'] });
+  } catch (e) {
+    threw = e instanceof UnsupportedFormatError;
+  }
+  assertEquals(threw, true);
 });
 
 test('PNG: XMP write preserves eXIf/IDAT chunk counts and adds XMP', async () => {

@@ -4,7 +4,7 @@ import { ExifTool } from './exiftool.js';
 import { jpegParser } from './format/jpeg.js';
 import { parseXMP } from './exif/xmp.js';
 import type { FormatParser } from './format/mod.js';
-import { readFile, mkdtemp, rm } from 'node:fs/promises';
+import { readFile, mkdtemp, rm, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -186,6 +186,19 @@ test('writeSidecar creates, merges, and is idempotent', async () => {
       'XMP-dc:Description': 'Added later',
     });
     assertEquals(await readFile(sidecar, 'utf8'), before);
+  } finally {
+    await rm(dir, { recursive: true });
+  }
+});
+
+test('writeSidecar with no XMP keys is a no-op', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'exiftool-ts-sidecar2-'));
+  try {
+    const tool = new ExifTool();
+    const media = join(dir, 'IMG_0002.ARW');
+    const result = await tool.writeSidecar(media, { 'EXIF:Make': 'Nikon' });
+    assertEquals(result.written, []);
+    assertEquals(await readdir(dir), []);
   } finally {
     await rm(dir, { recursive: true });
   }
