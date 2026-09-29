@@ -1,0 +1,5 @@
+[submodule "vendor/exiftool"]
+	path = vendor/exiftool
+	url = https://github.com/exiftool/exiftool.git
+	branch = 13.55
+	shallow = true

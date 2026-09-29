@@ -15,18 +15,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           lfs: true
+          submodules: recursive
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           registry-url: https://registry.npmjs.org/
       - uses: oven-sh/setup-bun@v2
-      - name: Install reference exiftool 13.55 (parity)
+      - name: Reference exiftool (pinned submodule)
         run: |
-          curl -fsSL -o /tmp/exiftool.tar.gz https://github.com/exiftool/exiftool/archive/refs/tags/13.55.tar.gz
-          tar -xzf /tmp/exiftool.tar.gz -C /opt
-          echo "/opt/exiftool-13.55" >> "$GITHUB_PATH"
-          export PATH="/opt/exiftool-13.55:$PATH"
+          echo "$GITHUB_WORKSPACE/vendor/exiftool" >> "$GITHUB_PATH"
           exiftool -ver
       - run: pnpm install --frozen-lockfile
       - name: Version sync (tag vs package.json / jsr.json)

@@ -24,7 +24,10 @@ import os
 import re
 import sys
 
-DEFAULT_LIB = '/opt/homebrew/Cellar/exiftool/13.55_1/libexec/lib/perl5/Image/ExifTool'
+DEFAULT_LIB = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    'vendor', 'exiftool', 'lib', 'Image', 'ExifTool',
+)
 
 SPEC = {
     'Canon.pm': [
