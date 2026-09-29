@@ -81,3 +81,15 @@ test('IPTC write is idempotent and splices into an existing APP13 segment', () =
   const second = jpegMergeWriter(first.bytes, { 'IPTC:Keywords': ['a', 'b'] });
   assertEquals(Array.from(second.bytes), Array.from(first.bytes));
 });
+
+test('iimDataset throws on oversized keyword datasets', () => {
+  let threw = false;
+  try {
+    jpegMergeWriter(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
+      'IPTC:Keywords': ['x'.repeat(0x10000)],
+    });
+  } catch (e) {
+    threw = e instanceof Error && e.message.includes('64 KiB');
+  }
+  assertEquals(threw, true);
+});

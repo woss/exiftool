@@ -139,3 +139,26 @@ test('serializeXmpProperty shapes: scalar, alt, bag, seq', () => {
   assertEquals(serializeXmpProperty('dc:subject', ['a', 'b']), '<dc:subject><rdf:Bag><rdf:li>a</rdf:li><rdf:li>b</rdf:li></rdf:Bag></dc:subject>');
   assertEquals(serializeXmpProperty('dc:creator', ['A']), '<dc:creator><rdf:Seq><rdf:li>A</rdf:li></rdf:Seq></dc:creator>');
 });
+
+test('serializeXmpProperty rejects arrays for scalar-shaped properties', () => {
+  let threw = false;
+  try {
+    serializeXmpProperty('xmp:MetadataDate', ['a', 'b']);
+  } catch (e) {
+    threw = e instanceof UnsupportedFormatError;
+  }
+  assertEquals(threw, true);
+});
+
+test('mergeXmpProperties rejects unknown namespace prefixes', () => {
+  let threw = false;
+  try {
+    mergeXmpProperties(
+      '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about=""/></rdf:RDF></x:xmpmeta>',
+      [{ name: 'nope:thing', value: 'x' }],
+    );
+  } catch (e) {
+    threw = e instanceof UnsupportedFormatError;
+  }
+  assertEquals(threw, true);
+});
