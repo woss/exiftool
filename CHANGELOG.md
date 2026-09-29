@@ -6,7 +6,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 
 ## [Unreleased]
 
-## [0.5.1] — 2026-09-29
+## [0.5.2] — 2026-09-29
 
 ### Added
 - PNG IHDR read parity: `Filter` and `Interlace` with reference PrintConv
