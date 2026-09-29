@@ -139,6 +139,12 @@ test('png zTXt inflates to bare keyword tag', async () => {
   assertEquals(result.tags['Comment'], 'hello compressed');
 });
 
+test('png zTXt with malformed deflate stream is skipped', async () => {
+  const payload = concat(encoder.encode('Comment\0'), new Uint8Array([0]), new Uint8Array([1, 2, 3, 4, 5]));
+  const result = await pngParser.parse(png(chunk('zTXt', payload), chunk('IEND', new Uint8Array(0))), 'ztxt-bad.png');
+  assertEquals(result.tags['Comment'], undefined);
+});
+
 test('png iTXt uncompressed text extracted', async () => {
   const payload = concat(
     encoder.encode('Comment\0'),
