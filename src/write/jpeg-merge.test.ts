@@ -161,13 +161,22 @@ test('resolver: non-string XMP values, unknown keys, and generic EXIF tags', () 
   const exifSeg = parseJpegSegments(generic.bytes).find((s) => s.marker === 0xe1)!;
   const tags = extractExifFromTiff(generic.bytes.subarray(exifSeg.payloadStart + 6, exifSeg.payloadEnd));
   assertEquals(tags.Make, 'Rewritten');
-  // Sub-IFD patch when ExifIFD exists; GPS request skipped when GPS IFD absent.
+  // Missing GPS IFDs are created when GPS tags are first written.
   const sub = jpegMergeWriter(original, {
     'EXIF:DateTimeOriginal': '2024:01:02 03:04:05',
     'EXIF:GPSLatitude': [43, 1, 0],
+    'EXIF:GPSLatitudeRef': 'N',
   });
-  assertEquals(sub.written, ['EXIF:DateTimeOriginal']);
-  assertEquals(sub.skipped, ['EXIF:GPSLatitude']);
+  assertEquals(sub.written, ['EXIF:DateTimeOriginal', 'EXIF:GPSLatitude', 'EXIF:GPSLatitudeRef']);
+  assertEquals(sub.skipped, []);
+  const gps = extractExifFromTiff(
+    sub.bytes.subarray(
+      parseJpegSegments(sub.bytes).find((s) => s.marker === 0xe1)!.payloadStart + 6,
+      parseJpegSegments(sub.bytes).find((s) => s.marker === 0xe1)!.payloadEnd,
+    ),
+  );
+  assertEquals(gps.GPSLatitude !== undefined, true);
+  assertEquals(gps.GPSLatitudeRef, 'North');
   // Unencodable value -> skipped, no throw.
   const unencodable = jpegMergeWriter(original, { Orientation: 'not-a-number' });
   assertEquals(unencodable.skipped, ['EXIF:Orientation']);

@@ -1,7 +1,7 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { ExifToolCore } from './exiftool-core.js';
 import { detectParser, type ParseHints } from './format/mod.js';
-import type { FileInfo, TagValue } from './types.js';
+import type { FileInfo, TagValue, WriteOptions } from './types.js';
 import { writeTags, type WriteResult } from './write/pipeline.js';
 import { toXmpPropertyRequest, writeXmpPacket, type XmpPropertyRequest } from './write/xmp-writer.js';
 
@@ -54,12 +54,13 @@ export class ExifTool extends ExifToolCore {
    * @param tags - Tags to write (normalized format, see {@link TagValue})
    * @param opts - Write options
    * @param opts.overwriteOriginal - Overwrite file without backup (default: false)
+  * @param opts.preserveTime - Preserve the file modification time (default: false)
    * @returns Write result with success status and any warnings
    */
   async write(
     filePath: string,
     tags: Record<string, TagValue>,
-    opts: { overwriteOriginal?: boolean } = {},
+    opts: WriteOptions = {},
   ): Promise<WriteResult> {
     return writeTags(filePath, tags, opts, await this.resolvePlugins());
   }
@@ -156,6 +157,7 @@ Options:
   -i DIR           Ignore directory
   -r               Recurse subdirectories
   -if EXPR         Condition expression
+  -P               Preserve file modification time when writing
   -tagsFromFile F  Copy tags from file
   -o FILE          Output filename
   -w EXT           Write text output file

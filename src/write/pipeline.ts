@@ -1,4 +1,4 @@
-import { copyFile, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { copyFile, readFile, rename, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import type { TagValue, WriteOptions, WriteResult } from '../types.js';
 import { builtinPlugins, detectParser } from '../format/mod.js';
 import type { FormatParser } from '../format/mod.js';
@@ -38,6 +38,7 @@ export async function writeTagsWithTmp(
   tmp: string,
   plugins?: FormatParser[],
 ): Promise<WriteResult> {
+  const sourceStat = opts.preserveTime ? await stat(filePath) : undefined;
   const original = await readFile(filePath);
   const parser = detectParser(original, plugins ?? await builtinPlugins());
   if (!parser?.writeBytes) {
@@ -49,6 +50,10 @@ export async function writeTagsWithTmp(
   let backup: string | undefined;
   try {
     await writeFile(tmp, outcome.bytes);
+    if (sourceStat) {
+      const tempStat = await stat(tmp);
+      await utimes(tmp, tempStat.atime, sourceStat.mtime);
+    }
     if (!opts.overwriteOriginal) {
       backup = `${filePath}_original`;
       await copyFile(filePath, backup);

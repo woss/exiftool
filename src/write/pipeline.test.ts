@@ -7,7 +7,7 @@ import {
   writeTagsWithTmp,
 } from './pipeline.js';
 import { tempFile } from '../test/tmp.js';
-import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
 
 const tool = new ExifTool();
 
@@ -45,6 +45,19 @@ test('writeTags with overwriteOriginal skips the backup', async () => {
       exists = false;
     }
     assertEquals(exists, false);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('writeTags preserves the source modification time when requested', async () => {
+  const file = await makeTmpJpeg();
+  const originalMtime = new Date('2020-01-02T03:04:05.000Z');
+  try {
+    await utimes(file, originalMtime, originalMtime);
+    await writeTags(file, { Make: 'Zeta' }, { overwriteOriginal: true, preserveTime: true });
+    const writtenStat = await stat(file);
+    assertEquals(Math.abs(writtenStat.mtimeMs - originalMtime.getTime()) < 1, true);
   } finally {
     await rm(file, { force: true });
   }

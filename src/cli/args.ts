@@ -25,6 +25,7 @@ export interface CliOptions {
   output?: string;
   extractEmbedded?: boolean;
   overwriteOriginal?: boolean;
+  preserveTime?: boolean;
   stayOpen?: string | boolean;
   help?: boolean;
   version?: boolean;
@@ -54,6 +55,7 @@ const SPECS: Record<string, OptionSpec> = {
   ignore: { arity: 'value', collect: true },
   'extract-embedded': { arity: 'flag' },
   'overwrite-original': { arity: 'flag' },
+  'preserve-time': { arity: 'flag' },
   'stay-open': { arity: 'optional' },
   version: { arity: 'flag' },
   help: { arity: 'flag' },
@@ -72,6 +74,7 @@ const SHORTS: Record<string, string> = {
   q: 'quiet',
   X: 'xml',
   o: 'output',
+  P: 'preserve-time',
   r: 'recurse',
   i: 'ignore',
 };

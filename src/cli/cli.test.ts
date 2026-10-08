@@ -4,7 +4,7 @@ import { main, normalizeArgs, runAction } from '../cli.js';
 import type { CliOptions } from '../cli.js';
 import { ExifTool } from '../../src/exiftool.js';
 import { spawn } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { tempFile } from '../../src/test/tmp.js';
@@ -547,6 +547,25 @@ test('runAction write mode with overwriteOriginal skips backup', async () => {
   } finally {
     cap.restore();
     await rm(tmp);
+  }
+});
+
+test('runAction write mode preserves mtime when requested', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  const originalMtime = new Date('2020-01-02T03:04:05.000Z');
+  try {
+    await utimes(tmp, originalMtime, originalMtime);
+    const code = await runAction(
+      { overwriteOriginal: true, preserveTime: true },
+      '-Make=Acme',
+      tmp,
+    );
+    assertEquals(code, 0);
+    const writtenStat = await stat(tmp);
+    assertEquals(Math.abs(writtenStat.mtimeMs - originalMtime.getTime()) < 1, true);
+  } finally {
+    await rm(tmp, { force: true });
   }
 });
 

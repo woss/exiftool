@@ -378,8 +378,17 @@ function applyExifPatches(t: RawTiff, reqs: ExifRequest[]): string[] {
   const written: string[] = [];
   const homeIfd = (home: 0 | 0x8769 | 0x8825): RawIfd | null => {
     if (home === 0) return t.ifd0;
-    const ptr = t.ifd0.entries.find((e) => e.tag === home);
-    return ptr?.sub ?? null;
+    let ptr = t.ifd0.entries.find((e) => e.tag === home);
+    if (!ptr) {
+      const sub: RawIfd = { entries: [], next: null, thumb: null };
+      ptr = { tag: home, type: 4, count: 1, raw4: null, data: null, sub };
+      const at = t.ifd0.entries.findIndex((e) => e.tag > home);
+      if (at === -1) t.ifd0.entries.push(ptr);
+      else t.ifd0.entries.splice(at, 0, ptr);
+    } else if (!ptr.sub) {
+      ptr.sub = { entries: [], next: null, thumb: null };
+    }
+    return ptr.sub;
   };
   for (const req of reqs) {
     const encoded = encodeValue(req.spec, req.value, t.le);

@@ -9,6 +9,11 @@ test('parseCliArgs — boolean long and short flags', () => {
   });
 });
 
+test('parseCliArgs — preserve-time accepts ExifTool -P and long form', () => {
+  assertEquals(parseCliArgs(['-P']).options.preserveTime, true);
+  assertEquals(parseCliArgs(['--preserve-time']).options.preserveTime, true);
+});
+
 test('parseCliArgs — values via space and inline equals', () => {
   assertEquals(parseCliArgs(['-d', '%Y', '--coord-format=%+.6f', 'x.jpg']), {
     options: { dateFormat: '%Y', coordFormat: '%+.6f' },

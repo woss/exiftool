@@ -55,6 +55,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
       try {
         await tool.write(file, tags, {
           overwriteOriginal: options.overwriteOriginal === true,
+          preserveTime: options.preserveTime === true,
         });
         updated++;
       } catch (e) {
