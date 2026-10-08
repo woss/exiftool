@@ -8,8 +8,13 @@ import {
   type IfdTagSpec,
 } from '../exif/tiff-builder.js';
 import { UnsupportedFormatError } from './writers.js';
-import { writeXmpPacket, type XmpPropertyRequest, type XmpWriteValue } from './xmp-writer.js';
-import { mergePhotoshopIrb } from './iptc.js';
+import {
+  toXmpPropertyRequest,
+  writeXmpPacket,
+  type XmpPropertyRequest,
+  type XmpWriteValue,
+} from './xmp-writer.js';
+import { mergePhotoshopIrb, resolveIptcWriteRequest, type IptcWriteRequest } from './iptc.js';
 
 /**
  * Merge-write key convention (exported, documented):
@@ -85,8 +90,8 @@ export interface MergeRequests {
   exif: ExifRequest[];
   xmp: XmpPropertyRequest[];
   xmpKeys: string[];
-  /** Keywords for the IPTC IIM writer (JPEG APP13). */
-  iptcKeywords: string[];
+  iptc: IptcWriteRequest[];
+  iptcKeys: string[];
   skipped: string[];
 }
 
@@ -96,21 +101,22 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
   const exif: ExifRequest[] = [];
   const xmp: XmpPropertyRequest[] = [];
   const xmpKeys: string[] = [];
-  const iptcKeywords: string[] = [];
+  const iptc: IptcWriteRequest[] = [];
+  const iptcKeys: string[] = [];
   const skipped: string[] = [];
   for (const [key, value] of Object.entries(tags)) {
     const canonical =
       MERGE_TAG_KEYS[key.toLowerCase()] ?? MERGE_TAG_KEYS_BARE[key.toLowerCase()];
+    const iptcRequest = resolveIptcWriteRequest(canonical ?? key, value);
+    if (iptcRequest) {
+      iptc.push(iptcRequest);
+      iptcKeys.push(key);
+      continue;
+    }
     if (canonical === 'EXIF:Copyright') {
       exif.push({ key: canonical, spec: IFD0_TAGS.copyright, value, home: 0 });
     } else if (canonical === 'EXIF:Orientation') {
       exif.push({ key: canonical, spec: IFD0_TAGS.orientation, value, home: 0 });
-    } else if (canonical === 'IPTC:Keywords') {
-      const kws = typeof value === 'string' ? [value] : Array.isArray(value) ? value : null;
-      if (kws && kws.every((v) => typeof v === 'string')) {
-        iptcKeywords.push(...(kws as string[]));
-        xmpKeys.push(canonical);
-      } else skipped.push(key);
     } else if (canonical && XMP_PROPERTY_NAMES[canonical]) {
       const ok =
         typeof value === 'string' ||
@@ -122,6 +128,12 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
       xmp.push({ name: XMP_PROPERTY_NAMES[canonical]!, value: value as XmpWriteValue });
       xmpKeys.push(canonical);
     } else {
+      const xmpRequest = toXmpPropertyRequest(key, value);
+      if (xmpRequest) {
+        xmp.push(xmpRequest);
+        xmpKeys.push(key);
+        continue;
+      }
       // Generic EXIF tag via optional group prefix.
       const name = key.toLowerCase().replace(/^exif:/, '');
       const spec = IFD0_TAGS[name] ?? EXIF_IFD_TAGS[name] ?? GPS_IFD_TAGS[name];
@@ -133,7 +145,7 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
       exif.push({ key: `EXIF:${spec.name}`, spec, value, home });
     }
   }
-  return { exif, xmp, xmpKeys, iptcKeywords, skipped };
+  return { exif, xmp, xmpKeys, iptc, iptcKeys, skipped };
 }
 
 // ---------------------------------------------------------------------------
@@ -391,10 +403,18 @@ function applyExifPatches(t: RawTiff, reqs: ExifRequest[]): string[] {
     return ptr.sub;
   };
   for (const req of reqs) {
-    const encoded = encodeValue(req.spec, req.value, t.le);
-    if (!encoded) continue;
     const target = homeIfd(req.home);
     if (!target) continue;
+    if (req.value === null) {
+      const index = target.entries.findIndex((e) => e.tag === req.spec.id);
+      if (index !== -1) {
+        target.entries.splice(index, 1);
+        written.push(req.key);
+      }
+      continue;
+    }
+    const encoded = encodeValue(req.spec, req.value, t.le);
+    if (!encoded) continue;
     let entry = target.entries.find((e) => e.tag === req.spec.id);
     if (entry) {
       entry.type = req.spec.type;
@@ -416,6 +436,9 @@ function applyExifPatches(t: RawTiff, reqs: ExifRequest[]): string[] {
     }
     written.push(req.key);
   }
+  t.ifd0.entries = t.ifd0.entries.filter(
+    (entry) => !entry.sub || entry.sub.entries.length > 0 || entry.sub.next || entry.sub.thumb,
+  );
   return written;
 }
 
@@ -536,15 +559,17 @@ export const jpegMergeWriter: ContainerWriter = (original, tags) => {
 
   // --- IPTC (APP13 Photoshop IRB) ---
   let iptcPayload: Uint8Array | null = null;
-  if (reqs.iptcKeywords.length > 0) {
+  let iptcTouched = false;
+  if (reqs.iptc.length > 0) {
+    iptcTouched = true;
     const existingPayload = psApp13
       ? original.subarray(psApp13.payloadStart, psApp13.payloadEnd)
       : null;
-    iptcPayload = mergePhotoshopIrb(existingPayload, reqs.iptcKeywords);
-    if (iptcPayload.length + 2 > 0xffff) {
+    iptcPayload = mergePhotoshopIrb(existingPayload, reqs.iptc);
+    if (iptcPayload && iptcPayload.length + 2 > 0xffff) {
       throw new UnsupportedFormatError('APP13 segment exceeds 64 KiB JPEG limit');
     }
-    written.push('IPTC:Keywords');
+    written.push(...reqs.iptcKeys);
   }
 
   // --- Reassemble: sorted splice list over the original bytes ---
@@ -573,7 +598,7 @@ export const jpegMergeWriter: ContainerWriter = (original, tags) => {
       edits.push({ at: 2, end: 2, bytes: seg });
     }
   }
-  if (iptcPayload) {
+  if (iptcTouched && iptcPayload) {
     const seg = app13Segment(iptcPayload);
     if (psApp13) {
       edits.push({ at: psApp13.start, end: psApp13.end, bytes: seg });
@@ -582,6 +607,8 @@ export const jpegMergeWriter: ContainerWriter = (original, tags) => {
       const anchor = xmpSeg ?? exifSeg;
       edits.push(anchor ? { at: anchor.end, end: anchor.end, bytes: seg } : { at: 2, end: 2, bytes: seg });
     }
+  } else if (iptcTouched && psApp13) {
+    edits.push({ at: psApp13.start, end: psApp13.end, bytes: null });
   }
   edits.sort((a, b) => a.at - b.at);
   const parts: Uint8Array[] = [];

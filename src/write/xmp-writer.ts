@@ -163,7 +163,19 @@ export function toXmpPropertyRequest(
   value: TagValue,
 ): XmpPropertyRequest | undefined {
   const lower = key.toLowerCase();
-  const name = lower.startsWith('xmp-') ? lower.slice(4) : BARE_ALIASES[lower];
+  let name = BARE_ALIASES[lower];
+  if (name === undefined && lower.startsWith('xmp-')) {
+    const qualified = key.slice(4);
+    const colon = qualified.indexOf(':');
+    if (colon < 1 || colon === qualified.length - 1) return undefined;
+    const requestedPrefix = qualified.slice(0, colon);
+    const prefix = Object.keys(NAMESPACES).find(
+      (candidate) => candidate.toLowerCase() === requestedPrefix.toLowerCase(),
+    );
+    if (!prefix) return undefined;
+    const property = qualified.slice(colon + 1);
+    name = `${prefix}:${prefix === 'dc' ? property.toLowerCase() : property}`;
+  }
   if (!name || !name.includes(':')) return undefined;
   const ok =
     typeof value === 'string' ||

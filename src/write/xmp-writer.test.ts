@@ -6,6 +6,7 @@ import {
   buildXmpPropertiesPacket,
   mergeXmpProperties,
   serializeXmpProperty,
+  toXmpPropertyRequest,
   writeXmpPacket,
 } from './xmp-writer.js';
 
@@ -148,6 +149,21 @@ test('serializeXmpProperty rejects arrays for scalar-shaped properties', () => {
     threw = e instanceof UnsupportedFormatError;
   }
   assertEquals(threw, true);
+});
+
+test('toXmpPropertyRequest preserves namespace and property casing', () => {
+  assertEquals(toXmpPropertyRequest('XMP-photoshop:Credit', 'Agency'), {
+    name: 'photoshop:Credit',
+    value: 'Agency',
+  });
+  assertEquals(toXmpPropertyRequest('XMP-Iptc4xmpCore:CiEmailWork', 'a@b.test'), {
+    name: 'Iptc4xmpCore:CiEmailWork',
+    value: 'a@b.test',
+  });
+  assertEquals(toXmpPropertyRequest('XMP-dc:Subject', ['one', 'two']), {
+    name: 'dc:subject',
+    value: ['one', 'two'],
+  });
 });
 
 test('mergeXmpProperties rejects unknown namespace prefixes', () => {

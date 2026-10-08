@@ -1,7 +1,14 @@
 import { test } from 'vitest';
 import { assertEquals } from '../test/asserts.js';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { readFile, rm, writeFile } from 'node:fs/promises';
+import { tempFile } from '../test/tmp.js';
 import { jpegMergeWriter, parseJpegSegments } from './jpeg-merge.js';
 import { mergePhotoshopIrb } from './iptc.js';
+
+const execFileP = promisify(execFile);
+const upstreamExifTool = new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname;
 
 function app13Payloads(bytes: Uint8Array): Uint8Array[] {
   return parseJpegSegments(bytes)
@@ -50,6 +57,53 @@ test('fresh APP13 with UTF-8 keywords and CodedCharacterSet', () => {
     { record: 2, dataset: 25, value: 'kelp' },
     { record: 2, dataset: 25, value: 'forêt 🌲' },
   ]);
+});
+
+test('writes generated IPTC ApplicationRecord datasets and removes the empty APP13', () => {
+  const base = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+  const first = jpegMergeWriter(base, {
+    'IPTC:ObjectName': 'A caption',
+    'IPTC:City': 'Seattle',
+    'IPTC:Urgency': 2,
+  });
+  assertEquals(first.written, ['IPTC:ObjectName', 'IPTC:City', 'IPTC:Urgency']);
+  const sets = decodeIim(app13Payloads(first.bytes)[0]!);
+  assertEquals(sets.slice(1), [
+    { record: 2, dataset: 5, value: 'A caption' },
+    { record: 2, dataset: 90, value: 'Seattle' },
+    { record: 2, dataset: 10, value: '2' },
+  ]);
+
+  const deleted = jpegMergeWriter(first.bytes, {
+    'IPTC:ObjectName': null,
+    'IPTC:City': null,
+    'IPTC:Urgency': null,
+    'IPTC:CodedCharacterSet': null,
+  });
+  assertEquals(deleted.written.length, 4);
+  assertEquals(app13Payloads(deleted.bytes), []);
+});
+
+test('vendored ExifTool reads generic IPTC fields written by the JPEG merger', async () => {
+  const file = await tempFile('.jpg');
+  try {
+    const original = new Uint8Array(await readFile('assets/01.jpg'));
+    const result = jpegMergeWriter(original, {
+      'IPTC:ObjectName': 'A caption',
+      'IPTC:City': 'Seattle',
+      'IPTC:Urgency': 2,
+    });
+    await writeFile(file, result.bytes);
+    const { stdout } = await execFileP(upstreamExifTool, [
+      '-j', '-G1', '-IPTC:ObjectName', '-IPTC:City', '-IPTC:Urgency', file,
+    ]);
+    const info = JSON.parse(stdout)[0];
+    assertEquals(info['IPTC:ObjectName'], 'A caption');
+    assertEquals(info['IPTC:City'], 'Seattle');
+    assertEquals(info['IPTC:Urgency'], 2);
+  } finally {
+    await rm(file, { force: true });
+  }
 });
 
 test('merges into an existing APP13 without touching other 8BIM blocks', () => {

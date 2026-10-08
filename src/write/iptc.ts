@@ -1,4 +1,7 @@
 import { UnsupportedFormatError } from './writers.js';
+import type { TagValue } from '../types.js';
+import tagData from '../tags/generated/tags.json' with { type: 'json' };
+import type { TableDef } from '../tags.js';
 
 /**
  * IPTC IIM writer for JPEG APP13 (Photoshop IRB).
@@ -19,6 +22,47 @@ interface BimBlock {
   sig: string;
   id: number;
   data: Uint8Array;
+}
+
+export interface IptcWriteRequest {
+  key: string;
+  record: number;
+  dataset: number;
+  type: string;
+  value: TagValue;
+}
+
+const IPTC_TAGS = new Map<string, Omit<IptcWriteRequest, 'key' | 'value'>>();
+for (const table of tagData as TableDef[]) {
+  if (table.perlName !== 'IPTC::ApplicationRecord' && table.perlName !== 'IPTC::EnvelopeRecord') continue;
+  const record = table.perlName === 'IPTC::EnvelopeRecord' ? 1 : 2;
+  for (const tag of table.tags) {
+    const dataset = Number(tag.id);
+    if (tag.writable && Number.isInteger(dataset) && dataset >= 0 && dataset <= 255) {
+      IPTC_TAGS.set(tag.name.toLowerCase(), { record, dataset, type: tag.type });
+    }
+  }
+}
+
+export function resolveIptcWriteRequest(
+  key: string,
+  value: TagValue,
+): IptcWriteRequest | undefined {
+  const match = key.match(/^IPTC:(.+)$/i);
+  if (!match) return undefined;
+  const spec = IPTC_TAGS.get(match[1]!.toLowerCase());
+  if (!spec) return undefined;
+  if (spec.record === 2 && spec.dataset === 25) {
+    const keywordValues = Array.isArray(value) ? value : [value];
+    if (value !== null && !keywordValues.every((item) => typeof item === 'string')) return undefined;
+  }
+  if (value !== null && !Array.isArray(value) && typeof value !== 'string' && typeof value !== 'number') {
+    return undefined;
+  }
+  if (Array.isArray(value) && !value.every((item) => typeof item === 'string' || typeof item === 'number')) {
+    return undefined;
+  }
+  return { key, ...spec, value };
 }
 
 function parseBimBlocks(payload: Uint8Array): BimBlock[] {
@@ -74,36 +118,120 @@ function iimDataset(record: number, dataset: number, data: Uint8Array): Uint8Arr
   return out;
 }
 
-function buildIptcIim(keywords: string[]): Uint8Array {
-  const parts: Uint8Array[] = [iimDataset(1, 90, UTF8_ESCAPE)];
-  for (const kw of keywords) {
-    parts.push(iimDataset(2, 25, new TextEncoder().encode(kw)));
+interface IimEntry { record: number; dataset: number; raw: Uint8Array }
+
+function parseIptcIim(data: Uint8Array): IimEntry[] {
+  const entries: IimEntry[] = [];
+  let pos = 0;
+  while (pos + 5 <= data.length) {
+    if (data[pos] !== 0x1c) {
+      pos++;
+      continue;
+    }
+    let headerLength = 5;
+    let size = (data[pos + 3]! << 8) | data[pos + 4]!;
+    if (size & 0x8000) {
+      const sizeBytes = size & 0x7fff;
+      if (sizeBytes < 1 || sizeBytes > 4 || pos + 5 + sizeBytes > data.length) break;
+      headerLength += sizeBytes;
+      size = 0;
+      for (let i = 0; i < sizeBytes; i++) size = size * 256 + data[pos + 5 + i]!;
+    }
+    if (pos + headerLength + size > data.length) break;
+    entries.push({
+      record: data[pos + 1]!,
+      dataset: data[pos + 2]!,
+      raw: data.slice(pos, pos + headerLength + size),
+    });
+    pos += headerLength + size;
   }
-  let total = 0;
-  for (const p of parts) total += p.length;
-  const out = new Uint8Array(total);
-  let o = 0;
-  for (const p of parts) {
-    out.set(p, o);
-    o += p.length;
+  return entries;
+}
+
+function encodeIptcValues(request: IptcWriteRequest): Uint8Array[] | undefined {
+  if (request.value === null) return [];
+  const values = Array.isArray(request.value) ? request.value : [request.value];
+  const out: Uint8Array[] = [];
+  for (const value of values) {
+    if (request.type === 'int16u') {
+      const number = typeof value === 'number' ? value : Number(value);
+      if (!Number.isInteger(number) || number < 0 || number > 0xffff) return undefined;
+      out.push(new Uint8Array([number >> 8, number & 0xff]));
+    } else if (request.type === 'string' || request.type === 'digits') {
+      out.push(new TextEncoder().encode(String(value)));
+    } else {
+      return undefined;
+    }
   }
   return out;
+}
+
+function buildIptcIim(existing: Uint8Array | null, requests: IptcWriteRequest[]): Uint8Array {
+  let entries = existing ? parseIptcIim(existing) : [];
+  const replacements = new Map<string, IptcWriteRequest>();
+  for (const request of requests) replacements.set(`${request.record}:${request.dataset}`, request);
+  entries = entries.filter((entry) => !replacements.has(`${entry.record}:${entry.dataset}`));
+
+  const additions: Uint8Array[] = [];
+  let addsMetadata = false;
+  for (const request of requests) {
+    const encoded = encodeIptcValues(request);
+    if (!encoded) throw new UnsupportedFormatError(`unsupported IPTC value for ${request.key}`);
+    for (const data of encoded) {
+      additions.push(iimDataset(request.record, request.dataset, data));
+      addsMetadata = true;
+    }
+  }
+  if (addsMetadata && !replacements.has('1:90')) {
+    entries = entries.filter((entry) => entry.record !== 1 || entry.dataset !== 90);
+    additions.unshift(iimDataset(1, 90, UTF8_ESCAPE));
+  }
+
+  const preserved = entries.map((entry) => entry.raw);
+  const all = [...preserved, ...additions];
+  let total = 0;
+  for (const part of all) total += part.length;
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const part of all) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
+function requestsFromKeywords(keywords: string[]): IptcWriteRequest[] {
+  const spec = IPTC_TAGS.get('keywords')!;
+  return [{ key: 'IPTC:Keywords', ...spec, value: keywords }];
+}
+
+function rebuildPhotoshopIrb(
+  payload: Uint8Array | null,
+  requests: IptcWriteRequest[],
+): Uint8Array | null {
+  const blocks: BimBlock[] = payload ? parseBimBlocks(payload) : [];
+  const iptcBlock = blocks.find((block) => block.id === IPTC_RESOURCE_ID);
+  const mergedIim = buildIptcIim(iptcBlock?.data ?? null, requests);
+  const kept = blocks.filter((block) => block.id !== IPTC_RESOURCE_ID);
+  if (mergedIim.length > 0) kept.unshift({ sig: '8BIM', id: IPTC_RESOURCE_ID, data: mergedIim });
+  if (kept.length === 0) return null;
+  return serializeBimBlocks(kept);
 }
 
 const IPTC_RESOURCE_ID = 0x0404;
 
 /**
- * Merges keywords into a Photoshop IRB payload, or builds a minimal one
- * when `payload` is null. Returns the full APP13 segment payload
- * (including the "Photoshop 3.0\0" header).
+ * Merges IPTC IIM datasets into a Photoshop IRB payload, preserving unrelated
+ * datasets and resources. String-array input remains supported for keywords.
  */
-export function mergePhotoshopIrb(payload: Uint8Array | null, keywords: string[]): Uint8Array {
-  const blocks: BimBlock[] = payload ? parseBimBlocks(payload) : [];
-  const kept = blocks.filter((b) => b.id !== IPTC_RESOURCE_ID);
-  // 0x0404 stays first when present (Photoshop writes it near the front);
-  // otherwise insert after the header.
-  return serializeBimBlocks([
-    { sig: '8BIM', id: IPTC_RESOURCE_ID, data: buildIptcIim(keywords) },
-    ...kept,
-  ]);
+export function mergePhotoshopIrb(payload: Uint8Array | null, keywords: string[]): Uint8Array;
+export function mergePhotoshopIrb(payload: Uint8Array | null, requests: IptcWriteRequest[]): Uint8Array | null;
+export function mergePhotoshopIrb(
+  payload: Uint8Array | null,
+  input: string[] | IptcWriteRequest[],
+): Uint8Array | null {
+  const requests = typeof input[0] === 'string'
+    ? requestsFromKeywords(input as string[])
+    : input as IptcWriteRequest[];
+  return rebuildPhotoshopIrb(payload, requests);
 }

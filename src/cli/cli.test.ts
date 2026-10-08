@@ -527,6 +527,19 @@ test('runAction write mode updates file and creates backup', async () => {
   }
 });
 
+test('runAction write mode deletes an EXIF tag with an empty assignment', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    const code = await runAction({ overwriteOriginal: true }, '-DateTimeOriginal=', tmp);
+    assertEquals(code, 0);
+    const info = await new ExifTool().read(tmp);
+    assertEquals(info.tags.DateTimeOriginal, undefined);
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
 test('runAction write mode with overwriteOriginal skips backup', async () => {
   const tmp = await tempFile('.jpg');
   await writeFile(tmp, await readFile('assets/01.jpg'));

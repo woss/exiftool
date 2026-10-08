@@ -39,10 +39,11 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
   // Write mode: any TAG=VALUE operands turn the invocation into an update.
   const assignments = files.filter((f) => /^-?[A-Za-z][A-Za-z0-9_]*=/.test(f));
   if (assignments.length > 0) {
-    const tags: Record<string, string> = {};
+    const tags: Record<string, string | null> = {};
     for (const a of assignments) {
       const eq = a.indexOf('=');
-      tags[a.slice(0, eq).replace(/^-/, '')] = a.slice(eq + 1);
+      const value = a.slice(eq + 1);
+      tags[a.slice(0, eq).replace(/^-/, '')] = value.length === 0 ? null : value;
     }
     const paths = files.filter((f) => !assignments.includes(f));
     const expandedWrite = await expandInputs(paths, {

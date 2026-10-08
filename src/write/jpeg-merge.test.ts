@@ -8,6 +8,7 @@ import {
   jpegMergeWriter,
   mergeExifTiff,
   parseJpegSegments,
+  resolveMergeRequests,
 } from './jpeg-merge.js';
 import { parseXMP } from '../exif/xmp.js';
 import { extractExifFromTiff } from '../exif/tiff.js';
@@ -180,6 +181,35 @@ test('resolver: non-string XMP values, unknown keys, and generic EXIF tags', () 
   // Unencodable value -> skipped, no throw.
   const unencodable = jpegMergeWriter(original, { Orientation: 'not-a-number' });
   assertEquals(unencodable.skipped, ['EXIF:Orientation']);
+});
+
+test('resolver: arbitrary properties in supported XMP namespaces', () => {
+  const resolved = resolveMergeRequests({
+    'XMP-photoshop:Credit': 'Agency',
+    'XMP-Iptc4xmpCore:CiEmailWork': 'a@b.test',
+  });
+  assertEquals(resolved.xmp, [
+    { name: 'photoshop:Credit', value: 'Agency' },
+    { name: 'Iptc4xmpCore:CiEmailWork', value: 'a@b.test' },
+  ]);
+  assertEquals(resolved.skipped, []);
+});
+
+test('jpegMergeWriter deletes EXIF tags and removes an emptied optional IFD', () => {
+  const original = new Uint8Array(readFileSync('assets/01.jpg'));
+  const before = extractExifFromTiff(
+    original.subarray(
+      parseJpegSegments(original).find((s) => s.marker === 0xe1)!.payloadStart + 6,
+      parseJpegSegments(original).find((s) => s.marker === 0xe1)!.payloadEnd,
+    ),
+  );
+  const out = jpegMergeWriter(original, { 'EXIF:DateTimeOriginal': null });
+  assertEquals(out.written, ['EXIF:DateTimeOriginal']);
+  assertEquals(out.skipped, []);
+  const exifSegment = parseJpegSegments(out.bytes).find((s) => s.marker === 0xe1)!;
+  const after = extractExifFromTiff(out.bytes.subarray(exifSegment.payloadStart + 6, exifSegment.payloadEnd));
+  assertEquals(after.DateTimeOriginal, undefined);
+  assertEquals(after.Make, before.Make);
 });
 
 test('parseRawTiff rejects short, bad-endian, and bad-magic buffers', async () => {

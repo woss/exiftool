@@ -11,6 +11,9 @@ Bring exiftool-ts metadata writing toward parity with the vendored Phil Harvey E
 - `FormatParser` exposes an optional `writeBytes` hook. The filesystem pipeline detects the container, invokes its writer, creates an `_original` backup by default, and replaces the file through a same-directory temporary file.
 - Built-in writers cover JPEG, PNG, WebP, AVIF/HEIF, and plain TIFF. The TIFF writer rejects camera RAW and unsupported TIFF structures.
 - EXIF/TIFF writing is built around `buildTiff`; XMP writing supports a limited property set and XMP sidecars. JPEG has a separate merge path to preserve existing metadata.
+- The current feature branch additionally preserves file modification time through `WriteOptions.preserveTime` and CLI `-P`; JPEG merge can create missing ExifIFD/GPS directories and delete mapped EXIF tags with `null` / `-Tag=`.
+- JPEG IPTC-IIM writes now resolve writable ApplicationRecord and EnvelopeRecord datasets from the generated ExifTool tables, preserve unrelated datasets/resources, and support deleting datasets. JPEG, PNG, and WebP XMP routing accepts properties in namespaces already registered by the XMP serializer, preserving case-sensitive names.
+- These additions are still a narrow subset: EXIF remains hand-mapped, IPTC is embedded only through JPEG APP13, XMP namespace URIs are limited to the serializer registry, and tag copy workflows and most upstream writable containers are not implemented.
 - Embedded writing is still limited in tag groups, metadata formats, and container coverage. The public `WriteOptions` surface is also much smaller than ExifTool's command-line write options.
 - `src/format/tiff-raw.ts` and the parity documentation disagree about TIFF-family RAW write and MakerNote support. Resolve this against executable behavior before using those comments as a baseline.
 
