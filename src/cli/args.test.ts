@@ -50,6 +50,13 @@ test('parseCliArgs — tagsFromFile uses ExifTool spelling', () => {
   });
 });
 
+test('parseCliArgs — repeated tagsFromFile options retain source order', () => {
+  assertEquals(
+    parseCliArgs(normalizeArgs(['-tagsFromFile', 'first.jpg', '-tagsFromFile', 'second.jpg'])),
+    { options: { tagsFromFile: ['first.jpg', 'second.jpg'] }, files: [] },
+  );
+});
+
 test('parseCliArgs — collect options repeat into arrays', () => {
   const { options } = parseCliArgs(['-v', '-v', '--if', '$A eq 1', '--if', '$B eq 2']);
   assertEquals(options.verbose, [true, true]);

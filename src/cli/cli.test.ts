@@ -903,6 +903,31 @@ test('runAction copies tags from a source file and explicit assignments override
   }
 });
 
+test('runAction merges repeated tagsFromFile sources in order', async () => {
+  const firstSource = await tempFile('.jpg');
+  const secondSource = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(firstSource, await readFile('assets/01.jpg'));
+  await writeFile(secondSource, await readFile('assets/03.jpg'));
+  await writeFile(target, await readFile('assets/01.jpg'));
+  try {
+    const code = await runAction(
+      { tagsFromFile: [firstSource, secondSource], overwriteOriginal: true },
+      '-Software=explicit',
+      target,
+    );
+    assertEquals(code, 0);
+    const tags = (await new ExifTool().read(target)).tags;
+    assertEquals(tags.Make, 'SONY');
+    assertEquals(tags.Model, 'ILCE-7RM4');
+    assertEquals(tags.Software, 'explicit');
+  } finally {
+    await rm(firstSource, { force: true });
+    await rm(secondSource, { force: true });
+    await rm(target, { force: true });
+  }
+});
+
 test('runAction tagsFromFile reports missing source without modifying targets', async () => {
   const target = await tempFile('.jpg');
   const original = await readFile('assets/03.jpg');

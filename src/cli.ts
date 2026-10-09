@@ -132,11 +132,16 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
   if (assignments.length > 0 || options.tagsFromFile !== undefined) {
     const sourceTags: Record<string, import('./types.js').TagValue> = {};
     if (options.tagsFromFile !== undefined) {
-      try {
-        Object.assign(sourceTags, (await tool.read(options.tagsFromFile)).tags);
-      } catch (e) {
-        console.error(`Error reading tags from ${options.tagsFromFile}: ${(e as Error).message}`);
-        return 1;
+      const sourceFiles = Array.isArray(options.tagsFromFile)
+        ? options.tagsFromFile
+        : [options.tagsFromFile];
+      for (const sourceFile of sourceFiles) {
+        try {
+          Object.assign(sourceTags, (await tool.read(sourceFile)).tags);
+        } catch (e) {
+          console.error(`Error reading tags from ${sourceFile}: ${(e as Error).message}`);
+          return 1;
+        }
       }
     }
     const paths = files.filter((file) => !assignments.some((assignment) => assignment.operand === file));

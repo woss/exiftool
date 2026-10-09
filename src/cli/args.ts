@@ -25,7 +25,7 @@ export interface CliOptions {
   extension?: string[];
   ignore?: string[];
   output?: string;
-  tagsFromFile?: string;
+  tagsFromFile?: string | string[];
   extractEmbedded?: boolean;
   overwriteOriginal?: boolean;
   preserveTime?: boolean;
@@ -55,7 +55,7 @@ const SPECS: Record<string, OptionSpec> = {
   quiet: { arity: 'flag', collect: true },
   xml: { arity: 'flag' },
   output: { arity: 'value' },
-  'tags-from-file': { arity: 'value' },
+  'tags-from-file': { arity: 'value', collect: true },
   recurse: { arity: 'flag' },
   extension: { arity: 'value', collect: true },
   ignore: { arity: 'value', collect: true },
@@ -95,6 +95,13 @@ export function parseCliArgs(argv: string[]): { options: CliOptions; files: stri
   const files: string[] = [];
   const set = (name: string, value: unknown) => {
     const key = camelize(name);
+    if (name === 'tags-from-file') {
+      const current = options.tagsFromFile;
+      (options as Record<string, unknown>)[key] = current === undefined
+        ? value
+        : [...(Array.isArray(current) ? current : [current]), value];
+      return;
+    }
     if (SPECS[name]!.collect) {
       const bucket = (options as Record<string, unknown[]>)[key] ?? [];
       bucket.push(value);
