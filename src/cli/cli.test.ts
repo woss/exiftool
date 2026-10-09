@@ -587,6 +587,28 @@ test('runAction appends IPTC Keywords without mixing XMP Subject', async () => {
   }
 });
 
+test('runAction deletes IPTC Keywords without deleting XMP Subject', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    await new ExifTool().write(tmp, {
+      'IPTC:Keywords': ['IPTC keyword'],
+      'XMP-dc:Subject': ['XMP subject'],
+    }, { overwriteOriginal: true });
+    const code = await runAction({ overwriteOriginal: true }, '-IPTC:Keywords=', tmp);
+    assertEquals(code, 0);
+
+    const { stdout } = await execFileP(upstreamExifTool, [
+      '-j', '-G1', '-IPTC:Keywords', '-XMP-dc:Subject', tmp,
+    ]);
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream['IPTC:Keywords'], undefined);
+    assertEquals(upstream['XMP-dc:Subject'], 'XMP subject');
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
 test('runAction rejects += for unsupported scalar tags without modifying target', async () => {
   const tmp = await tempFile('.jpg');
   const original = await readFile('assets/03.jpg');
