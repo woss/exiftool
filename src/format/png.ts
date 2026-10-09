@@ -22,6 +22,34 @@ async function inflateZtxt(data: Uint8Array): Promise<Uint8Array | null> {
   }
 }
 
+function convertPngCreationTime(value: string): string {
+  const match = /(?:^|\s)(\d{1,2})\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s*(\d{2,4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(\S*)/i.exec(value);
+  if (!match) return value;
+  const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  const month = months.indexOf(match[2]!.toLowerCase()) + 1;
+  const day = Number(match[1]);
+  let year = Number(match[3]);
+  if (year < 100) year += year > 70 ? 1900 : 2000;
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = Number(match[6] ?? 0);
+  if (day < 1 || day > 31 || hour > 23 || minute > 59 || second > 60) return value;
+
+  const zone = match[7]!.toUpperCase();
+  const zones: Record<string, string> = {
+    UT: '+00:00', GMT: '+00:00', UTC: '+00:00',
+    EST: '-05:00', EDT: '-04:00', CST: '-06:00', CDT: '-05:00',
+    MST: '-07:00', MDT: '-06:00', PST: '-08:00', PDT: '-07:00',
+    A: '-01:00', B: '-02:00', C: '-03:00', D: '-04:00', E: '-05:00', F: '-06:00',
+    G: '-07:00', H: '-08:00', I: '-09:00', K: '-10:00', L: '-11:00', M: '-12:00',
+    N: '+01:00', O: '+02:00', P: '+03:00', Q: '+04:00', R: '+05:00', S: '+06:00',
+    T: '+07:00', U: '+08:00', V: '+09:00', W: '+10:00', X: '+11:00', Y: '+12:00', Z: '+00:00',
+  };
+  const offset = zones[zone] ?? (/^([+-]\d{2}):?(\d{2})$/.exec(zone)?.slice(1).join(':'));
+  if (zone && !offset) return value;
+  return `${String(year).padStart(4, '0')}:${String(month).padStart(2, '0')}:${String(day).padStart(2, '0')} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}${offset ?? ''}`;
+}
+
 function readChunk(
   bytes: Uint8Array,
   offset: number,
@@ -225,8 +253,10 @@ function readChunk(
     // tEXt keyword "parameters" reads as Parameters). EXIF/eXIf- and
     // XMP-derived keys always win, text chunks yield.
     for (const [k, v] of Object.entries(textTags)) {
-      const name = k.charAt(0).toUpperCase() + k.slice(1);
-      if (!(name in result)) result[name] = v;
+      const isCreationTime = k.toLowerCase() === 'creation time';
+      const name = isCreationTime ? 'CreationTime' : k.charAt(0).toUpperCase() + k.slice(1);
+      const value = isCreationTime && typeof v === 'string' ? convertPngCreationTime(v) : v;
+      if (!(name in result)) result[name] = value;
     }
 
     computeCompositeTags(result);

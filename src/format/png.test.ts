@@ -150,6 +150,25 @@ test('png tEXt keyword/value split on first NUL', async () => {
   assertEquals(result.tags['Title'], 'A Scene');
 });
 
+test('png Creation Time converts RFC-1123 value to ExifTool format', async () => {
+  const source = png(
+    ihdr(1, 1),
+    chunk('tEXt', encoder.encode('Creation Time\0Fri, 5 Apr 2024 06:07:08 GMT')),
+    chunk('IEND', new Uint8Array(0)),
+  );
+  const result = await pngParser.parse(source, 'creation-time.png');
+  assertEquals(result.tags.CreationTime, '2024:04:05 06:07:08+00:00');
+
+  const file = await tempFile('.png');
+  try {
+    await writeFile(file, source);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-G1', '-CreationTime', file]);
+    assertEquals(JSON.parse(stdout)[0]['PNG:CreationTime'], result.tags.CreationTime);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
 test('png writer replaces text chunks and preserves IDAT payload', async () => {
   const pixels = new Uint8Array([1, 2, 3, 4]);
   const source = png(
