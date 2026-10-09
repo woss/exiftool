@@ -551,9 +551,28 @@ test('runAction appends XMP Subject values to each target', async () => {
   }
 });
 
-test('runAction appends IPTC Keywords without mixing XMP Subject', async () => {
+test('runAction appends XMP Creator in sequence order', async () => {
   const tmp = await tempFile('.jpg');
   await writeFile(tmp, await readFile('assets/03.jpg'));
+  try {
+    const before = (await new ExifTool().read(tmp)).tags.Creator;
+    const existing = typeof before === 'string' ? [before] : Array.isArray(before) ? before : [];
+    const code = await runAction(
+      { overwriteOriginal: true },
+      '-XMP-dc:Creator+=Appended creator',
+      tmp,
+    );
+    assertEquals(code, 0);
+    const after = (await new ExifTool().read(tmp)).tags.Creator;
+    assertEquals(after, [...existing, 'Appended creator']);
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction appends IPTC Keywords without mixing XMP Subject', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
   try {
     await new ExifTool().write(tmp, { 'IPTC:Keywords': ['existing-ipTC'] }, { overwriteOriginal: true });
     const code = await runAction({ overwriteOriginal: true }, '-IPTC:Keywords+=appended-ipTC', tmp);

@@ -23,8 +23,14 @@ export type { CliOptions } from './cli/args.js';
  */
 const tool = new ExifTool({ plugins: BUILTIN_PLUGINS });
 const WRITE_ASSIGNMENT = /^-?([A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)(\+?)=(.*)$/;
-const XMP_SUBJECT_KEY = /^(?:xmp-dc:)?(?:subject|keywords)$/i;
 const IPTC_KEYWORDS_KEY = /^iptc:keywords$/i;
+
+function xmpListAppendGroup(key: string): 'subject' | 'creator' | undefined {
+  const name = key.toLowerCase().split(':').at(-1);
+  if (name === 'subject' || name === 'keywords') return 'subject';
+  if (name === 'creator') return 'creator';
+  return undefined;
+}
 
 async function readIptcKeywords(file: string): Promise<string[]> {
   const bytes = new Uint8Array(await readFile(file));
@@ -102,16 +108,18 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
           if (typeof value !== 'string') {
             throw new Error(`+= requires a string value for ${assignment.key}`);
           }
-          if (XMP_SUBJECT_KEY.test(assignment.key)) {
-            const existing = Object.entries(tags).find(([key]) => XMP_SUBJECT_KEY.test(key))?.[1] ??
-              Object.entries(targetTags ?? {}).find(([key]) => XMP_SUBJECT_KEY.test(key))?.[1];
+          const xmpListGroup = xmpListAppendGroup(assignment.key);
+          if (xmpListGroup) {
+            const belongsToList = (key: string) => xmpListAppendGroup(key) === xmpListGroup;
+            const existing = Object.entries(tags).find(([key]) => belongsToList(key))?.[1] ??
+              Object.entries(targetTags ?? {}).find(([key]) => belongsToList(key))?.[1];
             const values = typeof existing === 'string'
               ? [existing]
               : Array.isArray(existing)
                 ? existing.filter((item): item is string => typeof item === 'string')
                 : [];
             for (const key of Object.keys(tags)) {
-              if (XMP_SUBJECT_KEY.test(key)) delete tags[key];
+              if (belongsToList(key)) delete tags[key];
             }
             tags[assignment.key] = [...values, value];
             continue;
@@ -128,7 +136,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
             continue;
           }
           throw new Error(
-            `+= is currently supported only for XMP Subject/Keywords and JPEG IPTC:Keywords, not ${assignment.key}`,
+            `+= is currently supported only for XMP Subject/Keywords/Creator and JPEG IPTC:Keywords, not ${assignment.key}`,
           );
         }
         const result = await tool.write(file, tags, {
