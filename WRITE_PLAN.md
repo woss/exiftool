@@ -31,6 +31,163 @@ Maintain a generated or reviewed matrix based on `vendor/exiftool/README` for ea
 
 Each supported cell needs a documented implementation and tests. Unsupported or intentionally read-only cells must fail clearly or appear in `skipped`; they must not silently report a successful write. Upstream behavior is versioned, and an ExifTool upgrade requires reviewing the matrix and parity fixtures.
 
+## Exact Upstream Inventory
+
+This inventory is copied from the vendored ExifTool 13.55 `README`. It contains 77 file-type entries marked writable: 70 `r/w` and 7 `r/w/c`. `r/w` means read and write; `r/w/c` additionally means create from scratch. These are upstream claims, not claims that exiftool-ts already supports those operations.
+
+### File Types Marked Writable
+
+| Upstream mode | File types |
+| --- | --- |
+| `r/w/c` | `DR4`, `EXIF`, `EXV`, `ICC`, `MIE`, `VRD`, `XMP` |
+| `r/w` | `360`, `3G2`, `3GP`, `AAX`, `AI`, `ARQ`, `ARW`, `AVIF`, `CR2`, `CR3`, `CRM`, `CRW`, `CS1`, `DCP`, `DNG`, `DVB`, `EPS`, `ERF`, `F4A/V`, `FFF`, `FLIF`, `GIF`, `GLV`, `GPR`, `HDP`, `HEIC`, `HEIF`, `IIQ`, `IND`, `INSP`, `JNG`, `JP2`, `JPEG`, `JXL`, `LRV`, `M4A/V`, `MEF`, `MNG`, `MOS`, `MOV`, `MP4`, `MPO`, `MQV`, `MRW`, `NEF`, `NKSC`, `NRW`, `ORF`, `ORI`, `PBM`, `PDF`, `PEF`, `PGM`, `PNG`, `PPM`, `PS`, `PSB`, `PSD`, `QTIF`, `RAF`, `RAW`, `RW2`, `RWL`, `SR2`, `SRW`, `THM`, `TIFF`, `WEBP`, `WDP`, `X3F` |
+
+The current port has adapters for JPEG, PNG, WebP, AVIF/HEIC/HEIF, and TIFF-family inputs, but these are partial implementations, not full format parity. The TIFF adapter writes plain TIFF only; camera RAW variants must each be explicitly validated before they are advertised writable. Every other type in the table above needs a writer adapter or a documented, tested reason for deferral. File-type aliases and extension handling must follow ExifTool's detected `FileType`, not just filename suffixes.
+
+### Metadata Families Marked Writable
+
+| Upstream mode | Metadata families |
+| --- | --- |
+| `r/w/c` | EXIF, GPS, IPTC, XMP, MakerNotes, Photoshop IRB, ICC Profile, MIE, JFIF, Ducky APP12, PDF, PNG metadata, Canon VRD, GeoTIFF |
+| `r/w` | CIFF, AFCP, Kodak Meta, FotoStation, PhotoMechanic |
+
+All other metadata families in the upstream README are read-only in that matrix and are not write-parity targets unless ExifTool 13.55 source or behavior tests show otherwise. A container's writeability does not imply every metadata family can be written into it; represent this as a container-by-family matrix, not one boolean per format.
+
+Current family coverage is partial: EXIF/GPS use a small hand-maintained tag map; IPTC-IIM supports generated ApplicationRecord/EnvelopeRecord entries only inside JPEG APP13; XMP supports only registered namespace URIs and limited RDF shapes; MakerNotes are preserved but not edited; ICC and most Photoshop IRB resources are preserved but not edited. The other writable families above do not have complete serializers/container integration.
+
+### Current Container Matrix
+
+| Container area | Current state | Exact remaining work |
+| --- | --- | --- |
+| `JPEG`, `MPO` | Partial EXIF/GPS, limited XMP, partial IPTC-IIM in APP13 | Full writable tag coverage; APP1/APP2/APP13/COM multi-segment behavior; all resources; preview/MPF offset safety; ambiguity rules; delete/add/copy; exact segment ordering and limits |
+| `PNG` | Partial EXIF and registered XMP | Full `eXIf`, XMP, ICC, text, and writable PNG metadata semantics; preserve unknown chunks and ordering; validate CRC and deletion behavior |
+| `WEBP` | Partial EXIF/XMP | Full EXIF/XMP write semantics, chunk flags/order/padding, absent/present chunk cases, and unknown chunk preservation |
+| `AVIF`, `HEIC`, `HEIF` | Partial EXIF write | Correct ISO-BMFF item/`iloc` updates, 32/64-bit sizes, offsets, XMP/ICC integration, metadata deletion, brands, and HEIC/HEIF parity |
+| TIFF | Plain TIFF subset | Full IFD graph handling, BigTIFF, SubIFDs, thumbnails, all writable families, large offsets, and preservation of image strips/tiles |
+| Camera RAW | TIFF-based reader; write behavior is not established as safe | Per-type read/write probes and fixtures for `ARQ`, `ARW`, `CR2`, `CR3`, `CRM`, `CRW`, `CS1`, `DNG`, `ERF`, `FFF`, `IIQ`, `INSP`, `MEF`, `MOS`, `MRW`, `NEF`, `NKSC`, `NRW`, `ORF`, `ORI`, `PEF`, `RAF`, `RAW`, `RW2`, `RWL`, `SR2`, `SRW`, `X3F`; port format-specific offsets/previews/makernotes or keep that type read-only |
+| Video/audio ISO-BMFF | No adapter | `3G2`, `3GP`, `AAX`, `DVB`, `F4A/V`, `GLV`, `LRV`, `M4A/V`, `MOV`, `MP4`, `MQV`, `QTIF`; parse/rebuild atom trees, metadata keys/ilst, timed tracks, UUID boxes, offsets, and media-data preservation |
+| Other image/graphics | No adapter | `360`, `AI`, `DCP`, `EPS`, `FLIF`, `GIF`, `GPR`, `HDP`, `JNG`, `JP2`, `JXL`, `MNG`, `PBM`, `PGM`, `PPM`, `PS`, `PSB`, `PSD`, `THM`, `WDP`; port each format's documented metadata blocks and preserve compressed/image payloads |
+| Documents and standalone metadata | No complete adapter | `DR4`, `EXIF`, `EXV`, `ICC`, `IND`, `MIE`, `PDF`, `TIFF`, `VRD`, `XMP`; implement create-from-scratch only for the seven upstream `r/w/c` types, and match each format's distinct write/create semantics |
+
+The grouped rows above are work queues, not permission to mark an entire group supported after one adapter lands. Each individual file type must pass its own matrix cells and release gate.
+
+## Exact Implementation Checklist
+
+### A. Source-of-Truth Tag Catalog
+
+- [ ] Pin the catalog to ExifTool 13.55 and make the generation script record the upstream version/hash used.
+- [ ] For every writable tag, capture canonical name, ID, metadata family, actual read group, preferred write group, supported file types, type, count, list shape, writable/protected status, mandatory status, and enum values.
+- [ ] Do not treat `-listx`'s `writable=true` flag as a complete write recipe. ExifTool's table source carries important `WriteGroup`, `Protected`, conditions, and custom conversion behavior that must also be extracted or explicitly ported.
+- [ ] Preserve aliases and duplicate names as a multimap keyed by name + group; never collapse distinct tags into one global name lookup.
+- [ ] Represent simple tables as generated data and expression/condition-based behavior as reviewed TypeScript handlers. Fail generation on unclassified writable types instead of silently dropping them.
+- [ ] Generate a report listing writable tags without a destination group, value encoder, inverse PrintConv, or test fixture.
+
+**Acceptance:** every upstream writable definition is accounted for as implemented, intentionally unsupported with a reason, or blocked by an unresolved condition. No tag is silently accepted based only on its name.
+
+### B. EXIF, TIFF, and GPS Serializer
+
+- [ ] Replace the small hand-maintained IFD maps with the complete writable ExifTool tables for IFD0, ExifIFD, GPS, InteropIFD, IFD1, SubIFDs, and supported maker-specific TIFF directories.
+- [ ] Add all relevant TIFF field encoders: BYTE/SBYTE, ASCII, SHORT/SSHORT, LONG/SLONG, RATIONAL/SRATIONAL, UNDEFINED, FLOAT/DOUBLE, plus BigTIFF LONG8/SLONG8/IFD8 where supported.
+- [ ] Implement value parsing and validation: signed/unsigned bounds, rational approximation and exact fractions, arrays/counts, null-terminated strings, fixed-count tags, undefined byte payloads, and byte order.
+- [ ] Port inverse PrintConv/ValueConv behavior for enumerations and formatted values. Support numeric/raw writes (`#`), valid enum names, ExifTool's unambiguous partial-value matching, and reject ambiguous or invalid values with actionable diagnostics.
+- [ ] Route unqualified tags to ExifTool's preferred group; route group-qualified tags to only that group. Handle tags found in multiple groups, priority, duplicate removal, and the documented IFD0/ExifIFD ambiguity rules.
+- [ ] Create missing pointer directories and required mandatory tags; remove empty optional directories and handle mandatory tags according to EXIF version/`NoMandatory` behavior.
+- [ ] Add update, add, replace, and delete modes for existing tags, including repeated/list values. Preserve unknown entries and binary payloads byte-for-byte when their offsets are not invalidated.
+- [ ] Rebase offset-bearing entries when directory layouts change. Preserve thumbnails/previews, strips/tiles, SubIFDs, maker-note base offsets, and out-of-line data. Reject unsafe rewrites when an offset cannot be repaired.
+- [ ] Add JPEG EXIF APP1 size handling and TIFF/RAW large-offset handling; test malformed directories and cyclic/deep pointer graphs.
+
+**Acceptance:** all writable standard EXIF/GPS tags selected for supported containers have unit encoders and upstream round-trip tests; adding or deleting one tag cannot alter unrelated decoded metadata or corrupt image data.
+
+### C. IPTC-IIM and Photoshop Resources
+
+- [ ] Cover the complete upstream writable ApplicationRecord and EnvelopeRecord datasets, including repeated fields, fixed/digit values, coded character sets, dataset extension lengths, and record version semantics.
+- [ ] Port IPTC NewsPhoto writable entries and any special dataset conversion rules only where the upstream table marks them writable and the corresponding container supports them.
+- [ ] Support set/replace/add/delete, repeatable values, character-set conversion, UTF-8 declarations, dataset ordering, and empty-record removal.
+- [ ] Expand Photoshop IRB from the IPTC `0x0404` resource to all writable resources; preserve Pascal names, padding, unknown 8BIM/8B64 resources, and resource ordering.
+- [ ] Integrate IPTC/IRB into every upstream-writable container that supports these families, not just JPEG APP13. Handle APP13 and related metadata that spans multiple JPEG segments.
+- [ ] Preserve or intentionally recalculate IPTC digest tags when Photoshop IPTC changes; verify digest behavior against upstream.
+
+**Acceptance:** every writable IPTC dataset and Photoshop resource has an explicit test; ExifTool reads our output and exiftool-ts reads upstream output with equivalent values and groups.
+
+### D. XMP Serializer and Schema Catalog
+
+- [ ] Generate all upstream XMP namespace URIs, property names, types, writable flags, value enums, aliases, and struct definitions. Keep URI-to-prefix mapping canonical and collision-safe.
+- [ ] Implement RDF/XML parsing and writing for attributes and elements, scalar values, `rdf:Bag`, `rdf:Seq`, `rdf:Alt`, language alternatives, nested structs, qualified properties, namespaces, and `xml:lang`/resource qualifiers.
+- [ ] Implement correct list split/join, language selection, numeric/raw modes, date/time formatting, enum inverse conversions, and structured-property flattening expected by ExifTool.
+- [ ] Upsert without duplicating an existing property represented as either attribute or element; preserve unknown properties, packet wrappers, processing instructions, xpacket padding, and unrelated RDF descriptions.
+- [ ] Support property/group selection, creation, replacement, append/add, deletion, empty-structure cleanup, and XMP sidecar creation/merge.
+- [ ] Integrate XMP packet location and update semantics for JPEG, PNG, WebP, AVIF/HEIC/HEIF, TIFF/RAW, PDF, video, and every other applicable upstream-writable container.
+- [ ] Enforce packet/segment/box size constraints and use extended XMP or container-supported multipart storage where ExifTool does.
+
+**Acceptance:** generated schema completeness report has no unexplained writable properties; tests cover each RDF value shape, namespace, group routing, and upsert/delete behavior; ExifTool parity verifies semantic output.
+
+### E. MakerNotes
+
+- [ ] Extract the exact vendor/module list and per-vendor writable tag tables from the 13.55 source; include conditionally writable tags and protected tags.
+- [ ] Build vendor-specific read/modify/write adapters for Canon, Casio, DJI, FLIR, FujiFilm, GE, HP, JVC, Kodak, Leaf, Minolta/Konica-Minolta, Nikon, Nintendo, Olympus/Epson, Panasonic/Leica, Pentax/Asahi, Phase One, Reconyx, Ricoh, Samsung, Sanyo, Sigma/Foveon, Sony, and every additional vendor supported by the pinned source.
+- [ ] Port each vendor's tag ID, type, byte order, base-offset rule, encryption, checksum, version/model condition, value conversion, and write priority.
+- [ ] Preserve opaque/unknown tags and encrypted sections exactly. Do not rewrite a vendor block if an offset, checksum, encryption key, or proprietary structure cannot be preserved safely.
+- [ ] Handle Olympus absolute TIFF offsets and other non-maker-relative offsets when any TIFF directory/value moves. Handle embedded Makernotes in DNG/CR3 and maker-specific raw wrappers individually.
+- [ ] Add redistributable fixtures by vendor/model and compare both output tags and unchanged maker-note bytes against the upstream writer.
+
+**Acceptance:** vendor support is reported individually; each advertised vendor/model family passes value, offset, preservation, corruption, and upstream read-after-write tests. No blanket “MakerNotes writable” claim before those gates pass.
+
+### F. Other Writable Metadata Families
+
+- [ ] ICC Profile: edit/create/delete profiles and tags, preserve unknown profile elements, maintain declared size and valid profile structure; integrate ICC-in-file and standalone `.icc` behavior.
+- [ ] JFIF: writable density/unit/comment fields and exact APP0 preservation/update behavior.
+- [ ] Ducky APP12: writable quality/comment/alpha fields and block ordering/size behavior.
+- [ ] MIE: create, read-modify-write, delete, group, and binary block behavior, including large files and nested sections.
+- [ ] PDF: XMP, PDF Info dictionary, and other upstream-writable PDF metadata; preserve incremental/object structure or deliberately rewrite safely, and account for encryption, signatures, and linearization.
+- [ ] PNG metadata: XMP, EXIF, ICC, textual chunks, and standard PNG metadata fields with correct chunk ordering and CRCs.
+- [ ] Canon VRD: create/edit/delete VRD blocks and preserve associated proprietary preview data.
+- [ ] GeoTIFF: GeoKey directory, doubles, ASCII parameters, and dependent-tag consistency.
+- [ ] CIFF, AFCP, Kodak Meta, FotoStation, and PhotoMechanic: port writable blocks and value conversions; these are upstream `r/w`, not `r/w/c`.
+- [ ] Explicitly model all other upstream metadata families as read-only for the pinned version; do not allow generic container rewrites to mutate them accidentally.
+
+**Acceptance:** each family is tested in every container where upstream can write it; binary payload and unrelated-family preservation tests are mandatory.
+
+### G. Container Adapters for the Exact Writable File Matrix
+
+Implement and test one adapter per upstream file type from the inventory, reusing serializers only where the underlying structure is genuinely shared:
+
+- [ ] JPEG/JFIF/MPF/Photoshop APP segments: insertion, replacement, deletion, multi-segment APP2/APP13/COM, size limits, preview offsets, MPF offsets, segment order.
+- [ ] TIFF/EXIF/EXV and TIFF-family RAW: classic TIFF and BigTIFF, all IFD chains, thumbnails/previews, RAW offsets, compressed data, camera-specific blocks; per-type safety decisions.
+- [ ] PNG/GIF/JNG/MNG/FLIF/PBM/PGM/PPM/WEBP/WDP/HDP: format-specific chunk/block metadata, CRC/length/padding updates, pixel-data preservation.
+- [ ] AVIF/HEIC/HEIF/3G2/3GP/MOV/MP4/M4A/V/F4A/V/MQV/QTIF/GLV/AAX: ISO-BMFF boxes, metadata items/keys, tracks, offsets, extended sizes, fragments, and unknown box preservation.
+- [ ] JP2/JXL: box/container metadata, compression and extended lengths, profile/XMP/EXIF blocks, unknown box preservation.
+- [ ] PSD/PSB/AI/EPS/PS/IND: document resource blocks, lengths, padding, preview/proprietary data, and safe rewriting.
+- [ ] PDF: object/xref handling, metadata updates, incremental-write choice, encrypted files, signatures, and linearization.
+- [ ] MIE/ICC/XMP/EXIF/EXV/VRD/DR4 standalone types: create/write separately from in-place update; honor the exact upstream `r/w/c` distinction.
+- [ ] CR2/CR3/CRM/CRW/ARW/ARQ/DNG/ERF/FFF/IIQ/MEF/MOS/MRW/NEF/NKSC/NRW/ORF/ORI/PEF/RAF/RAW/RW2/RWL/SR2/SRW/X3F/CS1: implement the specific wrapper and offset changes for each type; no group-wide assumption that one TIFF writer covers all RAW variants.
+- [ ] 360/DCP/GPR/LRV/THM/DR4/VRD and remaining matrix entries: inspect the upstream writer module and add type-specific adapter and fixtures.
+
+For every row: implement write-existing, add-new, replace, delete, no-op, malformed input, unsupported operation, preservation, backup, and ExifTool round-trip cases. `create` tests are required only for `DR4`, `EXIF`, `EXV`, `ICC`, `MIE`, `VRD`, and `XMP` unless the upstream version changes.
+
+### H. ExifTool Write Operations and CLI/API
+
+- [ ] `-TAG=VALUE`: resolve group/name/alias, validate conversion, write in preferred group, report a failure when no eligible destination accepts the value.
+- [ ] `-TAG=` / API null: delete from applicable groups; remove empty optional groups; retain or remove mandatory tags according to upstream behavior.
+- [ ] `-TAG+=VALUE` and list operations: append without replacing; honor repeatable tags, list split/join, duplicate policy, and tag-specific list semantics.
+- [ ] `-wm MODE`: implement ExifTool write/create mode combinations and prevent creation or replacement when the selected mode disallows it.
+- [ ] `-tagsFromFile FILE`: copy all or selected tags; support source selectors, group selectors, wildcards, tag renames, ordering, `-srcfile`, same-file `@`, multiple sources, and transformations applied to copied values.
+- [ ] Group and tag selection: support family-qualified names, `-GROUP:all`, tag wildcards, exclusions, duplicates, preferred groups, numeric/raw tag names, and precedence when multiple groups contain the same logical tag.
+- [ ] Output/filesystem semantics: `-o`, extension-derived destinations, overwrite-original options, backups, `-P`, file permissions and timestamps, sidecars, recursion, conditions, per-file errors, partial batch success, and stable exit statuses.
+- [ ] Binary writes: explicit tag selection, raw bytes, binary block copy, output delimiters/concatenation behavior, and no accidental concatenation of unrelated binary tags.
+- [ ] Date/time and geotag write workflows: port `-geotag`, `-geosync`, `-geotime`, `-globalTimeShift`, and other documented write transformations if the goal includes full CLI parity; keep these distinct from basic tag assignment.
+- [ ] Programmatic API: request/result types must represent set/add/delete/copy, source selection, write mode, warnings, and per-tag failures. `ExifTool.write`, `writeBytes`, sidecar APIs, and CLI must share the same request model.
+- [ ] Help text, generated capabilities, and docs must advertise only implemented options and format/family combinations.
+
+**Acceptance:** use upstream `t/Writer.t`, format-specific `vendor/exiftool/t/*.t` write cases, and purpose-built differential tests as the behavioral inventory. Each implemented operation compares bytes where exact preservation is expected, metadata semantics where serialization differs, diagnostics, exit code, and output files.
+
+### I. Release and Upgrade Gates
+
+- [ ] Produce a checked-in machine-readable format/family/operation matrix with statuses `implemented`, `partial`, `read-only`, `unsafe`, or `not-started` and links to tests.
+- [ ] CI runs focused tests for every `implemented` cell; a feature cannot be marked implemented if its reference ExifTool test skipped.
+- [ ] Keep the vendored source at a recorded release and verify `exiftool -ver` equals the matrix version.
+- [ ] When updating ExifTool, diff file-type flags, metadata-family flags, writable tag definitions, write groups, protected/mode behavior, and upstream writer tests; require review of every change.
+- [ ] Publish the remaining `partial` and `not-started` cells in docs and report exact reasons. “Full parity” is reached only when no upstream `r/w` or `r/w/c` cell in scope remains partial or unexplained.
+
 ## Phases
 
 ### 0. Establish the Write-Parity Baseline
