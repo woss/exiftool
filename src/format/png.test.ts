@@ -169,6 +169,36 @@ test('png Creation Time converts RFC-1123 value to ExifTool format', async () =>
   }
 });
 
+test('png writable text keywords use ExifTool canonical tag names', async () => {
+  const source = png(
+    ihdr(1, 1),
+    chunk('tEXt', encoder.encode('Warning\0warning text')),
+    chunk('tEXt', encoder.encode('aesthetic_score\0aesthetic value')),
+    chunk('tEXt', encoder.encode('create-date\0create date')),
+    chunk('tEXt', encoder.encode('modify-date\0modify date')),
+    chunk('tEXt', encoder.encode('URL\0https://example.test')),
+    chunk('IEND', new Uint8Array(0)),
+  );
+  const result = await pngParser.parse(source, 'text-key-names.png');
+  assertEquals(result.tags.PNGWarning, 'warning text');
+  assertEquals(result.tags.AestheticScore, 'aesthetic value');
+  assertEquals(result.tags.CreateDate, 'create date');
+  assertEquals(result.tags.ModDate, 'modify date');
+  assertEquals(result.tags.URL, 'https://example.test');
+
+  const file = await tempFile('.png');
+  try {
+    await writeFile(file, source);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-G1', file]);
+    const upstream = JSON.parse(stdout)[0];
+    for (const key of ['PNG:PNGWarning', 'PNG:AestheticScore', 'PNG:CreateDate', 'PNG:ModDate', 'PNG:URL']) {
+      assertEquals(upstream[key], result.tags[key.slice(4)]);
+    }
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
 test('png writer replaces text chunks and preserves IDAT payload', async () => {
   const pixels = new Uint8Array([1, 2, 3, 4]);
   const source = png(

@@ -7,6 +7,16 @@ import { parseXMP } from '../exif/xmp.js';
 import { computeCompositeTags } from '../exif/composite.js';
 import { parseJUMBFFromSegment } from './jumbf.js';
 const PNG_HEADER = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const PNG_TEXT_TAG_NAMES: Record<string, string> = {
+  'creation time': 'CreationTime',
+  creationtime: 'CreationTime',
+  warning: 'PNGWarning',
+  'aesthetic score': 'AestheticScore',
+  aesthetic_score: 'AestheticScore',
+  'create-date': 'CreateDate',
+  'modify-date': 'ModDate',
+  url: 'URL',
+};
 
 /** zTXt payloads are zlib streams (RFC 1950); DecompressionStream('deflate')
  * is the platform-free decoder (Node ≥18 global, all browsers). */
@@ -253,9 +263,8 @@ function readChunk(
     // tEXt keyword "parameters" reads as Parameters). EXIF/eXIf- and
     // XMP-derived keys always win, text chunks yield.
     for (const [k, v] of Object.entries(textTags)) {
-      const isCreationTime = k.toLowerCase() === 'creation time';
-      const name = isCreationTime ? 'CreationTime' : k.charAt(0).toUpperCase() + k.slice(1);
-      const value = isCreationTime && typeof v === 'string' ? convertPngCreationTime(v) : v;
+      const name = PNG_TEXT_TAG_NAMES[k.toLowerCase()] ?? k.charAt(0).toUpperCase() + k.slice(1);
+      const value = name === 'CreationTime' && typeof v === 'string' ? convertPngCreationTime(v) : v;
       if (!(name in result)) result[name] = value;
     }
 
