@@ -329,6 +329,35 @@ test('jpegMergeWriter inserts, reads, and deletes JPEG ICC APP2 profile segments
   );
 });
 
+test('jpegParser reassembles multi-segment JPEG ICC profiles', async () => {
+  const baseProfile = new Uint8Array(readFileSync('vendor/exiftool/t/images/ICC_Profile.icc'));
+  const profile = new Uint8Array(70000);
+  profile.set(baseProfile);
+  new DataView(profile.buffer).setUint32(0, profile.length, false);
+  const result = jpegMergeWriter(new Uint8Array(readFileSync('assets/01.jpg')), { ICC_Profile: profile });
+  const segments = parseJpegSegments(result.bytes).filter(
+    (segment) => segment.marker === 0xe2 &&
+      String.fromCharCode(...result.bytes.subarray(segment.payloadStart, segment.payloadStart + 12)) === 'ICC_PROFILE\0',
+  );
+  assertEquals(segments.length, 2);
+  assertEquals(result.bytes[segments[0]!.payloadStart + 12], 1);
+  assertEquals(result.bytes[segments[0]!.payloadStart + 13], 2);
+  assertEquals(result.bytes[segments[1]!.payloadStart + 12], 2);
+
+  const local = await jpegParser.parse(result.bytes, 'large-icc.jpg');
+  assertEquals(local.tags.ProfileSize, profile.length);
+  assertEquals(local.tags.ProfileFileSignature, 'acsp');
+
+  const file = await tempFile('.jpg');
+  try {
+    await writeFile(file, result.bytes);
+    const { stdout } = await execFileP(upstreamExifTool, ['-b', '-ICC_Profile', file], { encoding: 'buffer' });
+    assertEquals(stdout.length, profile.length);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
 test('jpegMergeWriter writes and deletes Ducky APP12 blocks', async () => {
   const original = new Uint8Array(readFileSync('assets/01.jpg'));
   const result = jpegMergeWriter(original, {

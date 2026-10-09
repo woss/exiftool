@@ -24,6 +24,8 @@ export const jpegParser: FormatParser = {
   parse(bytes: Uint8Array, filePath: string, tagDb?: TagDb, hints?: ParseHints): Promise<FileInfo> {
     const result: Record<string, TagValue> = {};
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const iccParts = new Map<number, Uint8Array>();
+    let iccPartCount: number | undefined;
     let offset = 2;
 
     while (offset < bytes.length) {
@@ -91,9 +93,12 @@ export const jpegParser: FormatParser = {
       if (marker === 0xe2 && data.length >= 14) {
         const id = new TextDecoder().decode(data.slice(0, 12));
         if (id === 'ICC_PROFILE\0') {
-          const iccTags = parseICCProfile(data.slice(14));
-          for (const [k, v] of Object.entries(iccTags)) {
-            result[k] = v;
+          const sequence = data[12] === 0 && data[13] === 1 ? 1 : data[12]!;
+          const count = data[13]!;
+          if (sequence > 0 && count > 0 && sequence <= count &&
+              (iccPartCount === undefined || iccPartCount === count) && !iccParts.has(sequence)) {
+            iccPartCount = count;
+            iccParts.set(sequence, data.slice(14));
           }
         }
       }
@@ -193,6 +198,28 @@ export const jpegParser: FormatParser = {
       }
 
       offset += segLen - 2;
+    }
+
+    if (iccPartCount !== undefined && iccParts.size === iccPartCount) {
+      const parts: Uint8Array[] = [];
+      for (let sequence = 1; sequence <= iccPartCount; sequence++) {
+        const part = iccParts.get(sequence);
+        if (!part) {
+          parts.length = 0;
+          break;
+        }
+        parts.push(part);
+      }
+      if (parts.length > 0) {
+        const length = parts.reduce((sum, part) => sum + part.length, 0);
+        const profile = new Uint8Array(length);
+        let position = 0;
+        for (const part of parts) {
+          profile.set(part, position);
+          position += part.length;
+        }
+        Object.assign(result, parseICCProfile(profile));
+      }
     }
 
     if (result['Subject'] && result['Keywords'] !== undefined) {
