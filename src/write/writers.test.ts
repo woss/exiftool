@@ -163,6 +163,23 @@ test('pngWriter inserts, replaces, and deletes an iCCP profile', async () => {
     assertEquals(info.ProfileFileSignature, 'acsp');
     assertEquals(info.ProfileName, 'Adobe RGB (1998)');
 
+    const nameOnly = pngWriter(written.bytes, { 'PNG:ProfileName': 'Name only' });
+    assertEquals(nameOnly.skipped, ['PNG:ProfileName']);
+    assertEquals(
+      Array.from(chunkDataForTest(nameOnly.bytes, 'iCCP')!),
+      Array.from(iccp),
+    );
+    await writeFile(file, written.bytes);
+    await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-overwrite_original', '-PNG:ProfileName=Name only', file],
+    );
+    const { stdout: unchangedName } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-ProfileName', file],
+    );
+    assertEquals(JSON.parse(unchangedName)[0].ProfileName, 'Adobe RGB (1998)');
+
     const deleted = pngWriter(written.bytes, { ICC_Profile: null });
     assertEquals(chunkDataForTest(deleted.bytes, 'iCCP'), undefined);
     await rm(file, { force: true });
