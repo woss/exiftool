@@ -60,6 +60,12 @@ function convertPngCreationTime(value: string): string {
   return `${String(year).padStart(4, '0')}:${String(month).padStart(2, '0')}:${String(day).padStart(2, '0')} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}${offset ?? ''}`;
 }
 
+function convertPngXmpDate(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/.exec(value);
+  if (!match) return value;
+  return `${match[1]}:${match[2]}:${match[3]} ${match[4]}:${match[5]}:${match[6]}${match[7] ?? ''}${match[8] ?? ''}`;
+}
+
 function readChunk(
   bytes: Uint8Array,
   offset: number,
@@ -264,7 +270,13 @@ function readChunk(
     // XMP-derived keys always win, text chunks yield.
     for (const [k, v] of Object.entries(textTags)) {
       const name = PNG_TEXT_TAG_NAMES[k.toLowerCase()] ?? k.charAt(0).toUpperCase() + k.slice(1);
-      const value = name === 'CreationTime' && typeof v === 'string' ? convertPngCreationTime(v) : v;
+      const value = typeof v === 'string'
+        ? name === 'CreationTime'
+          ? convertPngCreationTime(v)
+          : name === 'CreateDate' || name === 'ModDate'
+            ? convertPngXmpDate(v)
+            : v
+        : v;
       if (!(name in result)) result[name] = value;
     }
 
