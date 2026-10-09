@@ -727,6 +727,51 @@ test('webpWriter writes an XMP chunk readable by the parser', async () => {
   assertEquals(Array.from(out2.bytes), Array.from(out.bytes));
 });
 
+test('webpWriter deletes one XMP property and preserves packet siblings', async () => {
+  const seeded = webpWriter(buildWebp(), {
+    'XMP-dc:Title': 'Remove me',
+    'XMP-dc:Description': 'Keep me',
+  });
+  const deleted = webpWriter(seeded.bytes, { 'XMP-dc:Title': null });
+  const chunk = new DataView(deleted.bytes.buffer, deleted.bytes.byteOffset, deleted.bytes.byteLength);
+  let packet: string | undefined;
+  for (let pos = 12; pos + 8 <= deleted.bytes.length;) {
+    const id = new TextDecoder().decode(deleted.bytes.subarray(pos, pos + 4));
+    const size = chunk.getUint32(pos + 4, true);
+    if (id === 'XMP ') packet = new TextDecoder().decode(deleted.bytes.subarray(pos + 8, pos + 8 + size));
+    pos += 8 + size + (size % 2);
+  }
+  const { parseXMP } = await import('../exif/xmp.js');
+  const xmpTags = parseXMP(packet ?? '');
+  const local = await webpParser.parse(deleted.bytes, '(test)');
+  assertEquals(xmpTags.Title, undefined);
+  assertEquals(xmpTags.Description, 'Keep me');
+  assertEquals(local.tags.WebP_XMP, true);
+  assertEquals(deleted.written, ['XMP-dc:Title']);
+  assertEquals(deleted.skipped, []);
+
+  const file = await (await import('../test/tmp.js')).tempFile('.webp');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, deleted.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-XMP-dc:Title', '-XMP-dc:Description', file],
+    );
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream.Title, undefined);
+    assertEquals(upstream.Description, 'Keep me');
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+
+  const missing = webpWriter(buildWebp(), { 'XMP-dc:Title': null });
+  assertEquals(missing.written, []);
+  assertEquals(missing.skipped, ['XMP-dc:Title']);
+});
+
 test('pngWriter keeps existing chunks untouched when only XMP requested', async () => {
   const original = buildPng(true); // has eXIf
   const out = pngWriter(original, { 'XMP-dc:Subject': ['s'] });

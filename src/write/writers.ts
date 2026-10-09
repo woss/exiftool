@@ -226,6 +226,8 @@ function splitWebpWriteTags(tags: Record<string, TagValue>): {
   exif: Record<string, TagValue>;
   xmp: XmpPropertyRequest[];
   xmpKeys: string[];
+  xmpDeletes: string[];
+  xmpDeleteKeys: string[];
   iccProfile?: { key: string; profile: Uint8Array | null };
   skipped: string[];
 } {
@@ -414,13 +416,23 @@ export function splitWriteTags(tags: Record<string, TagValue>): {
   exif: Record<string, TagValue>;
   xmp: XmpPropertyRequest[];
   xmpKeys: string[];
+  xmpDeletes: string[];
+  xmpDeleteKeys: string[];
   skipped: string[];
 } {
   const exif: Record<string, TagValue> = {};
   const xmp: XmpPropertyRequest[] = [];
   const xmpKeys: string[] = [];
+  const xmpDeletes: string[] = [];
+  const xmpDeleteKeys: string[] = [];
   const skipped: string[] = [];
   for (const [key, value] of Object.entries(tags)) {
+    const xmpName = toXmpPropertyName(key);
+    if (value === null && xmpName) {
+      xmpDeletes.push(xmpName);
+      xmpDeleteKeys.push(key);
+      continue;
+    }
     const prop = toXmpPropertyRequest(key, value);
     if (prop) {
       xmp.push(prop);
@@ -429,7 +441,7 @@ export function splitWriteTags(tags: Record<string, TagValue>): {
       exif[key] = value;
     }
   }
-  return { exif, xmp, xmpKeys, skipped };
+  return { exif, xmp, xmpKeys, xmpDeletes, xmpDeleteKeys, skipped };
 }
 
 /** PNG iTXt chunk carrying an uncompressed XMP packet (XMP spec §1.1.1). */
@@ -699,7 +711,7 @@ export const webpWriter: ContainerWriter = (original, tags) => {
   if (riff !== 'RIFF' || webp !== 'WEBP') {
     throw new UnsupportedFormatError('not a WebP stream');
   }
-  const { exif, xmp, xmpKeys, iccProfile, skipped } = splitWebpWriteTags(tags);
+  const { exif, xmp, xmpKeys, xmpDeletes, xmpDeleteKeys, iccProfile, skipped } = splitWebpWriteTags(tags);
   const writtenOut: string[] = [];
   const dv = new DataView(original.buffer, original.byteOffset, original.byteLength);
 
@@ -715,7 +727,7 @@ export const webpWriter: ContainerWriter = (original, tags) => {
       pos += 8 + size + (size % 2);
       continue;
     }
-    if (id === 'XMP ' && xmp.length > 0) {
+    if (id === 'XMP ' && (xmp.length > 0 || xmpDeletes.length > 0)) {
       existingXmp = new TextDecoder().decode(data);
     } else {
       chunks.push({ id, data });
@@ -727,7 +739,7 @@ export const webpWriter: ContainerWriter = (original, tags) => {
   if (!vp8x) throw new UnsupportedFormatError('WebP writing requires a VP8X chunk');
   const vp8xData = Uint8Array.from(vp8x.data);
   if (Object.keys(exif).length > 0) vp8xData[0] |= 0x08; // EXIF flag
-  if (xmp.length > 0) vp8xData[0] |= 0x04; // XMP flag
+  if (xmp.length > 0 || existingXmp !== null) vp8xData[0] |= 0x04; // XMP flag
   if (iccProfile?.profile) vp8xData[0] |= 0x20; // ICC flag
   else if (iccProfile) vp8xData[0] &= ~0x20;
 
@@ -757,9 +769,17 @@ export const webpWriter: ContainerWriter = (original, tags) => {
     skipped.push(...exifSkipped);
     writtenOut.push(...written);
   }
-  if (xmp.length > 0) {
-    const packet = new TextEncoder().encode(writeXmpPacket(existingXmp, xmp));
-    pushChunk('XMP ', packet);
+  if (xmp.length > 0 || xmpDeletes.length > 0) {
+    let packet = xmp.length > 0 ? writeXmpPacket(existingXmp, xmp) : existingXmp;
+    if (xmpDeletes.length > 0) {
+      if (packet !== null) {
+        packet = deleteXmpProperties(packet, xmpDeletes);
+        writtenOut.push(...xmpDeleteKeys);
+      } else {
+        skipped.push(...xmpDeleteKeys);
+      }
+    }
+    if (packet !== null) pushChunk('XMP ', new TextEncoder().encode(packet));
     for (const k of xmpKeys) writtenOut.push(k);
   }
   for (const c of chunks) {
