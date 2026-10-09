@@ -1,6 +1,7 @@
 import type { FormatParser } from './format/mod.js';
 import { avifParser } from './format/avif.js';
 import { exifParser } from './format/exif.js';
+import { exvParser } from './format/exv.js';
 import { pbmParser } from './format/pbm.js';
 import { iccParser } from './format/icc.js';
 import { jpegParser } from './format/jpeg.js';
@@ -40,6 +41,7 @@ export const MODERN_PLUGINS: FormatParser[] = [
   avifParser,
   tiffRawParser,
   exifParser,
+  exvParser,
   iccParser,
   xmpParser,
 ];
@@ -83,6 +85,9 @@ export { tiffRawParser };
 
 /** Standalone TIFF-encoded EXIF file parser and writer. */
 export { exifParser };
+
+/** EXV parser for Exiv2-wrapped JPEG metadata. */
+export { exvParser };
 
 /** Standalone ICC profile parser and whole-profile writer. */
 export { iccParser };

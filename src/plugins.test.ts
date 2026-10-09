@@ -1,9 +1,9 @@
 import { test } from 'vitest';
 import { assertEquals } from '../src/test/asserts.js';
-import { ALL_PLUGINS, MODERN_PLUGINS, gifParser, jpegParser, pngParser, ppmParser, pgmParser, pbmParser, webpParser, avifParser, exifParser, iccParser, xmpParser } from './plugins.js';
+import { ALL_PLUGINS, MODERN_PLUGINS, gifParser, jpegParser, pngParser, ppmParser, pgmParser, pbmParser, webpParser, avifParser, exifParser, exvParser, iccParser, xmpParser } from './plugins.js';
 
 test('MODERN_PLUGINS covers all built-in formats incl. TIFF-family RAW', () => {
-  assertEquals(MODERN_PLUGINS.map((p) => p.format), ['JPEG', 'GIF', 'PNG', 'PPM', 'PGM', 'PBM', 'WebP', 'AVIF', 'TIFF', 'EXIF', 'ICC', 'XMP']);
+  assertEquals(MODERN_PLUGINS.map((p) => p.format), ['JPEG', 'GIF', 'PNG', 'PPM', 'PGM', 'PBM', 'WebP', 'AVIF', 'TIFF', 'EXIF', 'EXV', 'ICC', 'XMP']);
   assertEquals(ALL_PLUGINS, MODERN_PLUGINS);
 });
 
@@ -24,4 +24,5 @@ test('preset parsers carry write support, TIFF restricted to TIFF/DNG', () => {
   assertEquals(pgmParser.format, 'PGM');
   assertEquals(pbmParser.format, 'PBM');
   assertEquals(exifParser.format, 'EXIF');
+  assertEquals(exvParser.format, 'EXV');
 });

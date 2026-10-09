@@ -16,6 +16,7 @@ export {
   webpParser,
   tiffRawParser,
   exifParser,
+  exvParser,
   iccParser,
   xmpParser,
 } from './plugins.js';

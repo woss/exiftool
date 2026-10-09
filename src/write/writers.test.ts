@@ -221,7 +221,7 @@ test('avifWriter rejects non-ISOBMFF input', () => {
 });
 
 test('supportedWriteFormats lists the five containers', async () => {
-  assertEquals(await supportedWriteFormats(), ['JPEG', 'GIF', 'PNG', 'PPM', 'PGM', 'PBM', 'WebP', 'AVIF', 'TIFF', 'EXIF', 'ICC', 'XMP']);
+  assertEquals(await supportedWriteFormats(), ['JPEG', 'GIF', 'PNG', 'PPM', 'PGM', 'PBM', 'WebP', 'AVIF', 'TIFF', 'EXIF', 'EXV', 'ICC', 'XMP']);
 });
 
 test('jpegWriter skips RST markers while rebuilding', async () => {
