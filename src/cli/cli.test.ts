@@ -527,6 +527,46 @@ test('runAction write mode updates file and creates backup', async () => {
   }
 });
 
+test('runAction copies tags from a source file and explicit assignments override them', async () => {
+  const source = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(source, await readFile('assets/01.jpg'));
+  await writeFile(target, await readFile('assets/03.jpg'));
+  try {
+    const tool = new ExifTool();
+    const sourceTags = (await tool.read(source)).tags;
+    const code = await runAction(
+      { tagsFromFile: source, overwriteOriginal: true },
+      '-Software=copied',
+      target,
+    );
+    assertEquals(code, 0);
+    const targetTags = (await tool.read(target)).tags;
+    assertEquals(targetTags.Make, sourceTags.Make);
+    assertEquals(targetTags.Model, sourceTags.Model);
+    assertEquals(targetTags.Software, 'copied');
+  } finally {
+    await rm(source, { force: true });
+    await rm(target, { force: true });
+  }
+});
+
+test('runAction tagsFromFile reports missing source without modifying targets', async () => {
+  const target = await tempFile('.jpg');
+  const original = await readFile('assets/03.jpg');
+  await writeFile(target, original);
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ tagsFromFile: `${target}.missing` }, target);
+    assertEquals(code, 1);
+    assertEquals(cap.err.some((line) => line.includes('Error reading tags from')), true);
+    assertEquals(Buffer.compare(await readFile(target), original), 0);
+  } finally {
+    cap.restore();
+    await rm(target, { force: true });
+  }
+});
+
 test('runAction write mode deletes an EXIF tag with an empty assignment', async () => {
   const tmp = await tempFile('.jpg');
   await writeFile(tmp, await readFile('assets/01.jpg'));

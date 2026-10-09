@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import { assertEquals } from '../test/asserts.js';
-import { parseCliArgs } from './args.js';
+import { normalizeArgs, parseCliArgs } from './args.js';
 
 test('parseCliArgs — boolean long and short flags', () => {
   assertEquals(parseCliArgs(['--json', '-b', 'a.jpg']), {
@@ -18,6 +18,14 @@ test('parseCliArgs — values via space and inline equals', () => {
   assertEquals(parseCliArgs(['-d', '%Y', '--coord-format=%+.6f', 'x.jpg']), {
     options: { dateFormat: '%Y', coordFormat: '%+.6f' },
     files: ['x.jpg'],
+  });
+});
+
+test('parseCliArgs — tagsFromFile uses ExifTool spelling', () => {
+  assertEquals(normalizeArgs(['-tagsFromFile', 'source.jpg']), ['--tags-from-file', 'source.jpg']);
+  assertEquals(parseCliArgs(['--tags-from-file', 'source.jpg']), {
+    options: { tagsFromFile: 'source.jpg' },
+    files: [],
   });
 });
 

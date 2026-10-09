@@ -23,6 +23,7 @@ export interface CliOptions {
   extension?: string[];
   ignore?: string[];
   output?: string;
+  tagsFromFile?: string;
   extractEmbedded?: boolean;
   overwriteOriginal?: boolean;
   preserveTime?: boolean;
@@ -50,6 +51,7 @@ const SPECS: Record<string, OptionSpec> = {
   quiet: { arity: 'flag', collect: true },
   xml: { arity: 'flag' },
   output: { arity: 'value' },
+  'tags-from-file': { arity: 'value' },
   recurse: { arity: 'flag' },
   extension: { arity: 'value', collect: true },
   ignore: { arity: 'value', collect: true },
@@ -150,6 +152,9 @@ export function normalizeArgs(args: string[]): string[] {
     if (/^-?[A-Za-z][A-Za-z0-9_]*=/.test(a)) return [a];
     if (a === '-overwrite_original' || a === '--overwrite_original') {
       return ['--overwrite-original'];
+    }
+    if (a === '-tagsFromFile' || a === '--tagsFromFile') {
+      return ['--tags-from-file'];
     }
     if (a === '--ee') return ['--extract-embedded'];
     if (a.startsWith('-') && !a.startsWith('--') && a.length > 2) {

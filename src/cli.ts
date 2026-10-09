@@ -38,8 +38,16 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
 
   // Write mode: any TAG=VALUE operands turn the invocation into an update.
   const assignments = files.filter((f) => /^-?[A-Za-z][A-Za-z0-9_]*=/.test(f));
-  if (assignments.length > 0) {
-    const tags: Record<string, string | null> = {};
+  if (assignments.length > 0 || options.tagsFromFile !== undefined) {
+    const tags: Record<string, import('./types.js').TagValue> = {};
+    if (options.tagsFromFile !== undefined) {
+      try {
+        Object.assign(tags, (await tool.read(options.tagsFromFile)).tags);
+      } catch (e) {
+        console.error(`Error reading tags from ${options.tagsFromFile}: ${(e as Error).message}`);
+        return 1;
+      }
+    }
     for (const a of assignments) {
       const eq = a.indexOf('=');
       const value = a.slice(eq + 1);

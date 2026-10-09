@@ -174,7 +174,7 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 - [ ] `-TAG=` / API null: delete from applicable groups; remove empty optional groups; retain or remove mandatory tags according to upstream behavior.
 - [ ] `-TAG+=VALUE` and list operations: append without replacing; honor repeatable tags, list split/join, duplicate policy, and tag-specific list semantics.
 - [ ] `-wm MODE`: implement ExifTool write/create mode combinations and prevent creation or replacement when the selected mode disallows it.
-- [ ] `-tagsFromFile FILE`: copy all or selected tags; support source selectors, group selectors, wildcards, tag renames, ordering, `-srcfile`, same-file `@`, multiple sources, and transformations applied to copied values.
+- [ ] `-tagsFromFile FILE`: basic parsed-tag copy is implemented; remaining work includes selected/group-qualified tags, wildcards, tag renames, ordering, `-srcfile`, same-file `@`, multiple sources, and transformations applied to copied values.
 - [ ] Group and tag selection: support family-qualified names, `-GROUP:all`, tag wildcards, exclusions, duplicates, preferred groups, numeric/raw tag names, and precedence when multiple groups contain the same logical tag.
 - [ ] Output/filesystem semantics: `-o`, extension-derived destinations, overwrite-original options, backups, `-P`, file permissions and timestamps, sidecars, recursion, conditions, per-file errors, partial batch success, and stable exit statuses.
 - [ ] Binary writes: explicit tag selection, raw bytes, binary block copy, output delimiters/concatenation behavior, and no accidental concatenation of unrelated binary tags.
