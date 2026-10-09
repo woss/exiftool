@@ -210,9 +210,35 @@ test('pngWriter compresses text as zTXt when it saves space', async () => {
   }
 });
 
+test('pngWriter preserves existing zTXt encoding when replacing a text value', async () => {
+  const originalValue = 'original compressed comment '.repeat(40);
+  const updatedValue = 'updated compressed comment '.repeat(40);
+  const original = pngWriter(buildPng(false), { Comment: originalValue }, { compress: true });
+  const updated = pngWriter(original.bytes, { Comment: updatedValue });
+  assertEquals(chunkDataForTest(updated.bytes, 'zTXt') !== undefined, true);
+  assertEquals((await pngParser.parse(updated.bytes, '(updated compressed test)')).tags.Comment, updatedValue);
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, updated.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-G1', '-PNG:Comment', file],
+    );
+    assertEquals(JSON.parse(stdout)[0]['PNG:Comment'], updatedValue);
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
 test('pngWriter compresses language-qualified text as iTXt', async () => {
-  const value = 'Commentaire répété '.repeat(40);
-  const written = pngWriter(buildPng(false), { 'PNG:Comment-fr': value }, { compress: true });
+  const firstValue = 'Commentaire répété '.repeat(40);
+  const value = 'Commentaire modifié '.repeat(40);
+  const first = pngWriter(buildPng(false), { 'PNG:Comment-fr': firstValue }, { compress: true });
+  const written = pngWriter(first.bytes, { 'PNG:Comment-fr': value });
   const itxt = chunkDataForTest(written.bytes, 'iTXt')!;
   const keywordEnd = itxt.indexOf(0);
   assertEquals(itxt[keywordEnd + 1], 1);

@@ -91,7 +91,13 @@ const PNG_TEXT_TAGS: Record<string, string> = {
   url: 'URL',
 };
 
-interface PngTextRequest { key: string; keyword: string; value: string | null; language?: string }
+interface PngTextRequest {
+  key: string;
+  keyword: string;
+  value: string | null;
+  language?: string;
+  encoding?: { type: 'tEXt' | 'zTXt' | 'iTXt'; compressed: boolean };
+}
 interface PngAncillaryRequest { key: string; tag: 'gamma' | 'srgb' | 'physX' | 'physY' | 'physUnit'; value: number | null }
 interface PngTimeRequest { key: string; value: string | null }
 
@@ -247,12 +253,19 @@ function pngTextChunk(
   value: string,
   language?: string,
   compress = false,
+  encoding?: PngTextRequest['encoding'],
 ): { type: string; data: Uint8Array } {
-  if (compress) {
-    const text = new TextEncoder().encode(value);
+  const shouldCompress = compress || encoding?.compressed === true;
+  if (shouldCompress) {
+    const latin1 = /^[\x00-\xff]*$/.test(value);
+    const text = encoding?.type === 'zTXt' && latin1
+      ? new Uint8Array([...value].map((character) => character.charCodeAt(0)))
+      : new TextEncoder().encode(value);
     const compressed = zlibSync(text);
-    if (compressed.length < text.length) {
-      if (language || /[^\x00-\x7f]/.test(value)) {
+    if (compressed.length < text.length || encoding?.compressed) {
+      const useItxt = encoding?.type === 'iTXt' ||
+        (encoding?.type !== 'zTXt' && (language || /[^\x00-\x7f]/.test(value)));
+      if (useItxt) {
         const prefix = new TextEncoder().encode(`${keyword}\0\u0001\0${language ?? ''}\0\0`);
         const data = new Uint8Array(prefix.length + compressed.length);
         data.set(prefix);
@@ -266,6 +279,16 @@ function pngTextChunk(
       data.set(compressed, key.length + 2);
       return { type: 'zTXt', data };
     }
+  }
+  if (encoding?.type === 'iTXt') {
+    const prefix = new TextEncoder().encode(language
+      ? `${keyword}\0\0\0${language}\0\0`
+      : `${keyword}\0\0\0\0\0`);
+    const text = new TextEncoder().encode(value);
+    const data = new Uint8Array(prefix.length + text.length);
+    data.set(prefix);
+    data.set(text, prefix.length);
+    return { type: 'iTXt', data };
   }
   if (!language && /^[\x00-\xff]*$/.test(value)) {
     const key = new TextEncoder().encode(keyword);
@@ -413,6 +436,23 @@ export const pngWriter: ContainerWriter = (original, tags, options) => {
     `${request.keyword.toLowerCase()}\0${request.language?.toLowerCase() ?? ''}`,
     request,
   ]));
+  let scanPos = 8;
+  while (scanPos + 12 <= original.length) {
+    const length = dv.getUint32(scanPos, false);
+    if (scanPos + 12 + length > original.length) break;
+    const type = String.fromCharCode(...original.subarray(scanPos + 4, scanPos + 8));
+    const data = original.subarray(scanPos + 8, scanPos + 8 + length);
+    const identifier = pngTextIdentifier(type, data);
+    const request = identifier ? textByKeyword.get(identifier) : undefined;
+    if (request && !request.encoding) {
+      const separator = data.indexOf(0);
+      request.encoding = {
+        type: type as 'tEXt' | 'zTXt' | 'iTXt',
+        compressed: type === 'zTXt' || (type === 'iTXt' && data[separator + 1] === 1),
+      };
+    }
+    scanPos += length + 12;
+  }
   const writeGamma = ancillary.find((request) => request.tag === 'gamma');
   const writeSrgb = ancillary.find((request) => request.tag === 'srgb');
   const physRequests = ancillary.filter((request) => request.tag.startsWith('phys'));
@@ -442,7 +482,10 @@ export const pngWriter: ContainerWriter = (original, tags, options) => {
       }
     }
     const textIdentifier = pngTextIdentifier(type, data);
-    if (textIdentifier && textByKeyword.has(textIdentifier)) continue;
+    if (textIdentifier) {
+      const request = textByKeyword.get(textIdentifier);
+      if (request) continue;
+    }
     kept.push({ type, data });
     if (type === 'IHDR') {
       if (iccProfile?.profile) {
@@ -503,7 +546,13 @@ export const pngWriter: ContainerWriter = (original, tags, options) => {
       }
       for (const request of text) {
         if (request.value !== null) {
-          kept.push(pngTextChunk(request.keyword, request.value, request.language, options?.compress));
+          kept.push(pngTextChunk(
+            request.keyword,
+            request.value,
+            request.language,
+            options?.compress,
+            request.encoding,
+          ));
         }
         written.push(request.key);
       }
