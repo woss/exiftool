@@ -3,7 +3,7 @@ import { applyFileStat } from './cli/filestat.js';
 import { readFile, link, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { basename, join } from 'node:path';
+import { basename, dirname, extname, join, sep } from 'node:path';
 import { normalizeArgs, parseCliArgs, type CliOptions } from './cli/args.js';
 import { ExifTool } from './exiftool.js';
 import { BUILTIN_PLUGINS } from './format/all.js';
@@ -32,6 +32,28 @@ function xmpListAppendGroup(key: string): 'subject' | 'creator' | undefined {
   if (name === 'subject' || name === 'keywords') return 'subject';
   if (name === 'creator') return 'creator';
   return undefined;
+}
+
+function expandWriteOutputTemplate(template: string, input: string): string {
+  const filename = basename(input);
+  const extension = extname(filename);
+  const stem = extension ? filename.slice(0, -extension.length) : filename;
+  const sourceDir = dirname(input);
+  const directory = sourceDir === '.' ? '' : sourceDir.replace(/[\\/]+$/, '');
+  const directoryWithSeparator = directory
+    ? `${directory}${sep}`
+    : sourceDir === sep
+      ? sep
+      : '';
+  const values: Record<string, string> = {
+    d: directoryWithSeparator,
+    D: directory,
+    f: stem,
+    F: filename,
+    e: extension.startsWith('.') ? extension.slice(1) : extension,
+    E: extension,
+  };
+  return template.replace(/%([dDfFeE])/g, (_, token: string) => values[token]!);
 }
 
 async function readIptcKeywords(file: string): Promise<string[]> {
@@ -101,7 +123,8 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
         // A non-existent output path is treated as a file destination.
       }
     }
-    if (options.output !== undefined && !outputIsDirectory && expandedWrite.length > 1) {
+    const outputUsesTemplate = options.output !== undefined && /%[dDfFeE]/.test(options.output);
+    if (options.output !== undefined && !outputIsDirectory && !outputUsesTemplate && expandedWrite.length > 1) {
       console.error('-o currently supports one input file for metadata writes');
       return 1;
     }
@@ -171,7 +194,9 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
           } else {
             const destination = outputIsDirectory
               ? join(options.output, basename(file))
-              : options.output;
+              : outputUsesTemplate
+                ? expandWriteOutputTemplate(options.output, file)
+                : options.output;
             const sourceStat = options.preserveTime ? await stat(file) : undefined;
             tempOutput = `${destination}.tmp-${randomUUID()}`;
             await writeFile(tempOutput, await readFile(file), { flag: 'wx' });
@@ -182,8 +207,10 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
               compress: options.compress === true,
               writeMode: options.writeMode,
             });
-            await rename(tempOutput, options.output);
+            const completedOutput = tempOutput;
+            await link(completedOutput, destination);
             tempOutput = undefined;
+            await rm(completedOutput, { force: true }).catch(() => {});
           }
         } finally {
           if (tempOutput !== undefined) await rm(tempOutput, { force: true });

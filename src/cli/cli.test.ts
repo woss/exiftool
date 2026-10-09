@@ -638,6 +638,32 @@ test('runAction writes a batch to an existing -o directory', async () => {
   }
 });
 
+test('runAction expands common filename tokens in batch -o paths', async () => {
+  const first = await tempFile('.jpg');
+  const second = await tempFile('.jpg');
+  const outputDir = await mkdtemp(join(tmpdir(), 'exiftool-cli-template-'));
+  await writeFile(first, await readFile('assets/01.jpg'));
+  await writeFile(second, await readFile('assets/03.jpg'));
+  try {
+    const code = await runAction(
+      { output: join(outputDir, 'copy-%f.%e'), overwriteOriginal: true },
+      '-Software=template-output',
+      first,
+      second,
+    );
+    assertEquals(code, 0);
+    for (const input of [first, second]) {
+      const filename = basename(input, '.jpg');
+      const destination = join(outputDir, `copy-${filename}.jpg`);
+      assertEquals((await new ExifTool().read(destination)).tags.Software, 'template-output');
+    }
+  } finally {
+    await rm(first, { force: true });
+    await rm(second, { force: true });
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
 test('runAction applies -if conditions to write targets', async () => {
   const matching = await tempFile('.jpg');
   const nonmatching = await tempFile('.jpg');
