@@ -447,6 +447,7 @@ export const pngWriter: ContainerWriter = (original, tags, options) => {
     request,
   ]));
   let existingExifTiff: Uint8Array | undefined;
+  let existingIccName: string | undefined;
   let scanPos = 8;
   while (scanPos + 12 <= original.length) {
     const length = dv.getUint32(scanPos, false);
@@ -454,6 +455,10 @@ export const pngWriter: ContainerWriter = (original, tags, options) => {
     const type = String.fromCharCode(...original.subarray(scanPos + 4, scanPos + 8));
     const data = original.subarray(scanPos + 8, scanPos + 8 + length);
     if (type === 'eXIf' && !existingExifTiff) existingExifTiff = data.slice();
+    if (type === 'iCCP' && existingIccName === undefined) {
+      const separator = data.indexOf(0);
+      if (separator > 0) existingIccName = new TextDecoder().decode(data.subarray(0, separator));
+    }
     const identifier = pngTextIdentifier(type, data);
     const request = identifier ? textByKeyword.get(identifier) : undefined;
     if (request && !request.encoding) {
@@ -537,7 +542,7 @@ export const pngWriter: ContainerWriter = (original, tags, options) => {
     kept.push({ type, data });
     if (type === 'IHDR') {
       if (iccProfile?.profile) {
-        const profileName = iccName?.name ?? 'icm';
+        const profileName = iccName?.name ?? existingIccName ?? 'icm';
         kept.push(pngIccChunk(profileName, iccProfile.profile));
         written.push(iccProfile.key);
         if (iccName) written.push(iccName.key);

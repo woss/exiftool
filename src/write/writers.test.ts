@@ -277,6 +277,34 @@ test('pngWriter inserts, replaces, and deletes an iCCP profile', async () => {
   }
 });
 
+test('pngWriter preserves an existing iCCP name when replacing only the profile', async () => {
+  const profile = new Uint8Array(
+    (await import('node:fs')).readFileSync('vendor/exiftool/t/images/ICC_Profile.icc'),
+  );
+  const original = pngWriter(buildPng(false), {
+    ICC_Profile: profile,
+    'PNG:ProfileName': 'Adobe RGB (1998)',
+  });
+  const replaced = pngWriter(original.bytes, { ICC_Profile: profile });
+  const local = await pngParser.parse(replaced.bytes, '(test)');
+  assertEquals(local.tags.ICC_Profile_Name, 'Adobe RGB (1998)');
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, replaced.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-PNG:ProfileName', file],
+    );
+    assertEquals(JSON.parse(stdout)[0].ProfileName, 'Adobe RGB (1998)');
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
 test('pngWriter compresses text as zTXt when it saves space', async () => {
   const value = 'compressed PNG comment '.repeat(40);
   const written = pngWriter(buildPng(false), { Comment: value }, { compress: true });
