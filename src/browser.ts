@@ -12,6 +12,7 @@ export {
   pngParser,
   webpParser,
   tiffRawParser,
+  iccParser,
   xmpParser,
 } from './plugins.js';
 export type { FormatParser, ParseHints } from './format/mod.js';
