@@ -146,6 +146,9 @@ export function parseCliArgs(argv: string[]): { options: CliOptions; files: stri
         value = undefined;
       }
     }
+    if (name === 'write-mode' && value !== undefined && !/^[wcg]*$/i.test(value)) {
+      throw new Error(`Invalid argument for --${name}`);
+    }
     set(name, spec.arity === 'optional' && value === undefined ? true : value);
   }
   return { options, files };

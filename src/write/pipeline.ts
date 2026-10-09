@@ -92,7 +92,18 @@ export async function writeTagsWithTmp(
     throw e;
   }
 
-  return { file: filePath, written: outcome.written, skipped: outcome.skipped, backup };
+  return {
+    file: filePath,
+    written: outcome.written,
+    skipped: outcome.skipped,
+    ...(modeSkipped.length > 0 ? { modeSkipped } : {}),
+    backup,
+  };
+}
+
+function normalizeWriteTagName(name: string): string {
+  const ungrouped = name.toLowerCase().replace(/^-/, '').split(':').at(-1)!;
+  return ungrouped === 'keywords' ? 'subject' : ungrouped;
 }
 
 export { UnsupportedFormatError };

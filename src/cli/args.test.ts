@@ -20,6 +20,16 @@ test('parseCliArgs — -wm accepts a mode value', () => {
   assertEquals(parseCliArgs(normalizeArgs(['-wm', 'cg'])).options.writeMode, 'cg');
 });
 
+test('parseCliArgs — -wm rejects unsupported mode letters', () => {
+  let message = '';
+  try {
+    parseCliArgs(normalizeArgs(['-wm', 'wx']));
+  } catch (error) {
+    message = (error as Error).message;
+  }
+  assertEquals(message.includes('Invalid argument for --write-mode'), true);
+});
+
 test('parseCliArgs — preserve-time accepts ExifTool -P and long form', () => {
   assertEquals(parseCliArgs(['-P']).options.preserveTime, true);
   assertEquals(parseCliArgs(['--preserve-time']).options.preserveTime, true);
