@@ -79,6 +79,23 @@ test('writeTags honors write mode for existing and new tags', async () => {
   }
 });
 
+test('writeTags rejects invalid write modes without modifying the file', async () => {
+  const file = await makeTmpJpeg();
+  const original = await readFile(file);
+  try {
+    let error: unknown;
+    try {
+      await writeTags(file, { Make: 'Changed' }, { overwriteOriginal: true, writeMode: 'wx' });
+    } catch (caught) {
+      error = caught;
+    }
+    assertEquals(error instanceof UnsupportedFormatError, true);
+    assertEquals(Buffer.compare(await readFile(file), original), 0);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
 test('writeTags forwards compression to the PNG writer', async () => {
   const file = await tempFile('.png');
   const value = 'pipeline-compressed-comment '.repeat(40);
