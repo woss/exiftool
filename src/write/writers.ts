@@ -3,6 +3,7 @@ import { buildTiff } from '../exif/tiff-builder.js';
 import { crc32 } from '../utils/crc32.js';
 import { zlibSync } from 'fflate';
 import { toXmpPropertyRequest, writeXmpPacket, type XmpPropertyRequest } from './xmp-writer.js';
+import { mergeExifTiff, resolveMergeRequests } from './jpeg-merge.js';
 
 /**
  * Error thrown when a format does not support writing tags.
@@ -439,12 +440,14 @@ export const pngWriter: ContainerWriter = (original, tags, options) => {
     `${request.keyword.toLowerCase()}\0${request.language?.toLowerCase() ?? ''}`,
     request,
   ]));
+  let existingExifTiff: Uint8Array | undefined;
   let scanPos = 8;
   while (scanPos + 12 <= original.length) {
     const length = dv.getUint32(scanPos, false);
     if (scanPos + 12 + length > original.length) break;
     const type = String.fromCharCode(...original.subarray(scanPos + 4, scanPos + 8));
     const data = original.subarray(scanPos + 8, scanPos + 8 + length);
+    if (type === 'eXIf' && !existingExifTiff) existingExifTiff = data.slice();
     const identifier = pngTextIdentifier(type, data);
     const request = identifier ? textByKeyword.get(identifier) : undefined;
     if (request && !request.encoding) {
@@ -574,7 +577,21 @@ export const pngWriter: ContainerWriter = (original, tags, options) => {
         written.push(time.key);
       }
       if (Object.keys(exif).length > 0) {
-        const { bytes: tiff, written: exifWritten, skipped: exifSkipped } = buildTiff(exif);
+        let tiff: Uint8Array;
+        let exifWritten: string[];
+        let exifSkipped: string[];
+        if (existingExifTiff) {
+          const requests = resolveMergeRequests(exif);
+          const merged = mergeExifTiff(existingExifTiff, requests.exif);
+          tiff = merged.bytes;
+          exifWritten = merged.written;
+          exifSkipped = [...requests.skipped, ...merged.skipped];
+        } else {
+          const built = buildTiff(exif);
+          tiff = built.bytes;
+          exifWritten = built.written;
+          exifSkipped = built.skipped;
+        }
         kept.push({ type: 'eXIf', data: tiff });
         written.push(...exifWritten);
         skipped.push(...exifSkipped);

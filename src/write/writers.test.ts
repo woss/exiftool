@@ -123,6 +123,38 @@ test('pngWriter adds eXIf to files without one', async () => {
   assertEquals(info.tags.Make, 'PngNew');
 });
 
+test('pngWriter preserves unrelated eXIf tags when updating one tag', async () => {
+  const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  const source = new Uint8Array([
+    ...sig,
+    ...pngChunk('IHDR', new Uint8Array(13)),
+    ...pngChunk('eXIf', buildTiff({ Make: 'OldCo', Model: 'Camera 1' }).bytes),
+    ...pngChunk('IDAT', new Uint8Array([1, 2, 3])),
+    ...pngChunk('IEND', new Uint8Array()),
+  ]);
+  const written = pngWriter(source, { Make: 'NewCo' });
+  const local = await pngParser.parse(written.bytes, '(test)');
+  assertEquals(local.tags.Make, 'NewCo');
+  assertEquals(local.tags.Model, 'Camera 1');
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, written.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-G1', '-Make', '-Model', file],
+    );
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream['IFD0:Make'], 'NewCo');
+    assertEquals(upstream['IFD0:Model'], 'Camera 1');
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
 test('pngWriter rejects non-PNG input', () => {
   try {
     pngWriter(new Uint8Array(32), { Make: 'X' });
