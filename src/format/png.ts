@@ -167,14 +167,15 @@ function readChunk(
       }
       if (chunk.type === 'gAMA') {
         const view = new DataView(chunk.data.buffer, chunk.data.byteOffset, chunk.data.byteLength);
-        result['Gamma'] = view.getUint32(0, false) / 100000;
+        const storedGamma = view.getUint32(0, false);
+        result['Gamma'] = storedGamma ? Math.round(1e9 / storedGamma) / 10000 : storedGamma;
       }
 
       if (chunk.type === 'pHYs') {
         const view = new DataView(chunk.data.buffer, chunk.data.byteOffset, chunk.data.byteLength);
-        result['XPixelsPerUnit'] = view.getUint32(0, false);
-        result['YPixelsPerUnit'] = view.getUint32(4, false);
-        result['UnitSpecifier'] = view.getUint8(8);
+        result['PixelsPerUnitX'] = view.getUint32(0, false);
+        result['PixelsPerUnitY'] = view.getUint32(4, false);
+        result['PixelUnits'] = view.getUint8(8) === 1 ? 'meters' : 'Unknown';
       }
       if (chunk.type === 'caBX') {
         const jumbfTags = parseJUMBFFromSegment(chunk.data);

@@ -165,6 +165,45 @@ test('png writer replaces text chunks and preserves IDAT payload', async () => {
   assertEquals((await pngParser.parse(deleted.bytes, 'text.png')).tags.Title, undefined);
 });
 
+test('pngWriter updates pHYs, gAMA, and sRGB chunks with ExifTool conversions', async () => {
+  const { readFile, writeFile, rm } = await import('node:fs/promises');
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const { tempFile } = await import('../test/tmp.js');
+  const upstream = new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname;
+  const source = new Uint8Array(await readFile('vendor/exiftool/t/images/PNG.png'));
+  const result = pngParser.writeBytes!(source, {
+    'PNG:PixelsPerUnitX': 1234,
+    'PNG:PixelsPerUnitY': 5678,
+    'PNG:PixelUnits': 'meters',
+    'PNG:Gamma': 2.2,
+    'PNG:SRGBRendering': 'Saturation',
+  });
+  const local = await pngParser.parse(result.bytes, 'ancillary.png');
+  assertEquals(local.tags.PixelsPerUnitX, 1234);
+  assertEquals(local.tags.PixelsPerUnitY, 5678);
+  assertEquals(local.tags.PixelUnits, 'meters');
+  assertEquals(Math.abs(Number(local.tags.Gamma) - 2.2) < 0.0001, true);
+  assertEquals(local.tags.SRGBRendering, 'Saturation');
+
+  const file = await tempFile('.png');
+  try {
+    await writeFile(file, result.bytes);
+    const { stdout } = await promisify(execFile)(upstream, [
+      '-j', '-G1', '-PNG-pHYs:PixelsPerUnitX', '-PNG-pHYs:PixelsPerUnitY',
+      '-PNG-pHYs:PixelUnits', '-PNG:Gamma', '-PNG:SRGBRendering', file,
+    ]);
+    const info = JSON.parse(stdout)[0];
+    assertEquals(info['PNG-pHYs:PixelsPerUnitX'], 1234);
+    assertEquals(info['PNG-pHYs:PixelsPerUnitY'], 5678);
+    assertEquals(info['PNG-pHYs:PixelUnits'], 'meters');
+    assertEquals(info['PNG:Gamma'], 2.2);
+    assertEquals(info['PNG:SRGBRendering'], 'Saturation');
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
 test('vendored ExifTool reads PNG textual data written by the adapter', async () => {
   const source = new Uint8Array(await (await import('node:fs/promises')).readFile('vendor/exiftool/t/images/PNG.png'));
   const result = pngParser.writeBytes!(source, { Title: 'Upstream PNG text' });
@@ -246,7 +285,7 @@ test('png gAMA converts gamma to float', async () => {
   const d = new Uint8Array(4);
   new DataView(d.buffer).setUint32(0, 45455, false);
   const result = await pngParser.parse(png(chunk('gAMA', d), chunk('IEND', new Uint8Array(0))), 'g.png');
-  assertEquals(Math.abs((result.tags['Gamma'] as number) - 0.45455) < 1e-9, true);
+  assertEquals(Math.abs((result.tags['Gamma'] as number) - 2.2) < 0.0001, true);
 });
 
 test('png pHYs exposes pixel density', async () => {
@@ -256,9 +295,9 @@ test('png pHYs exposes pixel density', async () => {
   dv.setUint32(4, 2835, false);
   d[8] = 1;
   const result = await pngParser.parse(png(chunk('pHYs', d), chunk('IEND', new Uint8Array(0))), 'p.png');
-  assertEquals(result.tags['XPixelsPerUnit'], 2835);
-  assertEquals(result.tags['YPixelsPerUnit'], 2835);
-  assertEquals(result.tags['UnitSpecifier'], 1);
+  assertEquals(result.tags['PixelsPerUnitX'], 2835);
+  assertEquals(result.tags['PixelsPerUnitY'], 2835);
+  assertEquals(result.tags['PixelUnits'], 'meters');
 });
 
 test('png trailing garbage shorter than a chunk header ends the walk', async () => {

@@ -91,6 +91,7 @@ const PNG_TEXT_TAGS: Record<string, string> = {
 };
 
 interface PngTextRequest { key: string; keyword: string; value: string | null }
+interface PngAncillaryRequest { key: string; tag: 'gamma' | 'srgb' | 'physX' | 'physY' | 'physUnit'; value: number | null }
 
 function splitPngWriteTags(tags: Record<string, TagValue>): {
   exif: Record<string, TagValue>;
@@ -99,6 +100,7 @@ function splitPngWriteTags(tags: Record<string, TagValue>): {
   text: PngTextRequest[];
   iccProfile?: { key: string; profile: Uint8Array | null };
   iccName?: { key: string; name: string };
+  ancillary: PngAncillaryRequest[];
   skipped: string[];
 } {
   const exif: Record<string, TagValue> = {};
@@ -108,7 +110,45 @@ function splitPngWriteTags(tags: Record<string, TagValue>): {
   const skipped: string[] = [];
   let iccProfile: { key: string; profile: Uint8Array | null } | undefined;
   let iccName: { key: string; name: string } | undefined;
+  const ancillary: PngAncillaryRequest[] = [];
   for (const [key, value] of Object.entries(tags)) {
+    const ancillaryName = key.toLowerCase().replace(/^png:/, '');
+    const ancillaryNames: Record<string, PngAncillaryRequest['tag']> = {
+      gamma: 'gamma',
+      srgbrendering: 'srgb',
+      pixelsperunitx: 'physX',
+      pixelsperunity: 'physY',
+      pixelunits: 'physUnit',
+    };
+    const ancillaryTag = ancillaryNames[ancillaryName];
+    if (ancillaryTag) {
+      let number: number | null | undefined;
+      if (value === null) number = null;
+      else if (ancillaryTag === 'physUnit' && typeof value === 'string') {
+        const unit = value.trim().toLowerCase();
+        number = unit === 'unknown' ? 0 : unit === 'meters' || unit === 'meter' ? 1 : undefined;
+      } else if (ancillaryTag === 'srgb' && typeof value === 'string') {
+        const intents: Record<string, number> = {
+          perceptual: 0,
+          'relative colorimetric': 1,
+          saturation: 2,
+          'absolute colorimetric': 3,
+        };
+        number = intents[value.trim().toLowerCase()];
+      } else if (typeof value === 'number' || typeof value === 'string') {
+        const parsed = Number(value);
+        number = Number.isFinite(parsed) ? parsed : undefined;
+      }
+      const integer = ancillaryTag !== 'gamma';
+      const max = ancillaryTag === 'srgb' ? 3 : ancillaryTag === 'physUnit' ? 1 : 0xffffffff;
+      if (number === null || (number !== undefined && number > 0 &&
+          (integer ? Number.isInteger(number) : Number.isFinite(1e5 / number)) && number >= 0 && number <= max)) {
+        ancillary.push({ key, tag: ancillaryTag, value: number });
+      } else {
+        skipped.push(key);
+      }
+      continue;
+    }
     if (/^(?:png:)?icc_profile$/i.test(key)) {
       if (value === null || value instanceof Uint8Array) iccProfile = { key, profile: value };
       else skipped.push(key);
@@ -137,7 +177,7 @@ function splitPngWriteTags(tags: Record<string, TagValue>): {
       exif[key] = value;
     }
   }
-  return { exif, xmp, xmpKeys, text, iccProfile, iccName, skipped };
+  return { exif, xmp, xmpKeys, text, iccProfile, iccName, ancillary, skipped };
 }
 
 function pngTextChunk(keyword: string, value: string): { type: string; data: Uint8Array } {
@@ -267,7 +307,7 @@ export const pngWriter: ContainerWriter = (original, tags) => {
   for (let i = 0; i < 8; i++) {
     if (original[i] !== PNG_SIG[i]) throw new UnsupportedFormatError('not a PNG stream');
   }
-  const { exif, xmp, xmpKeys, iccProfile, iccName, text, skipped } = splitPngWriteTags(tags);
+  const { exif, xmp, xmpKeys, iccProfile, iccName, text, ancillary, skipped } = splitPngWriteTags(tags);
   const dv = new DataView(original.buffer, original.byteOffset, original.byteLength);
 
   const kept: Array<{ type: string; data: Uint8Array }> = [];
@@ -275,6 +315,10 @@ export const pngWriter: ContainerWriter = (original, tags) => {
   let inserted = false;
   const written: string[] = [];
   const textByKeyword = new Map(text.map((request) => [request.keyword.toLowerCase(), request]));
+  const writeGamma = ancillary.find((request) => request.tag === 'gamma');
+  const writeSrgb = ancillary.find((request) => request.tag === 'srgb');
+  const physRequests = ancillary.filter((request) => request.tag.startsWith('phys'));
+  const writePhys = physRequests.length > 0;
   let pos = 8;
   while (pos + 12 <= original.length) {
     const length = dv.getUint32(pos, false);
@@ -285,6 +329,9 @@ export const pngWriter: ContainerWriter = (original, tags) => {
     if (type === 'IEND') continue;
     if (type === 'iCCP' && iccProfile) continue;
     if (type === 'sRGB' && iccProfile?.profile) continue;
+    if (type === 'gAMA' && writeGamma) continue;
+    if (type === 'sRGB' && writeSrgb) continue;
+    if (type === 'pHYs' && writePhys) continue;
     if (type === 'eXIf' && Object.keys(exif).length > 0) continue;
     if (type === 'iTXt' && xmp.length > 0) {
       // Existing XMP packet (keyword XML:com.adobe.xmp): decode for merge.
@@ -308,6 +355,38 @@ export const pngWriter: ContainerWriter = (original, tags) => {
         written.push(iccProfile.key);
       } else if (iccName) {
         skipped.push(iccName.key);
+      }
+      if (writeSrgb?.value !== null && (writeSrgb || iccProfile?.profile)) {
+        if (writeSrgb) {
+          kept.push({ type: 'sRGB', data: new Uint8Array([writeSrgb.value!]) });
+          written.push(writeSrgb.key);
+        }
+      }
+      if (writeGamma) {
+        if (writeGamma.value !== null) {
+          const value = Math.round(100000 / writeGamma.value!);
+          const data = new Uint8Array(4);
+          new DataView(data.buffer).setUint32(0, value, false);
+          kept.push({ type: 'gAMA', data });
+        }
+        written.push(writeGamma.key);
+      }
+      if (writePhys) {
+        if (!physRequests.some((request) => request.value === null)) {
+          const values = { x: 2834, y: 2834, unit: 1 };
+          for (const request of physRequests) {
+            if (request.tag === 'physX') values.x = request.value!;
+            else if (request.tag === 'physY') values.y = request.value!;
+            else values.unit = request.value!;
+          }
+          const data = new Uint8Array(9);
+          const view = new DataView(data.buffer);
+          view.setUint32(0, values.x, false);
+          view.setUint32(4, values.y, false);
+          data[8] = values.unit;
+          kept.push({ type: 'pHYs', data });
+        }
+        written.push(...physRequests.map((request) => request.key));
       }
       if (Object.keys(exif).length > 0) {
         const { bytes: tiff, written: exifWritten, skipped: exifSkipped } = buildTiff(exif);
