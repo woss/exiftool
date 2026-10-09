@@ -527,6 +527,40 @@ test('runAction write mode updates file and creates backup', async () => {
   }
 });
 
+test('runAction appends XMP Subject values to each target', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/03.jpg'));
+  try {
+    const code = await runAction(
+      { overwriteOriginal: true },
+      '-Keywords+=first',
+      '-XMP-dc:Subject+=second',
+      tmp,
+    );
+    assertEquals(code, 0);
+    const info = await new ExifTool().read(tmp);
+    assertEquals(info.tags.Subject, ['windsurfing', 'first', 'second']);
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction rejects += for unsupported scalar tags without modifying target', async () => {
+  const tmp = await tempFile('.jpg');
+  const original = await readFile('assets/03.jpg');
+  await writeFile(tmp, original);
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ overwriteOriginal: true }, '-Make+=Acme', tmp);
+    assertEquals(code, 1);
+    assertEquals(Buffer.compare(await readFile(tmp), original), 0);
+    assertEquals(cap.err.some((line) => line.includes('+= is currently supported only')), true);
+  } finally {
+    cap.restore();
+    await rm(tmp, { force: true });
+  }
+});
+
 test('runAction copies tags from a source file and explicit assignments override them', async () => {
   const source = await tempFile('.jpg');
   const target = await tempFile('.jpg');

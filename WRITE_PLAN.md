@@ -172,9 +172,11 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 
 - [ ] `-TAG=VALUE`: resolve group/name/alias, validate conversion, write in preferred group, report a failure when no eligible destination accepts the value.
 - [ ] `-TAG=` / API null: delete from applicable groups; remove empty optional groups; retain or remove mandatory tags according to upstream behavior.
-- [ ] `-TAG+=VALUE` and list operations: append without replacing; honor repeatable tags, list split/join, duplicate policy, and tag-specific list semantics.
+- [x] `-TAG+=VALUE` for XMP `Subject`/`Keywords` appends to each target's existing list; unsupported scalar `+=` requests fail before writing.
+- [ ] General `-TAG+=VALUE` and list operations: support all repeatable tags, list split/join, duplicate policy, write order, and tag-specific list semantics.
 - [ ] `-wm MODE`: implement ExifTool write/create mode combinations and prevent creation or replacement when the selected mode disallows it.
-- [ ] `-tagsFromFile FILE`: basic parsed-tag copy is implemented; remaining work includes selected/group-qualified tags, wildcards, tag renames, ordering, `-srcfile`, same-file `@`, multiple sources, and transformations applied to copied values.
+- [x] Basic `-tagsFromFile FILE` copy from one parsed source is implemented; explicit assignments override copied values with the same name.
+- [ ] Advanced `-tagsFromFile`: selected/group-qualified tags, wildcards, tag renames, ordering, `-srcfile`, same-file `@`, multiple sources, and transformations applied to copied values.
 - [ ] Group and tag selection: support family-qualified names, `-GROUP:all`, tag wildcards, exclusions, duplicates, preferred groups, numeric/raw tag names, and precedence when multiple groups contain the same logical tag.
 - [ ] Output/filesystem semantics: `-o`, extension-derived destinations, overwrite-original options, backups, `-P`, file permissions and timestamps, sidecars, recursion, conditions, per-file errors, partial batch success, and stable exit statuses.
 - [ ] Binary writes: explicit tag selection, raw bytes, binary block copy, output delimiters/concatenation behavior, and no accidental concatenation of unrelated binary tags.
@@ -188,7 +190,7 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 
 - [ ] Produce a checked-in machine-readable format/family/operation matrix with statuses `implemented`, `partial`, `read-only`, `unsafe`, or `not-started` and links to tests.
 - [ ] CI runs focused tests for every `implemented` cell; a feature cannot be marked implemented if its reference ExifTool test skipped.
-- [ ] Keep the vendored source at a recorded release and verify `exiftool -ver` equals the matrix version.
+- [x] Keep the vendored source pinned at ExifTool 13.55; verified `vendor/exiftool/exiftool -ver` reports `13.55`.
 - [ ] When updating ExifTool, diff file-type flags, metadata-family flags, writable tag definitions, write groups, protected/mode behavior, and upstream writer tests; require review of every change.
 - [ ] Publish the remaining `partial` and `not-started` cells in docs and report exact reasons. “Full parity” is reached only when no upstream `r/w` or `r/w/c` cell in scope remains partial or unexplained.
 

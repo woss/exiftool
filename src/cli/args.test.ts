@@ -76,6 +76,13 @@ test('parseCliArgs — unknown dash-tokens become operands (write assignments)',
   });
 });
 
+test('normalizeArgs — bare and grouped += assignments remain operands', () => {
+  assertEquals(normalizeArgs(['-Keywords+=bird', '-XMP-dc:Subject+=lake']), [
+    '-Keywords+=bird',
+    '-XMP-dc:Subject+=lake',
+  ]);
+});
+
 test('parseCliArgs — value option missing its operand throws', () => {
   let threw = false;
   try {

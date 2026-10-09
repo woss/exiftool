@@ -20,6 +20,8 @@ export type { CliOptions } from './cli/args.js';
  * Pre-wired ExifTool instance with all built-in plugins for CLI use.
  */
 const tool = new ExifTool({ plugins: BUILTIN_PLUGINS });
+const WRITE_ASSIGNMENT = /^-?([A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)(\+?)=(.*)$/;
+const XMP_SUBJECT_KEY = /^(?:xmp-dc:)?(?:subject|keywords)$/i;
 
 
 /**
@@ -36,24 +38,24 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
   const coordFormat: string | undefined = options.coordFormat;
   const failures: string[] = [];
 
-  // Write mode: any TAG=VALUE operands turn the invocation into an update.
-  const assignments = files.filter((f) => /^-?[A-Za-z][A-Za-z0-9_]*=/.test(f));
+  // Write mode: any TAG=VALUE or supported TAG+=VALUE operand is an update.
+  const assignments = files.flatMap((operand) => {
+    const match = WRITE_ASSIGNMENT.exec(operand);
+    return match
+      ? [{ operand, key: match[1]!, append: match[2] === '+', value: match[3]! }]
+      : [];
+  });
   if (assignments.length > 0 || options.tagsFromFile !== undefined) {
-    const tags: Record<string, import('./types.js').TagValue> = {};
+    const sourceTags: Record<string, import('./types.js').TagValue> = {};
     if (options.tagsFromFile !== undefined) {
       try {
-        Object.assign(tags, (await tool.read(options.tagsFromFile)).tags);
+        Object.assign(sourceTags, (await tool.read(options.tagsFromFile)).tags);
       } catch (e) {
         console.error(`Error reading tags from ${options.tagsFromFile}: ${(e as Error).message}`);
         return 1;
       }
     }
-    for (const a of assignments) {
-      const eq = a.indexOf('=');
-      const value = a.slice(eq + 1);
-      tags[a.slice(0, eq).replace(/^-/, '')] = value.length === 0 ? null : value;
-    }
-    const paths = files.filter((f) => !assignments.includes(f));
+    const paths = files.filter((file) => !assignments.some((assignment) => assignment.operand === file));
     const expandedWrite = await expandInputs(paths, {
       recurse: options.recurse === true,
       extensions: options.extension ?? [],
@@ -62,6 +64,32 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
     let updated = 0;
     for (const file of expandedWrite) {
       try {
+        const tags: Record<string, import('./types.js').TagValue> = { ...sourceTags };
+        let targetTags: Record<string, import('./types.js').TagValue> | undefined;
+        if (assignments.some((assignment) => assignment.append)) {
+          targetTags = (await tool.read(file)).tags;
+        }
+        for (const assignment of assignments) {
+          const value = assignment.value.length === 0 ? null : assignment.value;
+          if (!assignment.append) {
+            tags[assignment.key] = value;
+            continue;
+          }
+          if (!XMP_SUBJECT_KEY.test(assignment.key) || typeof value !== 'string') {
+            throw new Error(`+= is currently supported only for XMP Subject/Keywords, not ${assignment.key}`);
+          }
+          const existing = Object.entries(tags).find(([key]) => XMP_SUBJECT_KEY.test(key))?.[1] ??
+            Object.entries(targetTags ?? {}).find(([key]) => XMP_SUBJECT_KEY.test(key))?.[1];
+          const values = typeof existing === 'string'
+            ? [existing]
+            : Array.isArray(existing)
+              ? existing.filter((item): item is string => typeof item === 'string')
+              : [];
+          for (const key of Object.keys(tags)) {
+            if (XMP_SUBJECT_KEY.test(key)) delete tags[key];
+          }
+          tags[assignment.key] = [...values, value];
+        }
         await tool.write(file, tags, {
           overwriteOriginal: options.overwriteOriginal === true,
           preserveTime: options.preserveTime === true,
