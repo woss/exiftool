@@ -24,7 +24,7 @@ test('detectParser returns undefined on unrecognized magic', () => {
 
 test('builtinPlugins lazily provides all built-in formats', async () => {
   const plugins = await builtinPlugins();
-  assertEquals(plugins.map((p) => p.format), ['JPEG', 'GIF', 'PNG', 'PPM', 'WebP', 'AVIF', 'TIFF', 'ICC', 'XMP']);
+  assertEquals(plugins.map((p) => p.format), ['JPEG', 'GIF', 'PNG', 'PPM', 'PGM', 'WebP', 'AVIF', 'TIFF', 'ICC', 'XMP']);
   // Cached: the same array instances come back.
   assertEquals(await builtinPlugins(), plugins);
 });

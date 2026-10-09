@@ -4,6 +4,7 @@ import { iccParser } from './icc.js';
 import { jpegParser } from './jpeg.js';
 import { gifParser } from './gif.js';
 import { pngParser } from './png.js';
+import { pgmParser } from './pgm.js';
 import { ppmParser } from './ppm.js';
 import { webpParser } from './webp.js';
 import { tiffRawParser } from './tiff-raw.js';
@@ -20,6 +21,7 @@ export const BUILTIN_PLUGINS: FormatParser[] = [
   gifParser,
   pngParser,
   ppmParser,
+  pgmParser,
   webpParser,
   avifParser,
   tiffRawParser,
