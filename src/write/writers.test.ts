@@ -339,6 +339,26 @@ test('pngWriter moves late text chunks before IDAT and preserves other chunks', 
   }
 });
 
+test('pngWriter does not move late text chunks across a SAVE barrier', () => {
+  const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  const source = new Uint8Array([
+    ...sig,
+    ...pngChunk('IHDR', new Uint8Array(13)),
+    ...pngChunk('IDAT', new Uint8Array([1, 2, 3])),
+    ...pngChunk('SAVE', new Uint8Array([1])),
+    ...pngChunk('tEXt', new TextEncoder().encode('Title\0After barrier')),
+    ...pngChunk('IEND', new Uint8Array()),
+  ]);
+  const written = pngWriter(source, {});
+  const types: string[] = [];
+  for (let pos = 8; pos + 12 <= written.bytes.length;) {
+    const length = new DataView(written.bytes.buffer, written.bytes.byteOffset + pos, 4).getUint32(0, false);
+    types.push(new TextDecoder().decode(written.bytes.subarray(pos + 4, pos + 8)));
+    pos += length + 12;
+  }
+  assertEquals(types, ['IHDR', 'IDAT', 'SAVE', 'tEXt', 'IEND']);
+});
+
 test('pngWriter compresses language-qualified text as iTXt', async () => {
   const firstValue = 'Commentaire répété '.repeat(40);
   const value = 'Commentaire modifié '.repeat(40);
