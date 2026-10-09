@@ -1,5 +1,6 @@
 import type { FormatParser } from './mod.js';
 import { avifParser } from './avif.js';
+import { pbmParser } from './pbm.js';
 import { iccParser } from './icc.js';
 import { jpegParser } from './jpeg.js';
 import { gifParser } from './gif.js';
@@ -22,6 +23,7 @@ export const BUILTIN_PLUGINS: FormatParser[] = [
   pngParser,
   ppmParser,
   pgmParser,
+  pbmParser,
   webpParser,
   avifParser,
   tiffRawParser,

@@ -1,5 +1,6 @@
 import type { FormatParser } from './format/mod.js';
 import { avifParser } from './format/avif.js';
+import { pbmParser } from './format/pbm.js';
 import { iccParser } from './format/icc.js';
 import { jpegParser } from './format/jpeg.js';
 import { gifParser } from './format/gif.js';
@@ -33,6 +34,7 @@ export const MODERN_PLUGINS: FormatParser[] = [
   pngParser,
   ppmParser,
   pgmParser,
+  pbmParser,
   webpParser,
   avifParser,
   tiffRawParser,
@@ -63,6 +65,9 @@ export { ppmParser };
 
 /** PGM format parser. Supports P2/P5 headers and Comment metadata writes. */
 export { pgmParser };
+
+/** PBM format parser. Supports P1/P4 headers and Comment metadata writes. */
+export { pbmParser };
 
 /** WebP format parser. Supports VP8/VP8L, EXIF, XMP, ICC in VP8X chunks. */
 export { webpParser };

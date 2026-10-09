@@ -12,6 +12,7 @@ export {
   pngParser,
   ppmParser,
   pgmParser,
+  pbmParser,
   webpParser,
   tiffRawParser,
   iccParser,
