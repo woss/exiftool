@@ -173,7 +173,7 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 - [x] CLI reports explicitly requested tags returned in `skipped`; writes with no accepted requested tags fail before replacing the source. Full group/name resolution and conversion parity remain open.
 - [ ] `-TAG=VALUE`: resolve all groups/aliases, validate ExifTool conversions, write to preferred groups, and report per-tag failures for unsupported values.
 - [ ] `-TAG=` / API null: delete from applicable groups; remove empty optional groups; retain or remove mandatory tags according to upstream behavior.
-- [x] `-TAG+=VALUE` for XMP `Subject`/`Keywords` appends to each target's existing list; unsupported scalar `+=` requests fail before writing.
+- [x] `-TAG+=VALUE` appends XMP `Subject`/`Keywords` and JPEG `IPTC:Keywords` to each target's existing list; unsupported scalar `+=` requests fail before writing.
 - [ ] General `-TAG+=VALUE` and list operations: support all repeatable tags, list split/join, duplicate policy, write order, and tag-specific list semantics.
 - [x] Basic `w`/`c` write-mode gating by parsed tag presence is implemented and exposed as `-wm`; `g` is accepted but group-creation semantics are not enforced yet.
 - [ ] Complete `-wm MODE` parity for group creation and metadata-specific existing-tag detection.

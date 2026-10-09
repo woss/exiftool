@@ -12,6 +12,8 @@ import { verboseLines } from './cli/verbosity.js';
 import { expandInputs } from './cli/glob.js';
 import { readLines, stayOpenLoop } from './cli/stay-open.js';
 import { extractEmbeddedJpegs } from './format/jpeg.js';
+import { parseAPP13 } from './exif/app13.js';
+import { parseJpegSegments } from './write/jpeg-merge.js';
 
 export { normalizeArgs, parseCliArgs } from './cli/args.js';
 export type { CliOptions } from './cli/args.js';
@@ -22,6 +24,24 @@ export type { CliOptions } from './cli/args.js';
 const tool = new ExifTool({ plugins: BUILTIN_PLUGINS });
 const WRITE_ASSIGNMENT = /^-?([A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)(\+?)=(.*)$/;
 const XMP_SUBJECT_KEY = /^(?:xmp-dc:)?(?:subject|keywords)$/i;
+const IPTC_KEYWORDS_KEY = /^iptc:keywords$/i;
+
+async function readIptcKeywords(file: string): Promise<string[]> {
+  const bytes = new Uint8Array(await readFile(file));
+  if (bytes[0] !== 0xff || bytes[1] !== 0xd8) return [];
+  const values: string[] = [];
+  for (const segment of parseJpegSegments(bytes)) {
+    if (segment.marker !== 0xed) continue;
+    const payload = bytes.subarray(segment.payloadStart, segment.payloadEnd);
+    if (new TextDecoder().decode(payload.subarray(0, 14)) !== 'Photoshop 3.0\0') continue;
+    const keywords = parseAPP13(payload.subarray(14)).Keywords;
+    if (typeof keywords === 'string') values.push(keywords);
+    else if (Array.isArray(keywords)) {
+      values.push(...keywords.filter((keyword): keyword is string => typeof keyword === 'string'));
+    }
+  }
+  return values;
+}
 
 
 /**
@@ -79,20 +99,37 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
             tags[assignment.key] = value;
             continue;
           }
-          if (!XMP_SUBJECT_KEY.test(assignment.key) || typeof value !== 'string') {
-            throw new Error(`+= is currently supported only for XMP Subject/Keywords, not ${assignment.key}`);
+          if (typeof value !== 'string') {
+            throw new Error(`+= requires a string value for ${assignment.key}`);
           }
-          const existing = Object.entries(tags).find(([key]) => XMP_SUBJECT_KEY.test(key))?.[1] ??
-            Object.entries(targetTags ?? {}).find(([key]) => XMP_SUBJECT_KEY.test(key))?.[1];
-          const values = typeof existing === 'string'
-            ? [existing]
-            : Array.isArray(existing)
-              ? existing.filter((item): item is string => typeof item === 'string')
-              : [];
-          for (const key of Object.keys(tags)) {
-            if (XMP_SUBJECT_KEY.test(key)) delete tags[key];
+          if (XMP_SUBJECT_KEY.test(assignment.key)) {
+            const existing = Object.entries(tags).find(([key]) => XMP_SUBJECT_KEY.test(key))?.[1] ??
+              Object.entries(targetTags ?? {}).find(([key]) => XMP_SUBJECT_KEY.test(key))?.[1];
+            const values = typeof existing === 'string'
+              ? [existing]
+              : Array.isArray(existing)
+                ? existing.filter((item): item is string => typeof item === 'string')
+                : [];
+            for (const key of Object.keys(tags)) {
+              if (XMP_SUBJECT_KEY.test(key)) delete tags[key];
+            }
+            tags[assignment.key] = [...values, value];
+            continue;
           }
-          tags[assignment.key] = [...values, value];
+          if (IPTC_KEYWORDS_KEY.test(assignment.key)) {
+            const existing = Object.entries(tags).find(([key]) => IPTC_KEYWORDS_KEY.test(key))?.[1] ??
+              await readIptcKeywords(file);
+            const values = typeof existing === 'string'
+              ? [existing]
+              : Array.isArray(existing)
+                ? existing.filter((item): item is string => typeof item === 'string')
+                : [];
+            tags[assignment.key] = [...values, value];
+            continue;
+          }
+          throw new Error(
+            `+= is currently supported only for XMP Subject/Keywords and JPEG IPTC:Keywords, not ${assignment.key}`,
+          );
         }
         const result = await tool.write(file, tags, {
           overwriteOriginal: options.overwriteOriginal === true,

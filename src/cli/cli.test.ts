@@ -3,11 +3,15 @@ import { assertEquals } from '../../src/test/asserts.js';
 import { main, normalizeArgs, runAction } from '../cli.js';
 import type { CliOptions } from '../cli.js';
 import { ExifTool } from '../../src/exiftool.js';
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
+import { promisify } from 'node:util';
 import { mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { tempFile } from '../../src/test/tmp.js';
+
+const execFileP = promisify(execFile);
+const upstreamExifTool = new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname;
 
 function captureConsole() {
   const origLog = console.log;
@@ -543,6 +547,23 @@ test('runAction appends XMP Subject values to each target', async () => {
     assertEquals(info.tags.Subject, ['windsurfing', 'first', 'second']);
   } finally {
     cap.restore();
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction appends IPTC Keywords without mixing XMP Subject', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/03.jpg'));
+  try {
+    await new ExifTool().write(tmp, { 'IPTC:Keywords': ['existing-ipTC'] }, { overwriteOriginal: true });
+    const code = await runAction({ overwriteOriginal: true }, '-IPTC:Keywords+=appended-ipTC', tmp);
+    assertEquals(code, 0);
+
+    const { stdout } = await execFileP(upstreamExifTool, [
+      '-j', '-G1', '-IPTC:Keywords', tmp,
+    ]);
+    assertEquals(JSON.parse(stdout)[0]['IPTC:Keywords'], ['existing-ipTC', 'appended-ipTC']);
+  } finally {
     await rm(tmp, { force: true });
   }
 });
