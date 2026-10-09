@@ -664,6 +664,33 @@ test('runAction expands common filename tokens in batch -o paths', async () => {
   }
 });
 
+test('runAction uses %c to avoid output filename collisions', async () => {
+  const first = await tempFile('.jpg');
+  const second = await tempFile('.jpg');
+  const outputDir = await mkdtemp(join(tmpdir(), 'exiftool-cli-counter-'));
+  const existing = join(outputDir, 'copy.jpg');
+  await writeFile(first, await readFile('assets/01.jpg'));
+  await writeFile(second, await readFile('assets/03.jpg'));
+  await writeFile(existing, await readFile('assets/01.jpg'));
+  const existingBytes = await readFile(existing);
+  try {
+    const code = await runAction(
+      { output: join(outputDir, 'copy%c.%e'), overwriteOriginal: true },
+      '-Software=counter-output',
+      first,
+      second,
+    );
+    assertEquals(code, 0);
+    assertEquals((await new ExifTool().read(join(outputDir, 'copy1.jpg'))).tags.Software, 'counter-output');
+    assertEquals((await new ExifTool().read(join(outputDir, 'copy2.jpg'))).tags.Software, 'counter-output');
+    assertEquals(Buffer.compare(await readFile(existing), existingBytes), 0);
+  } finally {
+    await rm(first, { force: true });
+    await rm(second, { force: true });
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
 test('runAction applies -if conditions to write targets', async () => {
   const matching = await tempFile('.jpg');
   const nonmatching = await tempFile('.jpg');

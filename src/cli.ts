@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { applyFileStat } from './cli/filestat.js';
-import { readFile, link, rm, stat, utimes, writeFile } from 'node:fs/promises';
+import { lstat, readFile, link, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { basename, dirname, extname, join, sep } from 'node:path';
@@ -54,6 +54,19 @@ function expandWriteOutputTemplate(template: string, input: string): string {
     E: extension,
   };
   return template.replace(/%([dDfFeE])/g, (_, token: string) => values[token]!);
+}
+
+async function resolveWriteOutputPath(template: string, input: string): Promise<string> {
+  const expanded = expandWriteOutputTemplate(template, input);
+  if (!template.includes('%c')) return expanded;
+  for (let counter = 0; ; counter++) {
+    const candidate = expanded.replace(/%c/g, counter === 0 ? '' : String(counter));
+    try {
+      await lstat(candidate);
+    } catch {
+      return candidate;
+    }
+  }
 }
 
 async function readIptcKeywords(file: string): Promise<string[]> {
@@ -123,7 +136,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
         // A non-existent output path is treated as a file destination.
       }
     }
-    const outputUsesTemplate = options.output !== undefined && /%[dDfFeE]/.test(options.output);
+    const outputUsesTemplate = options.output !== undefined && /%[dDfFeEc]/.test(options.output);
     if (options.output !== undefined && !outputIsDirectory && !outputUsesTemplate && expandedWrite.length > 1) {
       console.error('-o currently supports one input file for metadata writes');
       return 1;
@@ -195,7 +208,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
             const destination = outputIsDirectory
               ? join(options.output, basename(file))
               : outputUsesTemplate
-                ? expandWriteOutputTemplate(options.output, file)
+                ? await resolveWriteOutputPath(options.output, file)
                 : options.output;
             const sourceStat = options.preserveTime ? await stat(file) : undefined;
             tempOutput = `${destination}.tmp-${randomUUID()}`;
