@@ -135,8 +135,8 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
       ? []
       : files.flatMap((operand) => {
         if (assignments.some((assignment) => assignment.operand === operand)) return [];
-        const match = operand.match(/^-{1,2}([A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)$/);
-        return match ? [{ operand, name: match[1]! }] : [];
+        const match = operand.match(/^(-{1,2})([A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)$/);
+        return match ? [{ operand, name: match[2]!, exclude: match[1] === '--' }] : [];
       });
     if (options.tagsFromFile !== undefined) {
       const sourceFiles = Array.isArray(options.tagsFromFile)
@@ -152,13 +152,20 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
       }
     }
     if (copySelectors.length > 0) {
-      for (const key of Object.keys(sourceTags)) {
+      const includeSelectors = copySelectors.filter((selector) => !selector.exclude);
+      const excludeSelectors = copySelectors.filter((selector) => selector.exclude);
+      const matchesSelector = (key: string, name: string) => {
         const lowerKey = key.toLowerCase();
-        const ungroupedKey = lowerKey.split(':').at(-1);
-        if (!copySelectors.some(({ name }) => {
-          const lowerName = name.toLowerCase();
-          return lowerName.includes(':') ? lowerKey === lowerName : ungroupedKey === lowerName;
-        })) {
+        const lowerName = name.toLowerCase();
+        return lowerName.includes(':')
+          ? lowerKey === lowerName
+          : lowerKey.split(':').at(-1) === lowerName;
+      };
+      for (const key of Object.keys(sourceTags)) {
+        const included = includeSelectors.length === 0 ||
+          includeSelectors.some(({ name }) => matchesSelector(key, name));
+        const excluded = excludeSelectors.some(({ name }) => matchesSelector(key, name));
+        if (!included || excluded) {
           delete sourceTags[key];
         }
       }

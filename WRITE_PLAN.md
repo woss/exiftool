@@ -180,7 +180,7 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 - [x] Basic `w`/`c` write-mode gating by parsed tag presence is implemented and exposed as `-wm`; `g` is accepted but group-creation semantics are not enforced yet.
 - [ ] Complete `-wm MODE` parity for group creation and metadata-specific existing-tag detection.
 - [x] Basic `-tagsFromFile FILE` copy supports repeated sources in order, with later sources overriding earlier ones and explicit assignments applied last.
-- [x] Bare `-TAG` operands select source tags when `-tagsFromFile` is active; unselected target metadata remains untouched.
+- [x] Bare `-TAG` / `--TAG` operands include/exclude source tags when `-tagsFromFile` is active; unselected target metadata remains untouched.
 - [ ] Advanced `-tagsFromFile`: group-qualified selectors, wildcards, tag renames, per-source selector ordering, `-srcfile`, same-file `@`, and transformations applied to copied values.
 - [x] Basic `-if` write filtering evaluates target tags before mutation and leaves nonmatching files untouched.
 - [x] `-if` supports comparison expressions joined by `and`/`or` or `&&`/`||`, AND-before-OR precedence, and parenthesized groups; full ExifTool expression semantics remain open.
