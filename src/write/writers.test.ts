@@ -153,6 +153,33 @@ test('pngWriter creates ExifIFD and GPS directories in a new eXIf chunk', async 
   }
 });
 
+test('pngWriter stores CreateDate and ModDate as XMP-formatted text', async () => {
+  const written = pngWriter(buildPng(false), {
+    'PNG:CreateDate': '2024:04:05 06:07:08Z',
+    'PNG:ModDate': '2024:04:05 06:07:08-05:00',
+  });
+  const local = await pngParser.parse(written.bytes, '(test)');
+  assertEquals(local.tags.CreateDate, '2024:04:05 06:07:08Z');
+  assertEquals(local.tags.ModDate, '2024:04:05 06:07:08-05:00');
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, written.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-G1', '-PNG:CreateDate', '-PNG:ModDate', file],
+    );
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream['PNG:CreateDate'], local.tags.CreateDate);
+    assertEquals(upstream['PNG:ModDate'], local.tags.ModDate);
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
 test('pngWriter preserves unrelated eXIf tags when updating one tag', async () => {
   const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
   const source = new Uint8Array([

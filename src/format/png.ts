@@ -15,7 +15,9 @@ const PNG_TEXT_TAG_NAMES: Record<string, string> = {
   'aesthetic score': 'AestheticScore',
   aesthetic_score: 'AestheticScore',
   'create-date': 'CreateDate',
+  createdate: 'CreateDate',
   'modify-date': 'ModDate',
+  moddate: 'ModDate',
   url: 'URL',
 };
 
@@ -66,6 +68,7 @@ function convertPngXmpDate(value: string): string {
   if (!match) return value;
   return `${match[1]}:${match[2]}:${match[3]} ${match[4]}:${match[5]}:${match[6]}${match[7] ?? ''}${match[8] ?? ''}`;
 }
+
 
 function readChunk(
   bytes: Uint8Array,

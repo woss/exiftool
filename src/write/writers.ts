@@ -87,10 +87,10 @@ const PNG_TEXT_TAGS: Record<string, string> = {
   parameters: 'Parameters',
   'aesthetic score': 'AestheticScore',
   aestheticscore: 'AestheticScore',
-  'create-date': 'CreateDate',
-  createdate: 'CreateDate',
-  'modify-date': 'ModDate',
-  moddate: 'ModDate',
+  'create-date': 'create-date',
+  createdate: 'create-date',
+  'modify-date': 'modify-date',
+  moddate: 'modify-date',
   timestamp: 'TimeStamp',
   url: 'URL',
 };
@@ -250,6 +250,12 @@ function pngTimeChunk(value: string): Uint8Array {
   data[5] = minute;
   data[6] = second;
   return data;
+}
+
+function formatPngTextDate(value: string): string {
+  const match = /^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/.exec(value);
+  if (!match) return value;
+  return `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}${match[7] ?? ''}${match[8] ?? ''}`;
 }
 
 function pngTextChunk(
@@ -602,9 +608,13 @@ export const pngWriter: ContainerWriter = (original, tags, options) => {
       }
       for (const request of text) {
         if (request.value !== null) {
+          const keyword = request.keyword.toLowerCase();
+          const value = keyword === 'create-date' || keyword === 'modify-date'
+            ? formatPngTextDate(request.value)
+            : request.value;
           kept.push(pngTextChunk(
             request.keyword,
-            request.value,
+            value,
             request.language,
             options?.compress,
             request.encoding,
