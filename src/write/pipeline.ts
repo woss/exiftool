@@ -47,6 +47,9 @@ export async function writeTagsWithTmp(
     );
   }
   const outcome = parser.writeBytes(original, tags, opts);
+  if (Object.keys(tags).length > 0 && outcome.written.length === 0 && outcome.skipped.length > 0) {
+    throw new UnsupportedFormatError(`no requested tags are writable: ${outcome.skipped.join(', ')}`);
+  }
   let backup: string | undefined;
   try {
     await writeFile(tmp, outcome.bytes);

@@ -530,6 +530,7 @@ test('runAction write mode updates file and creates backup', async () => {
 test('runAction appends XMP Subject values to each target', async () => {
   const tmp = await tempFile('.jpg');
   await writeFile(tmp, await readFile('assets/03.jpg'));
+  const cap = captureConsole();
   try {
     const code = await runAction(
       { overwriteOriginal: true },
@@ -537,10 +538,11 @@ test('runAction appends XMP Subject values to each target', async () => {
       '-XMP-dc:Subject+=second',
       tmp,
     );
-    assertEquals(code, 0);
+    assertEquals(code, 0, cap.err.join('\n'));
     const info = await new ExifTool().read(tmp);
     assertEquals(info.tags.Subject, ['windsurfing', 'first', 'second']);
   } finally {
+    cap.restore();
     await rm(tmp, { force: true });
   }
 });
@@ -672,6 +674,22 @@ test('runAction write mode reports unsupported files and returns 1', async () =>
   } finally {
     cap.restore();
     await rm(txt);
+  }
+});
+
+test('runAction rejects an unsupported tag without modifying the target', async () => {
+  const tmp = await tempFile('.jpg');
+  const original = await readFile('assets/03.jpg');
+  await writeFile(tmp, original);
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ overwriteOriginal: true }, '-NotARealTag=value', tmp);
+    assertEquals(code, 1);
+    assertEquals(Buffer.compare(await readFile(tmp), original), 0);
+    assertEquals(cap.err.some((line) => line.includes('NotARealTag')), true);
+  } finally {
+    cap.restore();
+    await rm(tmp, { force: true });
   }
 });
 

@@ -56,6 +56,10 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
       }
     }
     const paths = files.filter((file) => !assignments.some((assignment) => assignment.operand === file));
+    const explicitNames = new Set(assignments.map((assignment) => {
+      const parts = assignment.key.split(':');
+      return parts[parts.length - 1]!.toLowerCase();
+    }));
     const expandedWrite = await expandInputs(paths, {
       recurse: options.recurse === true,
       extensions: options.extension ?? [],
@@ -90,11 +94,16 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
           }
           tags[assignment.key] = [...values, value];
         }
-        await tool.write(file, tags, {
+        const result = await tool.write(file, tags, {
           overwriteOriginal: options.overwriteOriginal === true,
           preserveTime: options.preserveTime === true,
           compress: options.compress === true,
         });
+        const rejected = result.skipped.filter((key) =>
+          explicitNames.has(key.split(':').at(-1)!.toLowerCase()));
+        if (rejected.length > 0) {
+          failures.push(`Error writing ${file}: unsupported tag(s): ${rejected.join(', ')}`);
+        }
         updated++;
       } catch (e) {
         failures.push(`Error writing ${file}: ${(e as Error).message}`);
