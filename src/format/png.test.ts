@@ -241,6 +241,38 @@ test('pngWriter updates and deletes tIME ModifyDate', async () => {
   assertEquals(chunkDataForTest(deleted.bytes, 'tIME'), undefined);
 });
 
+test('pngWriter writes language-qualified iTXt keywords', async () => {
+  const { readFile, writeFile, rm } = await import('node:fs/promises');
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const { tempFile } = await import('../test/tmp.js');
+  const upstream = new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname;
+  const source = new Uint8Array(await readFile('vendor/exiftool/t/images/PNG.png'));
+  const first = pngParser.writeBytes!(source, {
+    'PNG:Comment-fr': 'Bonjour',
+    'PNG:Comment-es': 'Hola',
+  });
+  const result = pngParser.writeBytes!(first.bytes, { 'PNG:Comment-fr': 'Commentaire français' });
+  const info = await pngParser.parse(result.bytes, 'language.png');
+  assertEquals(info.tags['Comment-fr'], 'Commentaire français');
+  assertEquals(info.tags['Comment-es'], 'Hola');
+  const data = chunkDataForTest(result.bytes, 'iTXt')!;
+  const keywordEnd = data.indexOf(0);
+  const languageStart = keywordEnd + 3;
+  const languageEnd = data.indexOf(0, languageStart);
+  assertEquals(new TextDecoder().decode(data.subarray(0, keywordEnd)), 'Comment');
+  assertEquals(new TextDecoder().decode(data.subarray(languageStart, languageEnd)), 'fr');
+
+  const file = await tempFile('.png');
+  try {
+    await writeFile(file, result.bytes);
+    const { stdout } = await promisify(execFile)(upstream, ['-j', '-G1', '-PNG:Comment-fr', file]);
+    assertEquals(JSON.parse(stdout)[0]['PNG:Comment-fr'], 'Commentaire français');
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
 test('vendored ExifTool reads PNG textual data written by the adapter', async () => {
   const source = new Uint8Array(await (await import('node:fs/promises')).readFile('vendor/exiftool/t/images/PNG.png'));
   const result = pngParser.writeBytes!(source, { Title: 'Upstream PNG text' });

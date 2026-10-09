@@ -154,7 +154,7 @@ function readChunk(
           }
           continue;
         }
-        textTags[keyword] = text;
+        textTags[language && language.toLowerCase() !== 'en' ? `${keyword}-${language}` : keyword] = text;
       }
       if (chunk.type === 'sRGB') {
         const intents: Record<number, string> = {

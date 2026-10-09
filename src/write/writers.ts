@@ -90,7 +90,7 @@ const PNG_TEXT_TAGS: Record<string, string> = {
   url: 'URL',
 };
 
-interface PngTextRequest { key: string; keyword: string; value: string | null }
+interface PngTextRequest { key: string; keyword: string; value: string | null; language?: string }
 interface PngAncillaryRequest { key: string; tag: 'gamma' | 'srgb' | 'physX' | 'physY' | 'physUnit'; value: number | null }
 interface PngTimeRequest { key: string; value: string | null }
 
@@ -169,11 +169,18 @@ function splitPngWriteTags(tags: Record<string, TagValue>): {
     }
     const explicitPngGroup = /^png:/i.test(key);
     const textKey = explicitPngGroup ? key.slice(4).toLowerCase() : key.toLowerCase();
-    const keyword = (explicitPngGroup || !/^(make|model|artist|title|description|copyright)$/.test(textKey))
-      ? PNG_TEXT_TAGS[textKey]
+    const textBase = Object.keys(PNG_TEXT_TAGS)
+      .sort((a, b) => b.length - a.length)
+      .find((candidate) => textKey === candidate || textKey.startsWith(`${candidate}-`));
+    const language = textBase && textKey.length > textBase.length ? textKey.slice(textBase.length + 1) : undefined;
+    const keyword = (explicitPngGroup || !/^(make|model|artist|title|description|copyright)$/.test(textBase ?? textKey))
+      ? (textBase ? PNG_TEXT_TAGS[textBase] : undefined)
       : undefined;
     if (keyword) {
-      if (value === null || typeof value === 'string') text.push({ key, keyword, value });
+      if (value === null || typeof value === 'string') {
+        if (language && !/^[a-z]{2}(?:-[a-z0-9]{2,8})*$/i.test(language)) skipped.push(key);
+        else text.push({ key, keyword, value, language });
+      }
       else skipped.push(key);
       continue;
     }
@@ -234,8 +241,8 @@ function pngTimeChunk(value: string): Uint8Array {
   return data;
 }
 
-function pngTextChunk(keyword: string, value: string): { type: string; data: Uint8Array } {
-  if (/^[\x00-\xff]*$/.test(value)) {
+function pngTextChunk(keyword: string, value: string, language?: string): { type: string; data: Uint8Array } {
+  if (!language && /^[\x00-\xff]*$/.test(value)) {
     const key = new TextEncoder().encode(keyword);
     const text = new Uint8Array([...value].map((character) => character.charCodeAt(0)));
     const data = new Uint8Array(key.length + 1 + text.length);
@@ -243,7 +250,9 @@ function pngTextChunk(keyword: string, value: string): { type: string; data: Uin
     data.set(text, key.length + 1);
     return { type: 'tEXt', data };
   }
-  const prefix = new TextEncoder().encode(`${keyword}\0\0\0\0\0`);
+  const prefix = new TextEncoder().encode(language
+    ? `${keyword}\0\0\0${language}\0\0`
+    : `${keyword}\0\0\0\0\0`);
   const text = new TextEncoder().encode(value);
   const data = new Uint8Array(prefix.length + text.length);
   data.set(prefix);
@@ -251,10 +260,17 @@ function pngTextChunk(keyword: string, value: string): { type: string; data: Uin
   return { type: 'iTXt', data };
 }
 
-function pngTextKeyword(type: string, data: Uint8Array): string | undefined {
+function pngTextIdentifier(type: string, data: Uint8Array): string | undefined {
   if (type !== 'tEXt' && type !== 'zTXt' && type !== 'iTXt') return undefined;
   const separator = data.indexOf(0);
-  return separator > 0 ? new TextDecoder().decode(data.subarray(0, separator)) : undefined;
+  if (separator <= 0) return undefined;
+  const keyword = new TextDecoder().decode(data.subarray(0, separator)).toLowerCase();
+  if (type !== 'iTXt') return `${keyword}\0`;
+  const languageStart = separator + 3;
+  const languageEnd = data.indexOf(0, languageStart);
+  if (languageEnd < 0) return undefined;
+  const language = new TextDecoder().decode(data.subarray(languageStart, languageEnd)).toLowerCase();
+  return `${keyword}\0${language}`;
 }
 
 function adler32(data: Uint8Array): number {
@@ -368,7 +384,10 @@ export const pngWriter: ContainerWriter = (original, tags) => {
   let existingXmp: string | null = null;
   let inserted = false;
   const written: string[] = [];
-  const textByKeyword = new Map(text.map((request) => [request.keyword.toLowerCase(), request]));
+  const textByKeyword = new Map(text.map((request) => [
+    `${request.keyword.toLowerCase()}\0${request.language?.toLowerCase() ?? ''}`,
+    request,
+  ]));
   const writeGamma = ancillary.find((request) => request.tag === 'gamma');
   const writeSrgb = ancillary.find((request) => request.tag === 'srgb');
   const physRequests = ancillary.filter((request) => request.tag.startsWith('phys'));
@@ -397,8 +416,8 @@ export const pngWriter: ContainerWriter = (original, tags) => {
         continue;
       }
     }
-    const textKeyword = pngTextKeyword(type, data)?.toLowerCase();
-    if (textKeyword && textByKeyword.has(textKeyword)) continue;
+    const textIdentifier = pngTextIdentifier(type, data);
+    if (textIdentifier && textByKeyword.has(textIdentifier)) continue;
     kept.push({ type, data });
     if (type === 'IHDR') {
       if (iccProfile?.profile) {
@@ -458,7 +477,7 @@ export const pngWriter: ContainerWriter = (original, tags) => {
         written.push(...xmpKeys);
       }
       for (const request of text) {
-        if (request.value !== null) kept.push(pngTextChunk(request.keyword, request.value));
+        if (request.value !== null) kept.push(pngTextChunk(request.keyword, request.value, request.language));
         written.push(request.key);
       }
       inserted = true;
