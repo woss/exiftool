@@ -61,6 +61,9 @@ export const jpegWriter: ContainerWriter = (original, tags) => {
 const PNG_SIG = [137, 80, 78, 71, 13, 10, 26, 10];
 
 const PNG_XMP_KEYWORD = 'XML:com.adobe.xmp';
+const PNG_DATA_CHUNKS = new Set(['IDAT', 'JDAT', 'JDAA']);
+const PNG_MOVABLE_METADATA = new Set(['tEXt', 'zTXt', 'iTXt', 'eXIf']);
+const PNG_NO_LEAPFROG = new Set(['SAVE', 'SEEK', 'IHDR', 'JHDR', 'IEND', 'MEND', 'DHDR', 'BASI', 'CLON', 'PAST', 'SHOW', 'MAGN']);
 
 const PNG_TEXT_TAGS: Record<string, string> = {
   title: 'Title',
@@ -417,9 +420,9 @@ function pngXmpItxt(packet: string): { type: string; data: Uint8Array } {
 }
 
 /**
- * PNG: drops existing eXIf chunks (when EXIF tags requested) and existing
- * XMP iTXt chunks (when XMP tags requested), inserting fresh ones after
- * IHDR. The XMP iTXt is uncompressed with keyword XML:com.adobe.xmp.
+ * PNG: drops replaced metadata chunks, inserts new chunks after IHDR, and
+ * moves eligible text/EXIF chunks found after image data before the first
+ * data chunk. The XMP iTXt is uncompressed with keyword XML:com.adobe.xmp.
  */
 export const pngWriter: ContainerWriter = (original, tags, options) => {
   for (let i = 0; i < 8; i++) {
@@ -453,12 +456,40 @@ export const pngWriter: ContainerWriter = (original, tags, options) => {
     }
     scanPos += length + 12;
   }
+  const hoistedOffsets = new Set<number>();
+  const hoistedChunks: Array<{ type: string; data: Uint8Array }> = [];
+  let sawImageData = false;
+  scanPos = 8;
+  while (scanPos + 12 <= original.length) {
+    const length = dv.getUint32(scanPos, false);
+    if (scanPos + 12 + length > original.length) break;
+    const type = String.fromCharCode(...original.subarray(scanPos + 4, scanPos + 8));
+    if (sawImageData) {
+      if (PNG_NO_LEAPFROG.has(type)) break;
+      if (PNG_MOVABLE_METADATA.has(type)) {
+        const data = original.subarray(scanPos + 8, scanPos + 8 + length);
+        const identifier = pngTextIdentifier(type, data);
+        const replacedText = identifier !== undefined && textByKeyword.has(identifier);
+        const replacedXmp = type === 'iTXt' && xmp.length > 0 &&
+          new TextDecoder().decode(data.subarray(0, data.indexOf(0))) === PNG_XMP_KEYWORD;
+        if (!replacedText && !replacedXmp && !(type === 'eXIf' && Object.keys(exif).length > 0)) {
+          hoistedOffsets.add(scanPos);
+          hoistedChunks.push({ type, data: data.slice() });
+        }
+      }
+    } else if (PNG_DATA_CHUNKS.has(type)) {
+      sawImageData = true;
+    }
+    scanPos += length + 12;
+  }
+  let imageDataInserted = false;
   const writeGamma = ancillary.find((request) => request.tag === 'gamma');
   const writeSrgb = ancillary.find((request) => request.tag === 'srgb');
   const physRequests = ancillary.filter((request) => request.tag.startsWith('phys'));
   const writePhys = physRequests.length > 0;
   let pos = 8;
   while (pos + 12 <= original.length) {
+    const chunkOffset = pos;
     const length = dv.getUint32(pos, false);
     const type = String.fromCharCode(...original.subarray(pos + 4, pos + 8));
     const data = original.slice(pos + 8, pos + 8 + length);
@@ -485,6 +516,14 @@ export const pngWriter: ContainerWriter = (original, tags, options) => {
     if (textIdentifier) {
       const request = textByKeyword.get(textIdentifier);
       if (request) continue;
+    }
+    if (hoistedOffsets.has(chunkOffset)) {
+      continue;
+    }
+    if ((PNG_DATA_CHUNKS.has(type) || type === 'IEND') && !imageDataInserted) {
+      kept.push(...hoistedChunks);
+      hoistedChunks.length = 0;
+      imageDataInserted = true;
     }
     kept.push({ type, data });
     if (type === 'IHDR') {

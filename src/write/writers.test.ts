@@ -234,6 +234,49 @@ test('pngWriter preserves existing zTXt encoding when replacing a text value', a
   }
 });
 
+test('pngWriter moves late text chunks before IDAT and preserves other chunks', async () => {
+  const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  const source = new Uint8Array([
+    ...sig,
+    ...pngChunk('IHDR', new Uint8Array(13)),
+    ...pngChunk('IDAT', new Uint8Array([1, 2, 3])),
+    ...pngChunk('tEXt', new TextEncoder().encode('Title\0Late title')),
+    ...pngChunk('vpAg', new Uint8Array([4, 5])),
+    ...pngChunk('IEND', new Uint8Array()),
+  ]);
+  const written = pngWriter(source, {});
+  const types: string[] = [];
+  for (let pos = 8; pos + 12 <= written.bytes.length;) {
+    const length = new DataView(written.bytes.buffer, written.bytes.byteOffset + pos, 4).getUint32(0, false);
+    types.push(new TextDecoder().decode(written.bytes.subarray(pos + 4, pos + 8)));
+    pos += length + 12;
+  }
+  assertEquals(types, ['IHDR', 'tEXt', 'IDAT', 'vpAg', 'IEND']);
+  assertEquals((await pngParser.parse(written.bytes, '(ordered test)')).tags.Title, 'Late title');
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, source);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-overwrite_original', '-Title=Late title', file],
+    );
+    const upstream = new Uint8Array(await (await import('node:fs/promises')).readFile(file));
+    const upstreamTypes: string[] = [];
+    for (let pos = 8; pos + 12 <= upstream.length;) {
+      const length = new DataView(upstream.buffer, upstream.byteOffset + pos, 4).getUint32(0, false);
+      upstreamTypes.push(new TextDecoder().decode(upstream.subarray(pos + 4, pos + 8)));
+      pos += length + 12;
+    }
+    assertEquals(upstreamTypes.indexOf('tEXt') < upstreamTypes.indexOf('IDAT'), true);
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
 test('pngWriter compresses language-qualified text as iTXt', async () => {
   const firstValue = 'Commentaire répété '.repeat(40);
   const value = 'Commentaire modifié '.repeat(40);
