@@ -41,7 +41,7 @@ export function detectParser(
 let builtinPromise: Promise<FormatParser[]> | undefined;
 
 /**
- * The built-in plugin set (JPEG, PNG, WebP, AVIF, TIFF-family RAW), loaded
+ * The built-in plugin set (JPEG, GIF, PNG, WebP, AVIF, TIFF-family RAW), loaded
  * lazily so that importing the library never pulls a format module by
  * default. Dynamic import is deliberate: plugin loading from a
  * runtime-optional module, keeping the static import graph parser-free.

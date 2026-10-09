@@ -1,6 +1,7 @@
 import type { FormatParser } from './format/mod.js';
 import { avifParser } from './format/avif.js';
 import { jpegParser } from './format/jpeg.js';
+import { gifParser } from './format/gif.js';
 import { pngParser } from './format/png.js';
 import { webpParser } from './format/webp.js';
 import { tiffRawParser } from './format/tiff-raw.js';
@@ -12,7 +13,7 @@ import { tiffRawParser } from './format/tiff-raw.js';
  */
 
 /**
- * Modern web image format parsers (JPEG, PNG, WebP, AVIF/HEIF).
+ * Modern web image format parsers (JPEG, GIF, PNG, WebP, AVIF/HEIF).
  * Recommended default for web applications.
  *
  * @example
@@ -24,6 +25,7 @@ import { tiffRawParser } from './format/tiff-raw.js';
  */
 export const MODERN_PLUGINS: FormatParser[] = [
   jpegParser,
+  gifParser,
   pngParser,
   webpParser,
   avifParser,
@@ -41,6 +43,9 @@ export { avifParser };
 
 /** JPEG format parser. Supports EXIF, XMP, IPTC, ICC, JFIF, MPF, C2PA/JUMBF. */
 export { jpegParser };
+
+/** GIF format parser. Supports comments, XMP, and ICC application extensions. */
+export { gifParser };
 
 /** PNG format parser. Supports iTXt/tEXt/zTXt, eXIf, caBX (C2PA), ICC, sRGB. */
 export { pngParser };
