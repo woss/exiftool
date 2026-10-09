@@ -718,6 +718,7 @@ export const webpWriter: ContainerWriter = (original, tags) => {
   interface Chunk { id: string; data: Uint8Array }
   const chunks: Chunk[] = [];
   let existingXmp: string | null = null;
+  let existingExifTiff: Uint8Array | undefined;
   let pos = 12;
   while (pos + 8 <= original.length) {
     const id = String.fromCharCode(...original.subarray(pos, pos + 4));
@@ -727,7 +728,12 @@ export const webpWriter: ContainerWriter = (original, tags) => {
       pos += 8 + size + (size % 2);
       continue;
     }
-    if (id === 'XMP ' && (xmp.length > 0 || xmpDeletes.length > 0)) {
+    if (id === 'EXIF' && Object.keys(exif).length > 0) {
+      const hasExifPrefix = data.length >= 6 &&
+        data[0] === 0x45 && data[1] === 0x78 && data[2] === 0x69 &&
+        data[3] === 0x66 && data[4] === 0 && data[5] === 0;
+      existingExifTiff = hasExifPrefix ? data.slice(6) : data;
+    } else if (id === 'XMP ' && (xmp.length > 0 || xmpDeletes.length > 0)) {
       existingXmp = new TextDecoder().decode(data);
     } else {
       chunks.push({ id, data });
@@ -764,10 +770,20 @@ export const webpWriter: ContainerWriter = (original, tags) => {
     writtenOut.push(iccProfile.key);
   }
   if (Object.keys(exif).length > 0) {
-    const { bytes: tiff, written, skipped: exifSkipped } = buildTiff(exif);
+    let tiff: Uint8Array;
+    if (existingExifTiff) {
+      const requests = resolveMergeRequests(exif);
+      const merged = mergeExifTiff(existingExifTiff, requests.exif);
+      tiff = merged.bytes;
+      skipped.push(...requests.skipped, ...merged.skipped);
+      writtenOut.push(...merged.written);
+    } else {
+      const built = buildTiff(exif);
+      tiff = built.bytes;
+      skipped.push(...built.skipped);
+      writtenOut.push(...built.written);
+    }
     pushChunk('EXIF', new Uint8Array([0x45, 0x78, 0x69, 0x66, 0x00, 0x00, ...tiff])); // 'Exif\0\0' prefix
-    skipped.push(...exifSkipped);
-    writtenOut.push(...written);
   }
   if (xmp.length > 0 || xmpDeletes.length > 0) {
     let packet = xmp.length > 0 ? writeXmpPacket(existingXmp, xmp) : existingXmp;

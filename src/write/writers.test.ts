@@ -478,6 +478,41 @@ test('webpWriter sets the EXIF flag and swaps the EXIF chunk', async () => {
   assertEquals(info.tags.Make, 'WebpCo');
 });
 
+test('webpWriter preserves unrelated EXIF tags when updating one tag', async () => {
+  const body = [
+    ...riffChunk('VP8X', [0, 7, 0, 0, 5, 0, 0, 0, 0, 0]),
+    ...riffChunk('EXIF', [...chars('Exif\0\0'), ...buildTiff({ Make: 'OldCo', Model: 'Camera 1' }).bytes]),
+    ...riffChunk('VP8 ', [1, 2, 3]),
+  ];
+  const source = new Uint8Array([
+    ...chars('RIFF'),
+    ...u32le(4 + body.length),
+    ...chars('WEBP'),
+    ...body,
+  ]);
+  const written = webpWriter(source, { Make: 'NewCo' });
+  const local = await webpParser.parse(written.bytes, '(test)');
+  assertEquals(local.tags.Make, 'NewCo');
+  assertEquals(local.tags.Model, 'Camera 1');
+
+  const file = await (await import('../test/tmp.js')).tempFile('.webp');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, written.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-G1', '-Make', '-Model', file],
+    );
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream['IFD0:Make'], 'NewCo');
+    assertEquals(upstream['IFD0:Model'], 'Camera 1');
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
 test('webpWriter requires an existing VP8X chunk', () => {
   const noVp8x = new Uint8Array([
     ...chars('RIFF'),
