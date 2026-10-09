@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { applyFileStat } from './cli/filestat.js';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, rename, rm, stat, utimes, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { normalizeArgs, parseCliArgs, type CliOptions } from './cli/args.js';
 import { ExifTool } from './exiftool.js';
@@ -91,6 +92,10 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
       extensions: options.extension ?? [],
       ignoreDirs: options.ignore ?? [],
     });
+    if (options.output !== undefined && expandedWrite.length > 1) {
+      console.error('-o currently supports one input file for metadata writes');
+      return 1;
+    }
     let updated = 0;
     let failedCondition = 0;
     for (const file of expandedWrite) {
@@ -144,12 +149,33 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
             `+= is currently supported only for XMP Subject/Keywords/Creator and JPEG IPTC:Keywords, not ${assignment.key}`,
           );
         }
-        const result = await tool.write(file, tags, {
-          overwriteOriginal: options.overwriteOriginal === true,
-          preserveTime: options.preserveTime === true,
-          compress: options.compress === true,
-          writeMode: options.writeMode,
-        });
+        let tempOutput: string | undefined;
+        let result;
+        try {
+          if (options.output === undefined) {
+            result = await tool.write(file, tags, {
+              overwriteOriginal: options.overwriteOriginal === true,
+              preserveTime: options.preserveTime === true,
+              compress: options.compress === true,
+              writeMode: options.writeMode,
+            });
+          } else {
+            const sourceStat = options.preserveTime ? await stat(file) : undefined;
+            tempOutput = `${options.output}.tmp-${randomUUID()}`;
+            await writeFile(tempOutput, await readFile(file), { flag: 'wx' });
+            if (sourceStat) await utimes(tempOutput, sourceStat.atime, sourceStat.mtime);
+            result = await tool.write(tempOutput, tags, {
+              overwriteOriginal: true,
+              preserveTime: options.preserveTime === true,
+              compress: options.compress === true,
+              writeMode: options.writeMode,
+            });
+            await rename(tempOutput, options.output);
+            tempOutput = undefined;
+          }
+        } finally {
+          if (tempOutput !== undefined) await rm(tempOutput, { force: true });
+        }
         const rejected = result.skipped.filter((key) =>
           explicitNames.has(key.split(':').at(-1)!.toLowerCase()));
         if (rejected.length > 0) {

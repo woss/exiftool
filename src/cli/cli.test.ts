@@ -531,6 +531,58 @@ test('runAction write mode updates file and creates backup', async () => {
   }
 });
 
+test('runAction writes updated metadata to -o output without modifying input', async () => {
+  const input = await tempFile('.jpg');
+  const output = await tempFile('.jpg');
+  await writeFile(input, await readFile('assets/01.jpg'));
+  const original = await readFile(input);
+  try {
+    const code = await runAction(
+      { output, overwriteOriginal: true },
+      '-Software=separate-output',
+      input,
+    );
+    assertEquals(code, 0);
+    assertEquals(Buffer.compare(await readFile(input), original), 0);
+    assertEquals((await new ExifTool().read(output)).tags.Software, 'separate-output');
+  } finally {
+    await rm(input, { force: true });
+    await rm(output, { force: true });
+    await rm(`${input}_original`, { force: true });
+    await rm(`${output}_original`, { force: true });
+  }
+});
+
+test('runAction rejects multiple write inputs for a single -o destination', async () => {
+  const first = await tempFile('.jpg');
+  const second = await tempFile('.jpg');
+  const output = await tempFile('.jpg');
+  await writeFile(first, await readFile('assets/01.jpg'));
+  await writeFile(second, await readFile('assets/03.jpg'));
+  const firstOriginal = await readFile(first);
+  const secondOriginal = await readFile(second);
+  const outputOriginal = await readFile(output);
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { output, overwriteOriginal: true },
+      '-Software=separate-output',
+      first,
+      second,
+    );
+    assertEquals(code, 1);
+    assertEquals(Buffer.compare(await readFile(first), firstOriginal), 0);
+    assertEquals(Buffer.compare(await readFile(second), secondOriginal), 0);
+    assertEquals(Buffer.compare(await readFile(output), outputOriginal), 0);
+    assertEquals(cap.err[0]?.includes('-o currently supports one input file'), true);
+  } finally {
+    cap.restore();
+    await rm(first, { force: true });
+    await rm(second, { force: true });
+    await rm(output, { force: true });
+  }
+});
+
 test('runAction applies -if conditions to write targets', async () => {
   const matching = await tempFile('.jpg');
   const nonmatching = await tempFile('.jpg');
