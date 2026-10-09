@@ -3,6 +3,8 @@ import { assertEquals } from '../../src/test/asserts.js';
 import { readFileSync } from 'node:fs';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { rm, writeFile } from 'node:fs/promises';
+import { tempFile } from '../test/tmp.js';
 import { UnsupportedFormatError } from './writers.js';
 import {
   jpegMergeWriter,
@@ -12,8 +14,10 @@ import {
 } from './jpeg-merge.js';
 import { parseXMP } from '../exif/xmp.js';
 import { extractExifFromTiff } from '../exif/tiff.js';
+import { jpegParser } from '../format/jpeg.js';
 
 const execFileP = promisify(execFile);
+const upstreamExifTool = new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname;
 
 test('jpegMergeWriter preserves every non-EXIF/XMP segment byte-for-byte', () => {
   const original = new Uint8Array(readFileSync('assets/01.jpg'));
@@ -69,6 +73,42 @@ test('jpegMergeWriter preserves EXIF values and creates XMP when absent', () => 
     (s) => s.marker === 0xe1 && s.end - s.payloadStart > 29,
   );
   assertEquals(xmpSeg !== undefined, true);
+});
+
+test('jpegMergeWriter replaces and deletes COM comment segments', async () => {
+  const original = new Uint8Array([
+    0xff, 0xd8,
+    0xff, 0xfe, 0x00, 0x05, 0x6f, 0x6c, 0x64,
+    0xff, 0xfe, 0x00, 0x05, 0x61, 0x67, 0x65,
+    0xff, 0xd9,
+  ]);
+  const replaced = jpegMergeWriter(original, { Comment: 'new comment' });
+  assertEquals(replaced.written, ['Comment']);
+  assertEquals(replaced.skipped, []);
+  const commentSegments = parseJpegSegments(replaced.bytes).filter((segment) => segment.marker === 0xfe);
+  assertEquals(commentSegments.length, 1);
+  assertEquals(
+    new TextDecoder().decode(replaced.bytes.subarray(commentSegments[0]!.payloadStart, commentSegments[0]!.payloadEnd)),
+    'new comment',
+  );
+
+  const deleted = jpegMergeWriter(replaced.bytes, { 'JPEG:Comment': null });
+  assertEquals(parseJpegSegments(deleted.bytes).filter((segment) => segment.marker === 0xfe).length, 0);
+});
+
+test('vendored ExifTool reads JPEG comments written by the merger', async () => {
+  const file = await tempFile('.jpg');
+  try {
+    const original = new Uint8Array(readFileSync('assets/01.jpg'));
+    const result = jpegMergeWriter(original, { Comment: 'JPEG comment parity' });
+    const local = await jpegParser.parse(result.bytes, 'comment.jpg');
+    assertEquals(local.tags.Comment, 'JPEG comment parity');
+    await writeFile(file, result.bytes);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-Comment', file]);
+    assertEquals(JSON.parse(stdout)[0].Comment, 'JPEG comment parity');
+  } finally {
+    await rm(file, { force: true });
+  }
 });
 
 test('mergeExifTiff writes big-endian (MM) TIFF structures', () => {

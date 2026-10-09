@@ -59,7 +59,7 @@ Current family coverage is partial: EXIF/GPS use a small hand-maintained tag map
 
 | Container area | Current state | Exact remaining work |
 | --- | --- | --- |
-| `JPEG`, `MPO` | Partial EXIF/GPS, limited XMP, partial IPTC-IIM in APP13 | Full writable tag coverage; APP1/APP2/APP13/COM multi-segment behavior; all resources; preview/MPF offset safety; ambiguity rules; delete/add/copy; exact segment ordering and limits |
+| `JPEG`, `MPO` | Partial EXIF/GPS, limited XMP, partial IPTC-IIM in APP13, COM Comment set/replace/delete | Full writable tag coverage; APP1/APP2/APP13 and multi-comment COM semantics; all resources; preview/MPF offset safety; ambiguity rules; delete/add/copy; exact segment ordering and limits |
 | `PNG` | Partial EXIF/XMP plus writable tEXt/iTXt textual tags | Full `eXIf`, ICC/iCCP, zTXt compression, language-qualified iTXt, allowlisted text-tag conversions/groups, all writable PNG metadata semantics, ordering, unknown-chunk preservation, CRC and delete behavior |
 | `WEBP` | Partial EXIF/XMP | Full EXIF/XMP write semantics, chunk flags/order/padding, absent/present chunk cases, and unknown chunk preservation |
 | `AVIF`, `HEIC`, `HEIF` | Partial EXIF write | Correct ISO-BMFF item/`iloc` updates, 32/64-bit sizes, offsets, XMP/ICC integration, metadata deletion, brands, and HEIC/HEIF parity |

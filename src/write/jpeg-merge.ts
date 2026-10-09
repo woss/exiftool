@@ -92,6 +92,7 @@ export interface MergeRequests {
   xmpKeys: string[];
   iptc: IptcWriteRequest[];
   iptcKeys: string[];
+  comment?: { key: string; value: string | null };
   skipped: string[];
 }
 
@@ -103,8 +104,14 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
   const xmpKeys: string[] = [];
   const iptc: IptcWriteRequest[] = [];
   const iptcKeys: string[] = [];
+  let comment: MergeRequests['comment'];
   const skipped: string[] = [];
   for (const [key, value] of Object.entries(tags)) {
+    if (/^(?:jpeg:)?comment$/i.test(key)) {
+      if (value === null || typeof value === 'string') comment = { key, value };
+      else skipped.push(key);
+      continue;
+    }
     const canonical =
       MERGE_TAG_KEYS[key.toLowerCase()] ?? MERGE_TAG_KEYS_BARE[key.toLowerCase()];
     const iptcRequest = resolveIptcWriteRequest(canonical ?? key, value);
@@ -145,7 +152,7 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
       exif.push({ key: `EXIF:${spec.name}`, spec, value, home });
     }
   }
-  return { exif, xmp, xmpKeys, iptc, iptcKeys, skipped };
+  return { exif, xmp, xmpKeys, iptc, iptcKeys, comment, skipped };
 }
 
 // ---------------------------------------------------------------------------
@@ -489,6 +496,23 @@ function app13Segment(payload: Uint8Array): Uint8Array {
   return seg;
 }
 
+function jpegCommentSegments(value: string): Uint8Array[] {
+  const data = new TextEncoder().encode(value);
+  const segments: Uint8Array[] = [];
+  for (let offset = 0; offset < data.length || (data.length === 0 && offset === 0); offset += 0xffff - 2) {
+    const part = data.subarray(offset, Math.min(offset + 0xffff - 2, data.length));
+    const segment = new Uint8Array(part.length + 4);
+    segment[0] = 0xff;
+    segment[1] = 0xfe;
+    const length = part.length + 2;
+    segment[2] = length >> 8;
+    segment[3] = length & 0xff;
+    segment.set(part, 4);
+    segments.push(segment);
+  }
+  return segments;
+}
+
 /**
  * JPEG merge writer: changes ONLY the requested tags.
  *
@@ -523,6 +547,7 @@ export const jpegMergeWriter: ContainerWriter = (original, tags) => {
   const psApp13 = segments.find(
     (s) => s.marker === 0xed && payloadStartsWith(original, s, 'Photoshop 3.0\0'),
   );
+  const comments = segments.filter((s) => s.marker === 0xfe);
 
   const written: string[] = [];
   const skipped: string[] = [...reqs.skipped];
@@ -609,6 +634,28 @@ export const jpegMergeWriter: ContainerWriter = (original, tags) => {
     }
   } else if (iptcTouched && psApp13) {
     edits.push({ at: psApp13.start, end: psApp13.end, bytes: null });
+  }
+  if (reqs.comment) {
+    const replacement = reqs.comment.value === null ? [] : jpegCommentSegments(reqs.comment.value);
+    if (comments.length > 0) {
+      edits.push({
+        at: comments[0]!.start,
+        end: comments[0]!.end,
+        bytes: replacement[0] ?? null,
+      });
+      for (const comment of comments.slice(1)) {
+        edits.push({ at: comment.start, end: comment.end, bytes: null });
+      }
+      for (const segment of replacement.slice(1)) {
+        edits.push({ at: comments[0]!.end, end: comments[0]!.end, bytes: segment });
+      }
+    } else if (replacement.length > 0) {
+      const scan = segments.find((segment) => segment.marker === 0xda);
+      const eoi = segments.find((segment) => segment.marker === 0xd9);
+      const at = scan?.start ?? eoi?.start ?? original.length;
+      for (const segment of replacement) edits.push({ at, end: at, bytes: segment });
+    }
+    written.push(reqs.comment.key);
   }
   edits.sort((a, b) => a.at - b.at);
   const parts: Uint8Array[] = [];
