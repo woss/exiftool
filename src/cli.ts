@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 import { applyFileStat } from './cli/filestat.js';
-import { readFile, rename, rm, stat, utimes, writeFile } from 'node:fs/promises';
+import { readFile, link, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
+import { basename, join } from 'node:path';
 import { normalizeArgs, parseCliArgs, type CliOptions } from './cli/args.js';
 import { ExifTool } from './exiftool.js';
 import { BUILTIN_PLUGINS } from './format/all.js';
@@ -92,7 +93,15 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
       extensions: options.extension ?? [],
       ignoreDirs: options.ignore ?? [],
     });
-    if (options.output !== undefined && expandedWrite.length > 1) {
+    let outputIsDirectory = false;
+    if (options.output !== undefined) {
+      try {
+        outputIsDirectory = (await stat(options.output)).isDirectory();
+      } catch {
+        // A non-existent output path is treated as a file destination.
+      }
+    }
+    if (options.output !== undefined && !outputIsDirectory && expandedWrite.length > 1) {
       console.error('-o currently supports one input file for metadata writes');
       return 1;
     }
@@ -160,8 +169,11 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
               writeMode: options.writeMode,
             });
           } else {
+            const destination = outputIsDirectory
+              ? join(options.output, basename(file))
+              : options.output;
             const sourceStat = options.preserveTime ? await stat(file) : undefined;
-            tempOutput = `${options.output}.tmp-${randomUUID()}`;
+            tempOutput = `${destination}.tmp-${randomUUID()}`;
             await writeFile(tempOutput, await readFile(file), { flag: 'wx' });
             if (sourceStat) await utimes(tempOutput, sourceStat.atime, sourceStat.mtime);
             result = await tool.write(tempOutput, tags, {

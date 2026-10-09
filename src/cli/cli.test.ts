@@ -7,7 +7,7 @@ import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { tempFile } from '../../src/test/tmp.js';
 
 const execFileP = promisify(execFile);
@@ -534,6 +534,7 @@ test('runAction write mode updates file and creates backup', async () => {
 test('runAction writes updated metadata to -o output without modifying input', async () => {
   const input = await tempFile('.jpg');
   const output = await tempFile('.jpg');
+  await rm(output, { force: true });
   await writeFile(input, await readFile('assets/01.jpg'));
   const original = await readFile(input);
   try {
@@ -580,6 +581,60 @@ test('runAction rejects multiple write inputs for a single -o destination', asyn
     await rm(first, { force: true });
     await rm(second, { force: true });
     await rm(output, { force: true });
+  }
+});
+
+test('runAction does not overwrite an existing -o destination', async () => {
+  const input = await tempFile('.jpg');
+  const output = await tempFile('.jpg');
+  await writeFile(input, await readFile('assets/01.jpg'));
+  await writeFile(output, await readFile('assets/03.jpg'));
+  const inputOriginal = await readFile(input);
+  const outputOriginal = await readFile(output);
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { output, overwriteOriginal: true },
+      '-Software=separate-output',
+      input,
+    );
+    assertEquals(code, 1);
+    assertEquals(Buffer.compare(await readFile(input), inputOriginal), 0);
+    assertEquals(Buffer.compare(await readFile(output), outputOriginal), 0);
+    assertEquals(cap.err.some((line) => line.includes('already exists')), true);
+  } finally {
+    cap.restore();
+    await rm(input, { force: true });
+    await rm(output, { force: true });
+  }
+});
+
+test('runAction writes a batch to an existing -o directory', async () => {
+  const first = await tempFile('.jpg');
+  const second = await tempFile('.jpg');
+  const outputDir = await mkdtemp(join(tmpdir(), 'exiftool-cli-output-'));
+  await writeFile(first, await readFile('assets/01.jpg'));
+  await writeFile(second, await readFile('assets/03.jpg'));
+  const firstOriginal = await readFile(first);
+  const secondOriginal = await readFile(second);
+  try {
+    const code = await runAction(
+      { output: outputDir, overwriteOriginal: true },
+      '-Software=batch-output',
+      first,
+      second,
+    );
+    assertEquals(code, 0);
+    for (const input of [first, second]) {
+      const destination = join(outputDir, basename(input));
+      assertEquals((await new ExifTool().read(destination)).tags.Software, 'batch-output');
+    }
+    assertEquals(Buffer.compare(await readFile(first), firstOriginal), 0);
+    assertEquals(Buffer.compare(await readFile(second), secondOriginal), 0);
+  } finally {
+    await rm(first, { force: true });
+    await rm(second, { force: true });
+    await rm(outputDir, { recursive: true, force: true });
   }
 });
 
