@@ -1,5 +1,6 @@
 import type { FormatParser } from './format/mod.js';
 import { avifParser } from './format/avif.js';
+import { exifParser } from './format/exif.js';
 import { pbmParser } from './format/pbm.js';
 import { iccParser } from './format/icc.js';
 import { jpegParser } from './format/jpeg.js';
@@ -38,6 +39,7 @@ export const MODERN_PLUGINS: FormatParser[] = [
   webpParser,
   avifParser,
   tiffRawParser,
+  exifParser,
   iccParser,
   xmpParser,
 ];
@@ -78,6 +80,9 @@ export { webpParser };
  * reported as `FileInfo.format`. MakerNotes are not decoded.
  */
 export { tiffRawParser };
+
+/** Standalone TIFF-encoded EXIF file parser and writer. */
+export { exifParser };
 
 /** Standalone ICC profile parser and whole-profile writer. */
 export { iccParser };

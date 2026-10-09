@@ -36,7 +36,7 @@ export class ExifTool extends ExifToolCore {
    */
   async read(filePath: string, hints?: ParseHints): Promise<FileInfo> {
     const bytes = await readFile(filePath);
-    const parser = detectParser(bytes, await this.resolvePlugins());
+    const parser = detectParser(bytes, await this.resolvePlugins(), filePath);
     if (parser) {
       return parser.parse(bytes, filePath, this.tagDb, hints);
     }

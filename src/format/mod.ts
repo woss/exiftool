@@ -31,7 +31,19 @@ export interface FormatParser {
 export function detectParser(
   bytes: Uint8Array,
   parsers: Iterable<FormatParser>,
+  filePath?: string,
 ): FormatParser | undefined {
+  if (filePath) {
+    const fileName = filePath.split(/[\\/]/).pop() ?? filePath;
+    const extension = fileName.toLowerCase().match(/\.[^.]+$/)?.[0];
+    if (extension) {
+      for (const parser of parsers) {
+        if (parser.extensions.some((candidate) => candidate.toLowerCase() === extension) && parser.canParse(bytes)) {
+          return parser;
+        }
+      }
+    }
+  }
   for (const parser of parsers) {
     if (parser.canParse(bytes)) return parser;
   }

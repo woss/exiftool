@@ -40,7 +40,7 @@ export async function writeTagsWithTmp(
 ): Promise<WriteResult> {
   const sourceStat = opts.preserveTime ? await stat(filePath) : undefined;
   const original = await readFile(filePath);
-  const parser = detectParser(original, plugins ?? await builtinPlugins());
+  const parser = detectParser(original, plugins ?? await builtinPlugins(), filePath);
   if (!parser?.writeBytes) {
     throw new UnsupportedFormatError(
       `writing not supported for ${parser?.format ?? 'unknown'} files`,
