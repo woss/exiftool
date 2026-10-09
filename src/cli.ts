@@ -26,12 +26,33 @@ export type { CliOptions } from './cli/args.js';
 const tool = new ExifTool({ plugins: BUILTIN_PLUGINS });
 const WRITE_ASSIGNMENT = /^-?([A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)(\+?)=(.*)$/;
 const IPTC_KEYWORDS_KEY = /^iptc:keywords$/i;
+const OUTPUT_FORMAT_BY_EXTENSION: Record<string, string> = {
+  avif: 'avif',
+  gif: 'gif',
+  heif: 'heif',
+  heic: 'heif',
+  jpeg: 'jpeg',
+  jpe: 'jpeg',
+  jpg: 'jpeg',
+  pbm: 'pbm',
+  pgm: 'pgm',
+  png: 'png',
+  ppm: 'ppm',
+  tif: 'tiff',
+  tiff: 'tiff',
+  webp: 'webp',
+};
 
 function xmpListAppendGroup(key: string): 'subject' | 'creator' | undefined {
   const name = key.toLowerCase().split(':').at(-1);
   if (name === 'subject' || name === 'keywords') return 'subject';
   if (name === 'creator') return 'creator';
   return undefined;
+}
+
+function outputFormatForPath(path: string): string | undefined {
+  const extension = extname(path).slice(1).toLowerCase();
+  return OUTPUT_FORMAT_BY_EXTENSION[extension];
 }
 
 function expandWriteOutputTemplate(template: string, input: string): string {
@@ -148,8 +169,11 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
       try {
         const tags: Record<string, import('./types.js').TagValue> = { ...sourceTags };
         let targetTags: Record<string, import('./types.js').TagValue> | undefined;
+        let targetFormat: string | undefined;
         if (assignments.some((assignment) => assignment.append) || options.if !== undefined) {
-          targetTags = (await tool.read(file)).tags;
+          const targetInfo = await tool.read(file);
+          targetTags = targetInfo.tags;
+          targetFormat = targetInfo.format;
         }
         if (options.if !== undefined && !options.if.every((condition) => evalCondition(condition, targetTags ?? {}))) {
           failedCondition++;
@@ -212,6 +236,13 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
               : outputUsesTemplate
                 ? await resolveWriteOutputPath(options.output, file)
                 : options.output;
+            const destinationFormat = outputFormatForPath(destination);
+            if (destinationFormat !== undefined) {
+              targetFormat ??= (await tool.read(file)).format;
+              if (targetFormat.toLowerCase() !== destinationFormat) {
+                throw new Error(`cannot convert ${targetFormat} to ${destinationFormat.toUpperCase()} with -o`);
+              }
+            }
             const sourceStat = options.preserveTime ? await stat(file) : undefined;
             tempOutput = `${destination}.tmp-${randomUUID()}`;
             await writeFile(tempOutput, await readFile(file), { flag: 'wx' });

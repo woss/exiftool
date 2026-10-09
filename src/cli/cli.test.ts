@@ -630,6 +630,30 @@ test('runAction does not overwrite an existing -o destination', async () => {
   }
 });
 
+test('runAction rejects -o destinations with a different known format extension', async () => {
+  const input = await tempFile('.jpg');
+  const output = await tempFile('.png');
+  await rm(output, { force: true });
+  await writeFile(input, await readFile('assets/01.jpg'));
+  const inputOriginal = await readFile(input);
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { output, overwriteOriginal: true },
+      '-Software=wrong-extension',
+      input,
+    );
+    assertEquals(code, 1);
+    assertEquals(Buffer.compare(await readFile(input), inputOriginal), 0);
+    assertEquals(await stat(output).then(() => true, () => false), false);
+    assertEquals(cap.err.some((line) => line.includes('cannot convert')), true);
+  } finally {
+    cap.restore();
+    await rm(input, { force: true });
+    await rm(output, { force: true });
+  }
+});
+
 test('runAction writes a batch to an existing -o directory', async () => {
   const first = await tempFile('.jpg');
   const second = await tempFile('.jpg');
