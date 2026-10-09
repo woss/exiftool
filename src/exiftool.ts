@@ -3,7 +3,13 @@ import { ExifToolCore } from './exiftool-core.js';
 import { detectParser, type ParseHints } from './format/mod.js';
 import type { FileInfo, TagValue, WriteOptions } from './types.js';
 import { writeTags, type WriteResult } from './write/pipeline.js';
-import { toXmpPropertyRequest, writeXmpPacket, type XmpPropertyRequest } from './write/xmp-writer.js';
+import {
+  deleteXmpProperties,
+  toXmpPropertyName,
+  toXmpPropertyRequest,
+  writeXmpPacket,
+  type XmpPropertyRequest,
+} from './write/xmp-writer.js';
 
 /**
  * Node.js entry point for exiftool-ts.
@@ -90,15 +96,24 @@ export class ExifTool extends ExifToolCore {
     const sidecarPath =
       opts.sidecarPath ?? (mediaPath.endsWith('.xmp') ? mediaPath : `${mediaPath}.xmp`);
     const props: XmpPropertyRequest[] = [];
+    const deletes: string[] = [];
     const written: string[] = [];
     for (const [key, value] of Object.entries(tags)) {
+      if (value === null) {
+        const name = toXmpPropertyName(key);
+        if (name) {
+          deletes.push(name);
+          written.push(key);
+        }
+        continue;
+      }
       const prop = toXmpPropertyRequest(key, value);
       if (prop) {
         props.push(prop);
         written.push(key);
       }
     }
-    if (props.length === 0) {
+    if (props.length === 0 && deletes.length === 0) {
       return { sidecarPath, written };
     }
     let existing: string | null = null;
@@ -107,7 +122,11 @@ export class ExifTool extends ExifToolCore {
     } catch {
       // no sidecar yet: fresh packet
     }
-    await writeFile(sidecarPath, writeXmpPacket(existing, props), 'utf8');
+    if (!existing && props.length === 0) return { sidecarPath, written: [] };
+    const packet = existing && deletes.length > 0 ? deleteXmpProperties(existing, deletes) : existing;
+    if (props.length > 0 || packet) {
+      await writeFile(sidecarPath, writeXmpPacket(packet, props), 'utf8');
+    }
     return { sidecarPath, written };
   }
 

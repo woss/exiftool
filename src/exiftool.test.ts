@@ -191,12 +191,36 @@ test('writeSidecar creates, merges, and is idempotent', async () => {
   }
 });
 
+test('writeSidecar deletes selected XMP properties and preserves unrelated ones', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'exiftool-ts-sidecar-delete-'));
+  try {
+    const tool = new ExifTool();
+    const media = join(dir, 'IMG_0003.ARW');
+    const sidecar = join(dir, 'IMG_0003.ARW.xmp');
+    await tool.writeSidecar(media, {
+      'XMP-dc:Title': 'Remove me',
+      'XMP-dc:Subject': ['keep', 'these'],
+    });
+
+    const result = await tool.writeSidecar(media, { 'XMP-dc:Title': null });
+    assertEquals(result.written, ['XMP-dc:Title']);
+    const info = parseXMP(await readFile(sidecar, 'utf8'));
+    assertEquals('Title' in info, false);
+    assertEquals(info.Subject, ['keep', 'these']);
+  } finally {
+    await rm(dir, { recursive: true });
+  }
+});
+
 test('writeSidecar with no XMP keys is a no-op', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'exiftool-ts-sidecar2-'));
   try {
     const tool = new ExifTool();
     const media = join(dir, 'IMG_0002.ARW');
-    const result = await tool.writeSidecar(media, { 'EXIF:Make': 'Nikon' });
+    const result = await tool.writeSidecar(media, {
+      'EXIF:Make': 'Nikon',
+      'XMP-dc:Title': null,
+    });
     assertEquals(result.written, []);
     assertEquals(await readdir(dir), []);
   } finally {
