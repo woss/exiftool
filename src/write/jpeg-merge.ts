@@ -93,6 +93,7 @@ export interface MergeRequests {
   iptc: IptcWriteRequest[];
   iptcKeys: string[];
   comment?: { key: string; value: string | null };
+  jfif: Array<{ key: string; field: 'unit' | 'x' | 'y'; value: number }>;
   skipped: string[];
 }
 
@@ -104,12 +105,34 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
   const xmpKeys: string[] = [];
   const iptc: IptcWriteRequest[] = [];
   const iptcKeys: string[] = [];
+  const jfif: MergeRequests['jfif'] = [];
   let comment: MergeRequests['comment'];
   const skipped: string[] = [];
   for (const [key, value] of Object.entries(tags)) {
     if (/^(?:jpeg:)?comment$/i.test(key)) {
       if (value === null || typeof value === 'string') comment = { key, value };
       else skipped.push(key);
+      continue;
+    }
+    const jfifMatch = key.match(/^jfif:(resolutionunit|xresolution|yresolution)$/i);
+    if (jfifMatch) {
+      const fieldName = jfifMatch[1]!.toLowerCase();
+      const unitNames: Record<string, number> = { none: 0, inches: 1, inch: 1, cm: 2, centimeters: 2 };
+      const numeric = typeof value === 'number'
+        ? value
+        : typeof value === 'string'
+          ? unitNames[value.trim().toLowerCase()] ?? Number(value)
+          : NaN;
+      const max = fieldName === 'resolutionunit' ? 2 : 0xffff;
+      if (!Number.isInteger(numeric) || numeric < 0 || numeric > max) {
+        skipped.push(key);
+      } else {
+        jfif.push({
+          key,
+          field: fieldName === 'resolutionunit' ? 'unit' : fieldName === 'xresolution' ? 'x' : 'y',
+          value: numeric,
+        });
+      }
       continue;
     }
     const canonical =
@@ -152,7 +175,7 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
       exif.push({ key: `EXIF:${spec.name}`, spec, value, home });
     }
   }
-  return { exif, xmp, xmpKeys, iptc, iptcKeys, comment, skipped };
+  return { exif, xmp, xmpKeys, iptc, iptcKeys, comment, jfif, skipped };
 }
 
 // ---------------------------------------------------------------------------
@@ -513,6 +536,39 @@ function jpegCommentSegments(value: string): Uint8Array[] {
   return segments;
 }
 
+function jfifSegment(originalPayload: Uint8Array | null, requests: MergeRequests['jfif']): Uint8Array {
+  const payload = originalPayload
+    ? originalPayload.slice()
+    : new Uint8Array([0x4a, 0x46, 0x49, 0x46, 0, 1, 2, 1, 0, 0x48, 0, 0x48, 0, 0]);
+  if (payload.length < 14 || !payloadStartsWith(payload, {
+    marker: 0xe0,
+    start: 0,
+    end: payload.length,
+    payloadStart: 0,
+    payloadEnd: payload.length,
+  }, 'JFIF\0')) {
+    throw new UnsupportedFormatError('malformed JFIF APP0 segment');
+  }
+  for (const request of requests) {
+    if (request.field === 'unit') payload[7] = request.value;
+    else if (request.field === 'x') {
+      payload[8] = request.value >> 8;
+      payload[9] = request.value & 0xff;
+    } else {
+      payload[10] = request.value >> 8;
+      payload[11] = request.value & 0xff;
+    }
+  }
+  const segment = new Uint8Array(payload.length + 4);
+  segment[0] = 0xff;
+  segment[1] = 0xe0;
+  const length = payload.length + 2;
+  segment[2] = length >> 8;
+  segment[3] = length & 0xff;
+  segment.set(payload, 4);
+  return segment;
+}
+
 /**
  * JPEG merge writer: changes ONLY the requested tags.
  *
@@ -548,6 +604,8 @@ export const jpegMergeWriter: ContainerWriter = (original, tags) => {
     (s) => s.marker === 0xed && payloadStartsWith(original, s, 'Photoshop 3.0\0'),
   );
   const comments = segments.filter((s) => s.marker === 0xfe);
+  const jfifSeg = segments.find((s) => s.marker === 0xe0 && payloadStartsWith(original, s, 'JFIF\0'));
+  const adobeSeg = segments.find((s) => s.marker === 0xee && payloadStartsWith(original, s, 'Adobe'));
 
   const written: string[] = [];
   const skipped: string[] = [...reqs.skipped];
@@ -656,6 +714,19 @@ export const jpegMergeWriter: ContainerWriter = (original, tags) => {
       for (const segment of replacement) edits.push({ at, end: at, bytes: segment });
     }
     written.push(reqs.comment.key);
+  }
+  if (reqs.jfif.length > 0) {
+    if (!jfifSeg && adobeSeg) {
+      skipped.push(...reqs.jfif.map((request) => request.key));
+    } else {
+      const payload = jfifSeg
+        ? original.subarray(jfifSeg.payloadStart, jfifSeg.payloadEnd)
+        : null;
+      const replacement = jfifSegment(payload, reqs.jfif);
+      if (jfifSeg) edits.push({ at: jfifSeg.start, end: jfifSeg.end, bytes: replacement });
+      else edits.push({ at: 2, end: 2, bytes: replacement });
+      written.push(...reqs.jfif.map((request) => request.key));
+    }
   }
   edits.sort((a, b) => a.at - b.at);
   const parts: Uint8Array[] = [];

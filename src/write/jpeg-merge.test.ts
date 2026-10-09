@@ -19,6 +19,16 @@ import { jpegParser } from '../format/jpeg.js';
 const execFileP = promisify(execFile);
 const upstreamExifTool = new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname;
 
+function jpegWithJfif(): Uint8Array {
+  return new Uint8Array([
+    0xff, 0xd8,
+    0xff, 0xe0, 0x00, 0x10,
+    0x4a, 0x46, 0x49, 0x46, 0,
+    1, 2, 1, 0, 72, 0, 72, 0, 0,
+    0xff, 0xd9,
+  ]);
+}
+
 test('jpegMergeWriter preserves every non-EXIF/XMP segment byte-for-byte', () => {
   const original = new Uint8Array(readFileSync('assets/01.jpg'));
   const before = parseJpegSegments(original);
@@ -250,6 +260,42 @@ test('jpegMergeWriter deletes EXIF tags and removes an emptied optional IFD', ()
   const after = extractExifFromTiff(out.bytes.subarray(exifSegment.payloadStart + 6, exifSegment.payloadEnd));
   assertEquals(after.DateTimeOriginal, undefined);
   assertEquals(after.Make, before.Make);
+});
+
+test('jpegMergeWriter updates JFIF resolution fields in the existing APP0 segment', async () => {
+  const original = jpegWithJfif();
+  const result = jpegMergeWriter(original, {
+    'JFIF:ResolutionUnit': 'cm',
+    'JFIF:XResolution': 300,
+    'JFIF:YResolution': 150,
+  });
+  assertEquals(result.written, ['JFIF:ResolutionUnit', 'JFIF:XResolution', 'JFIF:YResolution']);
+  const local = await jpegParser.parse(result.bytes, 'jfif.jpg');
+  assertEquals(local.tags.ResolutionUnit, 'cm');
+  assertEquals(local.tags.XResolution, 300);
+  assertEquals(local.tags.YResolution, 150);
+
+  const file = await tempFile('.jpg');
+  try {
+    await writeFile(file, result.bytes);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-G1', '-JFIF:ResolutionUnit', '-JFIF:XResolution', '-JFIF:YResolution', file]);
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream['JFIF:ResolutionUnit'], 'cm');
+    assertEquals(upstream['JFIF:XResolution'], 300);
+    assertEquals(upstream['JFIF:YResolution'], 150);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('jpegMergeWriter creates JFIF APP0 with default fields when absent', async () => {
+  const original = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+  const result = jpegMergeWriter(original, { 'JFIF:XResolution': 144 });
+  assertEquals(result.written, ['JFIF:XResolution']);
+  const local = await jpegParser.parse(result.bytes, 'new-jfif.jpg');
+  assertEquals(local.tags.XResolution, 144);
+  assertEquals(local.tags.YResolution, 72);
+  assertEquals(local.tags.ResolutionUnit, 'inches');
 });
 
 test('parseRawTiff rejects short, bad-endian, and bad-magic buffers', async () => {
