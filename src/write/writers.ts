@@ -2,7 +2,13 @@ import type { ContainerWriter, TagValue, WriteOutcome } from '../types.js';
 import { buildTiff } from '../exif/tiff-builder.js';
 import { crc32 } from '../utils/crc32.js';
 import { zlibSync } from 'fflate';
-import { toXmpPropertyRequest, writeXmpPacket, type XmpPropertyRequest } from './xmp-writer.js';
+import {
+  deleteXmpProperties,
+  toXmpPropertyName,
+  toXmpPropertyRequest,
+  writeXmpPacket,
+  type XmpPropertyRequest,
+} from './xmp-writer.js';
 import { mergeExifTiff, resolveMergeRequests } from './jpeg-merge.js';
 
 /**
@@ -109,6 +115,8 @@ function splitPngWriteTags(tags: Record<string, TagValue>): {
   exif: Record<string, TagValue>;
   xmp: XmpPropertyRequest[];
   xmpKeys: string[];
+  xmpDeletes: string[];
+  xmpDeleteKeys: string[];
   text: PngTextRequest[];
   iccProfile?: { key: string; profile: Uint8Array | null };
   iccName?: { key: string; name: string };
@@ -119,6 +127,8 @@ function splitPngWriteTags(tags: Record<string, TagValue>): {
   const exif: Record<string, TagValue> = {};
   const xmp: XmpPropertyRequest[] = [];
   const xmpKeys: string[] = [];
+  const xmpDeletes: string[] = [];
+  const xmpDeleteKeys: string[] = [];
   const text: PngTextRequest[] = [];
   const skipped: string[] = [];
   let iccProfile: { key: string; profile: Uint8Array | null } | undefined;
@@ -195,6 +205,12 @@ function splitPngWriteTags(tags: Record<string, TagValue>): {
       else skipped.push(key);
       continue;
     }
+    const xmpName = toXmpPropertyName(key);
+    if (value === null && xmpName) {
+      xmpDeletes.push(xmpName);
+      xmpDeleteKeys.push(key);
+      continue;
+    }
     const property = toXmpPropertyRequest(key, value);
     if (property) {
       xmp.push(property);
@@ -203,7 +219,7 @@ function splitPngWriteTags(tags: Record<string, TagValue>): {
       exif[key] = value;
     }
   }
-  return { exif, xmp, xmpKeys, text, iccProfile, iccName, ancillary, time, skipped };
+  return { exif, xmp, xmpKeys, xmpDeletes, xmpDeleteKeys, text, iccProfile, iccName, ancillary, time, skipped };
 }
 
 function splitWebpWriteTags(tags: Record<string, TagValue>): {
@@ -435,7 +451,7 @@ export const pngWriter: ContainerWriter = (original, tags, options) => {
   for (let i = 0; i < 8; i++) {
     if (original[i] !== PNG_SIG[i]) throw new UnsupportedFormatError('not a PNG stream');
   }
-  const { exif, xmp, xmpKeys, iccProfile, iccName, text, ancillary, time, skipped } = splitPngWriteTags(tags);
+  const { exif, xmp, xmpKeys, xmpDeletes, xmpDeleteKeys, iccProfile, iccName, text, ancillary, time, skipped } = splitPngWriteTags(tags);
   const dv = new DataView(original.buffer, original.byteOffset, original.byteLength);
 
   const kept: Array<{ type: string; data: Uint8Array }> = [];
@@ -458,6 +474,15 @@ export const pngWriter: ContainerWriter = (original, tags, options) => {
     if (type === 'iCCP' && existingIccName === undefined) {
       const separator = data.indexOf(0);
       if (separator > 0) existingIccName = new TextDecoder().decode(data.subarray(0, separator));
+    }
+    if (type === 'iTXt' && (xmp.length > 0 || xmpDeletes.length > 0)) {
+      const keywordEnd = data.indexOf(0);
+      const keyword = keywordEnd > 0 ? new TextDecoder().decode(data.subarray(0, keywordEnd)) : '';
+      if (keyword === PNG_XMP_KEYWORD && data[keywordEnd + 1] === 0) {
+        const languageEnd = data.indexOf(0, keywordEnd + 3);
+        const translatedEnd = languageEnd < 0 ? -1 : data.indexOf(0, languageEnd + 1);
+        if (translatedEnd >= 0) existingXmp = new TextDecoder().decode(data.subarray(translatedEnd + 1));
+      }
     }
     const identifier = pngTextIdentifier(type, data);
     const request = identifier ? textByKeyword.get(identifier) : undefined;
@@ -484,7 +509,7 @@ export const pngWriter: ContainerWriter = (original, tags, options) => {
         const data = original.subarray(scanPos + 8, scanPos + 8 + length);
         const identifier = pngTextIdentifier(type, data);
         const replacedText = identifier !== undefined && textByKeyword.has(identifier);
-        const replacedXmp = type === 'iTXt' && xmp.length > 0 &&
+        const replacedXmp = type === 'iTXt' && (xmp.length > 0 || xmpDeletes.length > 0) &&
           new TextDecoder().decode(data.subarray(0, data.indexOf(0))) === PNG_XMP_KEYWORD;
         if (!replacedText && !replacedXmp && !(type === 'eXIf' && Object.keys(exif).length > 0)) {
           hoistedOffsets.add(scanPos);
@@ -517,12 +542,16 @@ export const pngWriter: ContainerWriter = (original, tags, options) => {
     if (type === 'pHYs' && writePhys) continue;
     if (type === 'tIME' && time) continue;
     if (type === 'eXIf' && Object.keys(exif).length > 0) continue;
-    if (type === 'iTXt' && xmp.length > 0) {
+    if (type === 'iTXt' && (xmp.length > 0 || xmpDeletes.length > 0)) {
       // Existing XMP packet (keyword XML:com.adobe.xmp): decode for merge.
       const kwEnd = data.indexOf(0);
       const keyword = kwEnd > 0 ? String.fromCharCode(...data.subarray(0, kwEnd)) : '';
       if (keyword === PNG_XMP_KEYWORD) {
-        existingXmp = new TextDecoder().decode(data.subarray(kwEnd + 4));
+        const languageEnd = data.indexOf(0, kwEnd + 3);
+        const translatedEnd = languageEnd < 0 ? -1 : data.indexOf(0, languageEnd + 1);
+        if (data[kwEnd + 1] === 0 && translatedEnd >= 0) {
+          existingXmp = new TextDecoder().decode(data.subarray(translatedEnd + 1));
+        }
         continue;
       }
     }
@@ -607,8 +636,17 @@ export const pngWriter: ContainerWriter = (original, tags, options) => {
         written.push(...exifWritten);
         skipped.push(...exifSkipped);
       }
-      if (xmp.length > 0) {
-        kept.push(pngXmpItxt(writeXmpPacket(existingXmp, xmp)));
+      if (xmp.length > 0 || xmpDeletes.length > 0) {
+        let packet = xmp.length > 0 ? writeXmpPacket(existingXmp, xmp) : existingXmp;
+        if (xmpDeletes.length > 0) {
+          if (packet !== null) {
+            packet = deleteXmpProperties(packet, xmpDeletes);
+            written.push(...xmpDeleteKeys);
+          } else {
+            skipped.push(...xmpDeleteKeys);
+          }
+        }
+        if (packet !== null) kept.push(pngXmpItxt(packet));
         written.push(...xmpKeys);
       }
       for (const request of text) {

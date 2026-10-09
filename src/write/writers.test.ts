@@ -682,6 +682,40 @@ test('pngWriter writes an XMP iTXt chunk readable by the parser', async () => {
   assertEquals(Array.from(out2.bytes), Array.from(out.bytes));
 });
 
+test('pngWriter deletes one XMP property and preserves packet siblings', async () => {
+  const seeded = pngWriter(buildPng(false), {
+    'XMP-dc:Title': 'Remove me',
+    'XMP-dc:Description': 'Keep me',
+  });
+  const deleted = pngWriter(seeded.bytes, { 'XMP-dc:Title': null });
+  const local = await pngParser.parse(deleted.bytes, '(test)');
+  assertEquals(local.tags.Title, undefined);
+  assertEquals(local.tags.Description, 'Keep me');
+  assertEquals(deleted.written, ['XMP-dc:Title']);
+  assertEquals(deleted.skipped, []);
+
+  const missing = pngWriter(buildPng(false), { 'XMP-dc:Title': null });
+  assertEquals(missing.written, []);
+  assertEquals(missing.skipped, ['XMP-dc:Title']);
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, deleted.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-XMP-dc:Title', '-XMP-dc:Description', file],
+    );
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream.Title, undefined);
+    assertEquals(upstream.Description, 'Keep me');
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
 test('webpWriter writes an XMP chunk readable by the parser', async () => {
   const tags = { 'XMP-dc:Subject': ['w'], 'XMP-dc:Title': 'Webp Xmp' };
   const out = webpWriter(buildWebp(), tags);
