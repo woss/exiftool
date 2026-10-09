@@ -188,6 +188,26 @@ function splitPngWriteTags(tags: Record<string, TagValue>): {
   return { exif, xmp, xmpKeys, text, iccProfile, iccName, ancillary, time, skipped };
 }
 
+function splitWebpWriteTags(tags: Record<string, TagValue>): {
+  exif: Record<string, TagValue>;
+  xmp: XmpPropertyRequest[];
+  xmpKeys: string[];
+  iccProfile?: { key: string; profile: Uint8Array | null };
+  skipped: string[];
+} {
+  const split = splitWriteTags(tags);
+  const exif = { ...split.exif };
+  const skipped = [...split.skipped];
+  let iccProfile: { key: string; profile: Uint8Array | null } | undefined;
+  for (const [key, value] of Object.entries(exif)) {
+    if (!/^(?:webp:)?icc_profile$/i.test(key)) continue;
+    delete exif[key];
+    if (value === null || value instanceof Uint8Array) iccProfile = { key, profile: value };
+    else skipped.push(key);
+  }
+  return { ...split, exif, iccProfile, skipped };
+}
+
 function pngTimeChunk(value: string): Uint8Array {
   const match = value.trim().match(/^(\d{4})[:-](\d{2})[:-](\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
   if (!match) throw new UnsupportedFormatError(`invalid PNG ModifyDate: ${value}`);
@@ -475,7 +495,7 @@ export const webpWriter: ContainerWriter = (original, tags) => {
   if (riff !== 'RIFF' || webp !== 'WEBP') {
     throw new UnsupportedFormatError('not a WebP stream');
   }
-  const { exif, xmp, xmpKeys, skipped } = splitWriteTags(tags);
+  const { exif, xmp, xmpKeys, iccProfile, skipped } = splitWebpWriteTags(tags);
   const writtenOut: string[] = [];
   const dv = new DataView(original.buffer, original.byteOffset, original.byteLength);
 
@@ -487,6 +507,10 @@ export const webpWriter: ContainerWriter = (original, tags) => {
     const id = String.fromCharCode(...original.subarray(pos, pos + 4));
     const size = dv.getUint32(pos + 4, true);
     const data = original.slice(pos + 8, pos + 8 + size);
+    if (id === 'ICCP' && iccProfile) {
+      pos += 8 + size + (size % 2);
+      continue;
+    }
     if (id === 'XMP ' && xmp.length > 0) {
       existingXmp = new TextDecoder().decode(data);
     } else {
@@ -500,6 +524,8 @@ export const webpWriter: ContainerWriter = (original, tags) => {
   const vp8xData = Uint8Array.from(vp8x.data);
   if (Object.keys(exif).length > 0) vp8xData[0] |= 0x08; // EXIF flag
   if (xmp.length > 0) vp8xData[0] |= 0x04; // XMP flag
+  if (iccProfile?.profile) vp8xData[0] |= 0x20; // ICC flag
+  else if (iccProfile) vp8xData[0] &= ~0x20;
 
   const out: number[] = [];
   for (const c of 'RIFF') out.push(c.charCodeAt(0));
@@ -515,6 +541,12 @@ export const webpWriter: ContainerWriter = (original, tags) => {
   };
 
   pushChunk('VP8X', vp8xData);
+  if (iccProfile?.profile) {
+    pushChunk('ICCP', iccProfile.profile);
+    writtenOut.push(iccProfile.key);
+  } else if (iccProfile) {
+    writtenOut.push(iccProfile.key);
+  }
   if (Object.keys(exif).length > 0) {
     const { bytes: tiff, written, skipped: exifSkipped } = buildTiff(exif);
     pushChunk('EXIF', new Uint8Array([0x45, 0x78, 0x69, 0x66, 0x00, 0x00, ...tiff])); // 'Exif\0\0' prefix

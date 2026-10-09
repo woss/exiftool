@@ -232,6 +232,49 @@ test('webpWriter rejects non-WebP input', () => {
     assertEquals(e instanceof UnsupportedFormatError, true);
   }
 });
+test('webpWriter writes and deletes ICCP profiles with the VP8X flag', async () => {
+  const profile = new Uint8Array(
+    (await import('node:fs')).readFileSync('vendor/exiftool/t/images/ICC_Profile.icc'),
+  );
+  const source = buildWebp();
+  const written = webpWriter(source, { ICC_Profile: profile });
+  const info = await webpParser.parse(written.bytes, 'icc.webp');
+  assertEquals(written.written, ['ICC_Profile']);
+  assertEquals(info.tags.WebP_ICC, true);
+  const bytes = written.bytes;
+  let offset = 12;
+  const chunks: string[] = [];
+  let iccp: Uint8Array | undefined;
+  while (offset + 8 <= bytes.length) {
+    const id = String.fromCharCode(...bytes.subarray(offset, offset + 4));
+    const size = new DataView(bytes.buffer, bytes.byteOffset + offset + 4, 4).getUint32(0, true);
+    chunks.push(id);
+    if (id === 'ICCP') iccp = bytes.subarray(offset + 8, offset + 8 + size);
+    offset += 8 + size + (size % 2);
+  }
+  assertEquals(chunks.includes('ICCP'), true);
+  assertEquals(Array.from(iccp!), Array.from(profile));
+
+  const file = await (await import('../test/tmp.js')).tempFile('.webp');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    await writeFile(file, written.bytes);
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-ProfileFileSignature', file],
+    );
+    assertEquals(JSON.parse(stdout)[0].ProfileFileSignature, 'acsp');
+
+    const deleted = webpWriter(written.bytes, { ICC_Profile: null });
+    const deletedInfo = await webpParser.parse(deleted.bytes, 'icc.webp');
+    assertEquals(deletedInfo.tags.WebP_ICC, false);
+    await rm(file, { force: true });
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
 
 // --- AVIF container ---
 
