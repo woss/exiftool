@@ -5,6 +5,7 @@ import { gifParser } from './format/gif.js';
 import { pngParser } from './format/png.js';
 import { webpParser } from './format/webp.js';
 import { tiffRawParser } from './format/tiff-raw.js';
+import { xmpParser } from './format/xmp.js';
 
 /**
  * Built-in format parser plugins.
@@ -30,6 +31,7 @@ export const MODERN_PLUGINS: FormatParser[] = [
   webpParser,
   avifParser,
   tiffRawParser,
+  xmpParser,
 ];
 
 /**
@@ -59,3 +61,6 @@ export { webpParser };
  * reported as `FileInfo.format`. MakerNotes are not decoded.
  */
 export { tiffRawParser };
+
+/** Standalone XMP packet parser and writer. */
+export { xmpParser };

@@ -5,6 +5,7 @@ import { gifParser } from './gif.js';
 import { pngParser } from './png.js';
 import { webpParser } from './webp.js';
 import { tiffRawParser } from './tiff-raw.js';
+import { xmpParser } from './xmp.js';
 
 /**
  * Every format plugin shipped with the library, in detection order.
@@ -19,4 +20,5 @@ export const BUILTIN_PLUGINS: FormatParser[] = [
   webpParser,
   avifParser,
   tiffRawParser,
+  xmpParser,
 ];

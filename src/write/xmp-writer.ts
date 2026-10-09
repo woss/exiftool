@@ -162,6 +162,16 @@ export function toXmpPropertyRequest(
   key: string,
   value: TagValue,
 ): XmpPropertyRequest | undefined {
+  const name = toXmpPropertyName(key);
+  if (!name) return undefined;
+  const ok =
+    typeof value === 'string' ||
+    (Array.isArray(value) && value.every((v) => typeof v === 'string'));
+  if (!ok) return undefined;
+  return { name, value: value as XmpWriteValue };
+}
+
+export function toXmpPropertyName(key: string): string | undefined {
   const lower = key.toLowerCase();
   let name = BARE_ALIASES[lower];
   if (name === undefined && lower.startsWith('xmp-')) {
@@ -177,11 +187,34 @@ export function toXmpPropertyRequest(
     name = `${prefix}:${prefix === 'dc' ? property.toLowerCase() : property}`;
   }
   if (!name || !name.includes(':')) return undefined;
-  const ok =
-    typeof value === 'string' ||
-    (Array.isArray(value) && value.every((v) => typeof v === 'string'));
-  if (!ok) return undefined;
-  return { name, value: value as XmpWriteValue };
+  return name;
+}
+
+/** Removes matching top-level XMP properties without rewriting other XML. */
+export function deleteXmpProperties(packet: string, names: string[]): string {
+  let out = packet;
+  for (const name of names) {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const descOpen = out.indexOf('<rdf:Description');
+    if (descOpen !== -1) {
+      const descClose = out.indexOf('>', descOpen);
+      if (descClose !== -1) {
+        const tag = out.slice(descOpen, descClose);
+        const attrRe = new RegExp(`\\s${escaped}=(?:"[^"]*"|'[^']*')`);
+        out = out.slice(0, descOpen) + tag.replace(attrRe, '') + out.slice(descClose);
+      }
+    }
+    const span = topLevelDescriptionSpan(out);
+    if (!span) continue;
+    const [start, end] = span;
+    const body = out.slice(start, end);
+    const propertyRe = new RegExp(
+      `<${escaped}(?:\\s[^>]*)?\\s*/>|<${escaped}(?:\\s[^>]*)?>[\\s\\S]*?</${escaped}>`,
+      'g',
+    );
+    out = out.slice(0, start) + body.replace(propertyRe, '') + out.slice(end);
+  }
+  return out;
 }
 
 /**

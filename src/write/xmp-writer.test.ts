@@ -4,8 +4,10 @@ import { parseXMP } from '../exif/xmp.js';
 import { UnsupportedFormatError } from './writers.js';
 import {
   buildXmpPropertiesPacket,
+  deleteXmpProperties,
   mergeXmpProperties,
   serializeXmpProperty,
+  toXmpPropertyName,
   toXmpPropertyRequest,
   writeXmpPacket,
 } from './xmp-writer.js';
@@ -164,6 +166,20 @@ test('toXmpPropertyRequest preserves namespace and property casing', () => {
     name: 'dc:subject',
     value: ['one', 'two'],
   });
+});
+
+test('toXmpPropertyName resolves group-qualified names for deletes', () => {
+  assertEquals(toXmpPropertyName('XMP-dc:Title'), 'dc:title');
+  assertEquals(toXmpPropertyName('XMP-photoshop:Credit'), 'photoshop:Credit');
+  assertEquals(toXmpPropertyName('Bogus:Value'), undefined);
+});
+
+test('deleteXmpProperties removes element and attribute forms only', () => {
+  const packet = '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/" dc:title="Attribute"><dc:rights><rdf:Alt><rdf:li xml:lang="x-default">Rights</rdf:li></rdf:Alt></dc:rights><dc:description>Keep this</dc:description></rdf:Description></rdf:RDF>';
+  const deleted = deleteXmpProperties(packet, ['dc:title', 'dc:rights']);
+  assertEquals(deleted.includes('dc:title'), false);
+  assertEquals(deleted.includes('dc:rights'), false);
+  assertEquals(deleted.includes('<dc:description>Keep this</dc:description>'), true);
 });
 
 test('mergeXmpProperties rejects unknown namespace prefixes', () => {
