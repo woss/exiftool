@@ -531,6 +531,33 @@ test('runAction write mode updates file and creates backup', async () => {
   }
 });
 
+test('runAction applies -if conditions to write targets', async () => {
+  const matching = await tempFile('.jpg');
+  const nonmatching = await tempFile('.jpg');
+  await writeFile(matching, await readFile('assets/01.jpg'));
+  await writeFile(nonmatching, await readFile('assets/03.jpg'));
+  const original = await readFile(nonmatching);
+  const originalSoftware = (await new ExifTool().read(nonmatching)).tags.Software;
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { overwriteOriginal: true, if: ['$Make eq Canon'] },
+      '-Software=conditional',
+      matching,
+      nonmatching,
+    );
+    assertEquals(code, 0);
+    assertEquals((await new ExifTool().read(matching)).tags.Software, 'conditional');
+    assertEquals((await new ExifTool().read(nonmatching)).tags.Software, originalSoftware);
+    assertEquals(Buffer.compare(await readFile(nonmatching), original), 0);
+    assertEquals(cap.err.includes('1 files failed condition'), true);
+  } finally {
+    cap.restore();
+    await rm(matching, { force: true });
+    await rm(nonmatching, { force: true });
+  }
+});
+
 test('runAction appends XMP Subject values to each target', async () => {
   const tmp = await tempFile('.jpg');
   await writeFile(tmp, await readFile('assets/03.jpg'));

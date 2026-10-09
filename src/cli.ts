@@ -92,12 +92,17 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
       ignoreDirs: options.ignore ?? [],
     });
     let updated = 0;
+    let failedCondition = 0;
     for (const file of expandedWrite) {
       try {
         const tags: Record<string, import('./types.js').TagValue> = { ...sourceTags };
         let targetTags: Record<string, import('./types.js').TagValue> | undefined;
-        if (assignments.some((assignment) => assignment.append)) {
+        if (assignments.some((assignment) => assignment.append) || options.if !== undefined) {
           targetTags = (await tool.read(file)).tags;
+        }
+        if (options.if !== undefined && !options.if.every((condition) => evalCondition(condition, targetTags ?? {}))) {
+          failedCondition++;
+          continue;
         }
         for (const assignment of assignments) {
           const value = assignment.value.length === 0 ? null : assignment.value;
@@ -156,6 +161,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
       }
     }
     if (updated > 0 && quietCount < 1) console.log(`${updated} image files updated`);
+    if (failedCondition > 0 && quietCount < 1) console.error(`${failedCondition} files failed condition`);
     for (const line of failures) console.error(line);
     return failures.length > 0 ? 1 : 0;
   }
