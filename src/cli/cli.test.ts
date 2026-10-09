@@ -961,6 +961,28 @@ test('runAction write mode preserves mtime when requested', async () => {
   }
 });
 
+test('runAction -o with -P preserves source mtime on the output', async () => {
+  const input = await tempFile('.jpg');
+  const output = await tempFile('.jpg');
+  await rm(output, { force: true });
+  await writeFile(input, await readFile('assets/01.jpg'));
+  const originalMtime = new Date('2020-01-02T03:04:05.000Z');
+  try {
+    await utimes(input, originalMtime, originalMtime);
+    const code = await runAction(
+      { output, overwriteOriginal: true, preserveTime: true },
+      '-Make=Acme',
+      input,
+    );
+    assertEquals(code, 0);
+    assertEquals(Math.abs((await stat(input)).mtimeMs - originalMtime.getTime()) < 1, true);
+    assertEquals(Math.abs((await stat(output)).mtimeMs - originalMtime.getTime()) < 1, true);
+  } finally {
+    await rm(input, { force: true });
+    await rm(output, { force: true });
+  }
+});
+
 test('runAction write mode reports unsupported files and returns 1', async () => {
   const txt = await tempFile('.txt');
   await writeFile(txt, 'plain');
@@ -977,6 +999,36 @@ test('runAction write mode reports unsupported files and returns 1', async () =>
   } finally {
     cap.restore();
     await rm(txt);
+  }
+});
+
+test('runAction -o directory continues after an unsupported batch input', async () => {
+  const unsupported = await tempFile('.txt');
+  const supported = await tempFile('.jpg');
+  const outputDir = await mkdtemp(join(tmpdir(), 'exiftool-cli-partial-'));
+  await writeFile(unsupported, 'plain text');
+  await writeFile(supported, await readFile('assets/01.jpg'));
+  const supportedOriginal = await readFile(supported);
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { output: outputDir, overwriteOriginal: true },
+      '-Software=partial-output',
+      unsupported,
+      supported,
+    );
+    assertEquals(code, 1);
+    assertEquals(cap.err.some((line) => line.includes(unsupported)), true);
+    assertEquals(
+      (await new ExifTool().read(join(outputDir, basename(supported)))).tags.Software,
+      'partial-output',
+    );
+    assertEquals(Buffer.compare(await readFile(supported), supportedOriginal), 0);
+  } finally {
+    cap.restore();
+    await rm(unsupported, { force: true });
+    await rm(supported, { force: true });
+    await rm(outputDir, { recursive: true, force: true });
   }
 });
 
