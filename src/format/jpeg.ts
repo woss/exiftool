@@ -8,6 +8,7 @@ import { parseXMP } from '../exif/xmp.js';
 import { computeCompositeTags } from '../exif/composite.js';
 import { parseAPP13 } from '../exif/app13.js';
 import { parseJUMBFFromSegment } from './jumbf.js';
+import { parseDucky } from '../exif/ducky.js';
 /**
  * JPEG format parser.
  * Handles EXIF (APP1), ICC Profile (APP2), XMP (APP1), IPTC (APP13),
@@ -95,6 +96,10 @@ export const jpegParser: FormatParser = {
             result[k] = v;
           }
         }
+      }
+
+      if (marker === 0xec && data.length >= 9 && new TextDecoder().decode(data.subarray(0, 5)) === 'Ducky') {
+        Object.assign(result, parseDucky(data));
       }
 
       if (marker === 0xed && data.length >= 14) {

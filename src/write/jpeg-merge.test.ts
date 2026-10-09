@@ -329,6 +329,43 @@ test('jpegMergeWriter inserts, reads, and deletes JPEG ICC APP2 profile segments
   );
 });
 
+test('jpegMergeWriter writes and deletes Ducky APP12 blocks', async () => {
+  const original = new Uint8Array(readFileSync('assets/01.jpg'));
+  const result = jpegMergeWriter(original, {
+    'Ducky:Quality': 50,
+    'Ducky:Comment': 'Ducky note',
+    'Ducky:Copyright': 'Ducky author',
+  });
+  assertEquals(result.written, ['Ducky:Quality', 'Ducky:Comment', 'Ducky:Copyright']);
+  const local = await jpegParser.parse(result.bytes, 'ducky.jpg');
+  assertEquals(local.tags.Quality, '50%');
+  assertEquals(local.tags.Comment, 'Ducky note');
+  assertEquals(local.tags.Copyright, 'Ducky author');
+
+  const file = await tempFile('.jpg');
+  try {
+    await writeFile(file, result.bytes);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-G1', '-Ducky:Quality', '-Ducky:Comment', '-Ducky:Copyright', file]);
+    const info = JSON.parse(stdout)[0];
+    assertEquals(info['Ducky:Quality'], '50%');
+    assertEquals(info['Ducky:Comment'], 'Ducky note');
+    assertEquals(info['Ducky:Copyright'], 'Ducky author');
+  } finally {
+    await rm(file, { force: true });
+  }
+
+  const deleted = jpegMergeWriter(result.bytes, {
+    'Ducky:Quality': null,
+    'Ducky:Comment': null,
+    'Ducky:Copyright': null,
+  });
+  assertEquals(
+    parseJpegSegments(deleted.bytes).some((segment) => segment.marker === 0xec &&
+      String.fromCharCode(...deleted.bytes.subarray(segment.payloadStart, segment.payloadStart + 5)) === 'Ducky'),
+    false,
+  );
+});
+
 test('parseRawTiff rejects short, bad-endian, and bad-magic buffers', async () => {
   const { parseRawTiff } = await import('./jpeg-merge.js');
   assertEquals(parseRawTiff(new Uint8Array(4)), undefined);

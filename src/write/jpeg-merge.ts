@@ -15,6 +15,7 @@ import {
   type XmpWriteValue,
 } from './xmp-writer.js';
 import { mergePhotoshopIrb, resolveIptcWriteRequest, type IptcWriteRequest } from './iptc.js';
+import { mergeDucky } from '../exif/ducky.js';
 
 /**
  * Merge-write key convention (exported, documented):
@@ -95,6 +96,7 @@ export interface MergeRequests {
   comment?: { key: string; value: string | null };
   jfif: Array<{ key: string; field: 'unit' | 'x' | 'y'; value: number }>;
   icc?: { key: string; value: Uint8Array | null };
+  ducky: Array<{ key: string; id: number; value: TagValue }>;
   skipped: string[];
 }
 
@@ -108,6 +110,7 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
   const iptcKeys: string[] = [];
   const jfif: MergeRequests['jfif'] = [];
   let icc: MergeRequests['icc'];
+  const ducky: MergeRequests['ducky'] = [];
   let comment: MergeRequests['comment'];
   const skipped: string[] = [];
   for (const [key, value] of Object.entries(tags)) {
@@ -140,6 +143,17 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
     if (/^(?:jpeg:)?icc_profile$/i.test(key)) {
       if (value === null || value instanceof Uint8Array) icc = { key, value };
       else skipped.push(key);
+      continue;
+    }
+    const duckyMatch = key.match(/^ducky:(quality|comment|copyright)$/i);
+    if (duckyMatch) {
+      const property = duckyMatch[1]!.toLowerCase();
+      const id = property === 'quality' ? 1 : property === 'comment' ? 2 : 3;
+      const valid = value === null || (id === 1
+        ? typeof value === 'number' || typeof value === 'string'
+        : typeof value === 'string');
+      if (!valid) skipped.push(key);
+      else ducky.push({ key, id, value });
       continue;
     }
     const canonical =
@@ -182,7 +196,7 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
       exif.push({ key: `EXIF:${spec.name}`, spec, value, home });
     }
   }
-  return { exif, xmp, xmpKeys, iptc, iptcKeys, comment, jfif, icc, skipped };
+  return { exif, xmp, xmpKeys, iptc, iptcKeys, comment, jfif, icc, ducky, skipped };
 }
 
 // ---------------------------------------------------------------------------
@@ -527,6 +541,18 @@ function app13Segment(payload: Uint8Array): Uint8Array {
   return seg;
 }
 
+function app12Segment(payload: Uint8Array): Uint8Array {
+  if (payload.length + 2 > 0xffff) throw new UnsupportedFormatError('APP12 segment exceeds 65,533 bytes');
+  const segment = new Uint8Array(payload.length + 4);
+  segment[0] = 0xff;
+  segment[1] = 0xec;
+  const length = payload.length + 2;
+  segment[2] = length >> 8;
+  segment[3] = length & 0xff;
+  segment.set(payload, 4);
+  return segment;
+}
+
 function jpegCommentSegments(value: string): Uint8Array[] {
   const data = new TextEncoder().encode(value);
   const segments: Uint8Array[] = [];
@@ -641,6 +667,7 @@ export const jpegMergeWriter: ContainerWriter = (original, tags) => {
   const jfifSeg = segments.find((s) => s.marker === 0xe0 && payloadStartsWith(original, s, 'JFIF\0'));
   const adobeSeg = segments.find((s) => s.marker === 0xee && payloadStartsWith(original, s, 'Adobe'));
   const iccSegments = segments.filter((s) => s.marker === 0xe2 && payloadStartsWith(original, s, 'ICC_PROFILE\0'));
+  const duckySeg = segments.find((s) => s.marker === 0xec && payloadStartsWith(original, s, 'Ducky'));
 
   const written: string[] = [];
   const skipped: string[] = [...reqs.skipped];
@@ -779,6 +806,23 @@ export const jpegMergeWriter: ContainerWriter = (original, tags) => {
       }
     }
     written.push(reqs.icc.key);
+  }
+  if (reqs.ducky.length > 0) {
+    const existing = duckySeg
+      ? original.subarray(duckySeg.payloadStart, duckySeg.payloadEnd)
+      : null;
+    const updated = mergeDucky(existing, reqs.ducky);
+    if (updated && updated.length + 2 > 0xffff) {
+      throw new UnsupportedFormatError('Ducky APP12 segment exceeds 65,533 bytes');
+    }
+    if (duckySeg) {
+      edits.push({ at: duckySeg.start, end: duckySeg.end, bytes: updated ? app12Segment(updated) : null });
+    } else if (updated) {
+      const anchor = segments.find((segment) => segment.marker === 0xda)?.start ??
+        segments.find((segment) => segment.marker === 0xd9)?.start ?? original.length;
+      edits.push({ at: anchor, end: anchor, bytes: app12Segment(updated) });
+    }
+    written.push(...reqs.ducky.map((request) => request.key));
   }
   edits.sort((a, b) => a.at - b.at);
   const parts: Uint8Array[] = [];
