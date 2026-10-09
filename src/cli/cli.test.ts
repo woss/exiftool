@@ -7,7 +7,7 @@ import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
 import { mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { basename, join } from 'node:path';
+import { basename, join, sep } from 'node:path';
 import { tempFile } from '../../src/test/tmp.js';
 
 const execFileP = promisify(execFile);
@@ -656,6 +656,28 @@ test('runAction writes a batch to an existing -o directory', async () => {
     await rm(first, { force: true });
     await rm(second, { force: true });
     await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('runAction creates a missing -o directory when the path ends in a separator', async () => {
+  const input = await tempFile('.jpg');
+  const root = await mkdtemp(join(tmpdir(), 'exiftool-cli-output-root-'));
+  const outputDir = join(root, 'new-output');
+  await writeFile(input, await readFile('assets/01.jpg'));
+  try {
+    const code = await runAction(
+      { output: `${outputDir}${sep}`, overwriteOriginal: true },
+      '-Software=created-directory',
+      input,
+    );
+    assertEquals(code, 0);
+    assertEquals(
+      (await new ExifTool().read(join(outputDir, basename(input)))).tags.Software,
+      'created-directory',
+    );
+  } finally {
+    await rm(input, { force: true });
+    await rm(root, { recursive: true, force: true });
   }
 });
 

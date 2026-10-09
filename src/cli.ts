@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { applyFileStat } from './cli/filestat.js';
-import { lstat, readFile, link, rm, stat, utimes, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, link, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { basename, dirname, extname, join, sep } from 'node:path';
@@ -130,8 +130,9 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
     });
     let outputIsDirectory = false;
     if (options.output !== undefined) {
+      outputIsDirectory = /[\\/]$/.test(options.output);
       try {
-        outputIsDirectory = (await stat(options.output)).isDirectory();
+        outputIsDirectory ||= (await stat(options.output)).isDirectory();
       } catch {
         // A non-existent output path is treated as a file destination.
       }
@@ -205,6 +206,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
               writeMode: options.writeMode,
             });
           } else {
+            if (outputIsDirectory) await mkdir(options.output, { recursive: true });
             const destination = outputIsDirectory
               ? join(options.output, basename(file))
               : outputUsesTemplate
