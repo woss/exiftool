@@ -92,6 +92,7 @@ const PNG_TEXT_TAGS: Record<string, string> = {
 
 interface PngTextRequest { key: string; keyword: string; value: string | null }
 interface PngAncillaryRequest { key: string; tag: 'gamma' | 'srgb' | 'physX' | 'physY' | 'physUnit'; value: number | null }
+interface PngTimeRequest { key: string; value: string | null }
 
 function splitPngWriteTags(tags: Record<string, TagValue>): {
   exif: Record<string, TagValue>;
@@ -101,6 +102,7 @@ function splitPngWriteTags(tags: Record<string, TagValue>): {
   iccProfile?: { key: string; profile: Uint8Array | null };
   iccName?: { key: string; name: string };
   ancillary: PngAncillaryRequest[];
+  time?: PngTimeRequest;
   skipped: string[];
 } {
   const exif: Record<string, TagValue> = {};
@@ -110,8 +112,14 @@ function splitPngWriteTags(tags: Record<string, TagValue>): {
   const skipped: string[] = [];
   let iccProfile: { key: string; profile: Uint8Array | null } | undefined;
   let iccName: { key: string; name: string } | undefined;
+  let time: PngTimeRequest | undefined;
   const ancillary: PngAncillaryRequest[] = [];
   for (const [key, value] of Object.entries(tags)) {
+    if (/^(?:png:)?modifydate$/i.test(key)) {
+      if (value === null || typeof value === 'string') time = { key, value };
+      else skipped.push(key);
+      continue;
+    }
     const ancillaryName = key.toLowerCase().replace(/^png:/, '');
     const ancillaryNames: Record<string, PngAncillaryRequest['tag']> = {
       gamma: 'gamma',
@@ -177,7 +185,33 @@ function splitPngWriteTags(tags: Record<string, TagValue>): {
       exif[key] = value;
     }
   }
-  return { exif, xmp, xmpKeys, text, iccProfile, iccName, ancillary, skipped };
+  return { exif, xmp, xmpKeys, text, iccProfile, iccName, ancillary, time, skipped };
+}
+
+function pngTimeChunk(value: string): Uint8Array {
+  const match = value.trim().match(/^(\d{4})[:-](\d{2})[:-](\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+  if (!match) throw new UnsupportedFormatError(`invalid PNG ModifyDate: ${value}`);
+  const [, yearText, monthText, dayText, hourText, minuteText, secondText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const second = Number(secondText);
+  const date = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  if (year < 1 || year > 0xffff || date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 ||
+      date.getUTCDate() !== day || hour > 23 || minute > 59 || second > 60) {
+    throw new UnsupportedFormatError(`invalid PNG ModifyDate: ${value}`);
+  }
+  const data = new Uint8Array(7);
+  const view = new DataView(data.buffer);
+  view.setUint16(0, year, false);
+  data[2] = month;
+  data[3] = day;
+  data[4] = hour;
+  data[5] = minute;
+  data[6] = second;
+  return data;
 }
 
 function pngTextChunk(keyword: string, value: string): { type: string; data: Uint8Array } {
@@ -307,7 +341,7 @@ export const pngWriter: ContainerWriter = (original, tags) => {
   for (let i = 0; i < 8; i++) {
     if (original[i] !== PNG_SIG[i]) throw new UnsupportedFormatError('not a PNG stream');
   }
-  const { exif, xmp, xmpKeys, iccProfile, iccName, text, ancillary, skipped } = splitPngWriteTags(tags);
+  const { exif, xmp, xmpKeys, iccProfile, iccName, text, ancillary, time, skipped } = splitPngWriteTags(tags);
   const dv = new DataView(original.buffer, original.byteOffset, original.byteLength);
 
   const kept: Array<{ type: string; data: Uint8Array }> = [];
@@ -332,6 +366,7 @@ export const pngWriter: ContainerWriter = (original, tags) => {
     if (type === 'gAMA' && writeGamma) continue;
     if (type === 'sRGB' && writeSrgb) continue;
     if (type === 'pHYs' && writePhys) continue;
+    if (type === 'tIME' && time) continue;
     if (type === 'eXIf' && Object.keys(exif).length > 0) continue;
     if (type === 'iTXt' && xmp.length > 0) {
       // Existing XMP packet (keyword XML:com.adobe.xmp): decode for merge.
@@ -387,6 +422,10 @@ export const pngWriter: ContainerWriter = (original, tags) => {
           kept.push({ type: 'pHYs', data });
         }
         written.push(...physRequests.map((request) => request.key));
+      }
+      if (time) {
+        if (time.value !== null) kept.push({ type: 'tIME', data: pngTimeChunk(time.value) });
+        written.push(time.key);
       }
       if (Object.keys(exif).length > 0) {
         const { bytes: tiff, written: exifWritten, skipped: exifSkipped } = buildTiff(exif);

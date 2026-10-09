@@ -33,6 +33,17 @@ function chunk(type: string, payload: Uint8Array): Uint8Array {
   return out;
 }
 
+function chunkDataForTest(bytes: Uint8Array, wanted: string): Uint8Array | undefined {
+  let offset = PNG_SIG.length;
+  while (offset + 12 <= bytes.length) {
+    const length = new DataView(bytes.buffer, bytes.byteOffset + offset, 4).getUint32(0, false);
+    const type = new TextDecoder().decode(bytes.subarray(offset + 4, offset + 8));
+    if (type === wanted) return bytes.subarray(offset + 8, offset + 8 + length);
+    offset += length + 12;
+  }
+  return undefined;
+}
+
 function ihdr(w: number, h: number): Uint8Array {
   const d = new Uint8Array(13);
   new DataView(d.buffer).setUint32(0, w, false);
@@ -202,6 +213,32 @@ test('pngWriter updates pHYs, gAMA, and sRGB chunks with ExifTool conversions', 
   } finally {
     await rm(file, { force: true });
   }
+});
+
+test('pngWriter updates and deletes tIME ModifyDate', async () => {
+  const { readFile, writeFile, rm } = await import('node:fs/promises');
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const { tempFile } = await import('../test/tmp.js');
+  const upstream = new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname;
+  const source = new Uint8Array(await readFile('vendor/exiftool/t/images/PNG.png'));
+  const result = pngParser.writeBytes!(source, { 'PNG:ModifyDate': '2024:01:02 03:04:05' });
+  const local = await pngParser.parse(result.bytes, 'time.png');
+  assertEquals(local.tags.ModifyDate, '2024:01:02 03:04:05');
+  const timeData = chunkDataForTest(result.bytes, 'tIME')!;
+  assertEquals(Array.from(timeData), [7, 232, 1, 2, 3, 4, 5]);
+
+  const file = await tempFile('.png');
+  try {
+    await writeFile(file, result.bytes);
+    const { stdout } = await promisify(execFile)(upstream, ['-j', '-G1', '-PNG:ModifyDate', file]);
+    assertEquals(JSON.parse(stdout)[0]['PNG:ModifyDate'], '2024:01:02 03:04:05');
+  } finally {
+    await rm(file, { force: true });
+  }
+
+  const deleted = pngParser.writeBytes!(result.bytes, { 'PNG:ModifyDate': null });
+  assertEquals(chunkDataForTest(deleted.bytes, 'tIME'), undefined);
 });
 
 test('vendored ExifTool reads PNG textual data written by the adapter', async () => {

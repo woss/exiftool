@@ -177,6 +177,10 @@ function readChunk(
         result['PixelsPerUnitY'] = view.getUint32(4, false);
         result['PixelUnits'] = view.getUint8(8) === 1 ? 'meters' : 'Unknown';
       }
+      if (chunk.type === 'tIME' && chunk.data.length === 7) {
+        const view = new DataView(chunk.data.buffer, chunk.data.byteOffset, chunk.data.byteLength);
+        result['ModifyDate'] = `${view.getUint16(0, false)}:${String(chunk.data[2]).padStart(2, '0')}:${String(chunk.data[3]).padStart(2, '0')} ${String(chunk.data[4]).padStart(2, '0')}:${String(chunk.data[5]).padStart(2, '0')}:${String(chunk.data[6]).padStart(2, '0')}`;
+      }
       if (chunk.type === 'caBX') {
         const jumbfTags = parseJUMBFFromSegment(chunk.data);
         for (const [k, v] of Object.entries(jumbfTags)) {
