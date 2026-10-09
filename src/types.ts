@@ -156,6 +156,9 @@ export interface WriteOptions {
 
   /** Preserve file modification time (default: false) */
   preserveTime?: boolean;
+
+  /** Compress supported metadata text chunks when this reduces their size. */
+  compress?: boolean;
 }
 
 /**
@@ -235,6 +238,7 @@ export interface WriteOutcome {
 export type ContainerWriter = (
   original: Uint8Array,
   tags: Record<string, TagValue>,
+  options?: Pick<WriteOptions, 'compress'>,
 ) => WriteOutcome;
 
 /**

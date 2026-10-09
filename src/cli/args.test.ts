@@ -9,6 +9,13 @@ test('parseCliArgs — boolean long and short flags', () => {
   });
 });
 
+test('parseCliArgs — ExifTool -z enables write compression', () => {
+  assertEquals(parseCliArgs(normalizeArgs(['-z'])), {
+    options: { compress: true },
+    files: [],
+  });
+});
+
 test('parseCliArgs — preserve-time accepts ExifTool -P and long form', () => {
   assertEquals(parseCliArgs(['-P']).options.preserveTime, true);
   assertEquals(parseCliArgs(['--preserve-time']).options.preserveTime, true);

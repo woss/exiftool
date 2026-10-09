@@ -10,6 +10,10 @@ overrides:
 importers:
 
   .:
+    dependencies:
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
     devDependencies:
       '@arethetypeswrong/cli':
         specifier: ^0.18.5

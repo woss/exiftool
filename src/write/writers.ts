@@ -1,6 +1,7 @@
 import type { ContainerWriter, TagValue, WriteOutcome } from '../types.js';
 import { buildTiff } from '../exif/tiff-builder.js';
 import { crc32 } from '../utils/crc32.js';
+import { zlibSync } from 'fflate';
 import { toXmpPropertyRequest, writeXmpPacket, type XmpPropertyRequest } from './xmp-writer.js';
 
 /**
@@ -241,7 +242,31 @@ function pngTimeChunk(value: string): Uint8Array {
   return data;
 }
 
-function pngTextChunk(keyword: string, value: string, language?: string): { type: string; data: Uint8Array } {
+function pngTextChunk(
+  keyword: string,
+  value: string,
+  language?: string,
+  compress = false,
+): { type: string; data: Uint8Array } {
+  if (compress) {
+    const text = new TextEncoder().encode(value);
+    const compressed = zlibSync(text);
+    if (compressed.length < text.length) {
+      if (language || /[^\x00-\x7f]/.test(value)) {
+        const prefix = new TextEncoder().encode(`${keyword}\0\u0001\0${language ?? ''}\0\0`);
+        const data = new Uint8Array(prefix.length + compressed.length);
+        data.set(prefix);
+        data.set(compressed, prefix.length);
+        return { type: 'iTXt', data };
+      }
+      const key = new TextEncoder().encode(keyword);
+      const data = new Uint8Array(key.length + 2 + compressed.length);
+      data.set(key);
+      data[key.length + 1] = 0;
+      data.set(compressed, key.length + 2);
+      return { type: 'zTXt', data };
+    }
+  }
   if (!language && /^[\x00-\xff]*$/.test(value)) {
     const key = new TextEncoder().encode(keyword);
     const text = new Uint8Array([...value].map((character) => character.charCodeAt(0)));
@@ -373,7 +398,7 @@ function pngXmpItxt(packet: string): { type: string; data: Uint8Array } {
  * XMP iTXt chunks (when XMP tags requested), inserting fresh ones after
  * IHDR. The XMP iTXt is uncompressed with keyword XML:com.adobe.xmp.
  */
-export const pngWriter: ContainerWriter = (original, tags) => {
+export const pngWriter: ContainerWriter = (original, tags, options) => {
   for (let i = 0; i < 8; i++) {
     if (original[i] !== PNG_SIG[i]) throw new UnsupportedFormatError('not a PNG stream');
   }
@@ -477,7 +502,9 @@ export const pngWriter: ContainerWriter = (original, tags) => {
         written.push(...xmpKeys);
       }
       for (const request of text) {
-        if (request.value !== null) kept.push(pngTextChunk(request.keyword, request.value, request.language));
+        if (request.value !== null) {
+          kept.push(pngTextChunk(request.keyword, request.value, request.language, options?.compress));
+        }
         written.push(request.key);
       }
       inserted = true;

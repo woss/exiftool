@@ -188,6 +188,52 @@ test('pngWriter inserts, replaces, and deletes an iCCP profile', async () => {
   }
 });
 
+test('pngWriter compresses text as zTXt when it saves space', async () => {
+  const value = 'compressed PNG comment '.repeat(40);
+  const written = pngWriter(buildPng(false), { Comment: value }, { compress: true });
+  assertEquals(new TextDecoder().decode(written.bytes).includes('zTXt'), true);
+  assertEquals((await pngParser.parse(written.bytes, '(compressed test)')).tags.Comment, value);
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, written.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-G1', '-PNG:Comment', file],
+    );
+    assertEquals(JSON.parse(stdout)[0]['PNG:Comment'], value);
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
+test('pngWriter compresses language-qualified text as iTXt', async () => {
+  const value = 'Commentaire répété '.repeat(40);
+  const written = pngWriter(buildPng(false), { 'PNG:Comment-fr': value }, { compress: true });
+  const itxt = chunkDataForTest(written.bytes, 'iTXt')!;
+  const keywordEnd = itxt.indexOf(0);
+  assertEquals(itxt[keywordEnd + 1], 1);
+  assertEquals((await pngParser.parse(written.bytes, '(compressed language test)')).tags['Comment-fr'], value);
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, written.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-G1', '-PNG:Comment-fr', file],
+    );
+    assertEquals(JSON.parse(stdout)[0]['PNG:Comment-fr'], value);
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
 function chunkDataForTest(bytes: Uint8Array, wanted: string): Uint8Array | undefined {
   let offset = 8;
   while (offset + 12 <= bytes.length) {

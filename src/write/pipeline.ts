@@ -46,7 +46,7 @@ export async function writeTagsWithTmp(
       `writing not supported for ${parser?.format ?? 'unknown'} files`,
     );
   }
-  const outcome = parser.writeBytes(original, tags);
+  const outcome = parser.writeBytes(original, tags, opts);
   let backup: string | undefined;
   try {
     await writeFile(tmp, outcome.bytes);

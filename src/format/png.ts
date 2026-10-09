@@ -56,7 +56,12 @@ function readChunk(
     // PNG text-chunk tags (tEXt/iTXt/zTXt) have the lowest precedence:
     // EXIF/eXIf-derived and XMP-derived keys always win, text chunks yield.
     const textTags: Record<string, TagValue> = {};
-    const ztxtEntries: Array<[string, Uint8Array]> = [];
+    const compressedTextEntries: Array<{
+      key: string;
+      compressed: Uint8Array;
+      xmp?: boolean;
+      fallback?: string;
+    }> = [];
     let offset = 8;
 
     while (offset < bytes.length) {
@@ -117,7 +122,7 @@ function readChunk(
         const nullIdx = chunk.data.indexOf(0);
         if (nullIdx > 0 && chunk.data[nullIdx + 1] === 0) {
           const key = new TextDecoder().decode(chunk.data.slice(0, nullIdx));
-          ztxtEntries.push([key, chunk.data.slice(nullIdx + 2)]);
+          compressedTextEntries.push({ key, compressed: chunk.data.slice(nullIdx + 2) });
         }
       }
 
@@ -142,9 +147,17 @@ function readChunk(
         if (null3 < 0) continue;
         const translated = new TextDecoder().decode(data.slice(pos, null3));
         pos = null3 + 1;
-        const text = compression === 0
-          ? new TextDecoder().decode(data.slice(pos))
-          : `[compressed:${compression}]`;
+        const key = language && language.toLowerCase() !== 'en' ? `${keyword}-${language}` : keyword;
+        if (compression === 1 && method === 0) {
+          compressedTextEntries.push({
+            key,
+            compressed: data.slice(pos),
+            xmp: keyword === 'XML:com.adobe.xmp',
+            fallback: `[compressed:${compression}]`,
+          });
+          continue;
+        }
+        const text = compression === 0 ? new TextDecoder().decode(data.slice(pos)) : `[compressed:${compression}]`;
         if (keyword === 'XML:com.adobe.xmp') {
           // Adobe writes the XMP document here; surface its parsed tags
           // instead of storing the raw blob (exiftool behavior).
@@ -154,7 +167,7 @@ function readChunk(
           }
           continue;
         }
-        textTags[language && language.toLowerCase() !== 'en' ? `${keyword}-${language}` : keyword] = text;
+        textTags[key] = text;
       }
       if (chunk.type === 'sRGB') {
         const intents: Record<number, string> = {
@@ -191,9 +204,21 @@ function readChunk(
       if (chunk.type === 'IEND') break;
     }
 
-    for (const [key, compressed] of ztxtEntries) {
+    for (const { key, compressed, xmp, fallback } of compressedTextEntries) {
       const inflated = await inflateZtxt(compressed);
-      if (inflated) textTags[key] = new TextDecoder().decode(inflated);
+      if (!inflated) {
+        if (fallback && !xmp) textTags[key] = fallback;
+        continue;
+      }
+      const text = new TextDecoder().decode(inflated);
+      if (xmp) {
+        const xmpTags = parseXMP(text);
+        for (const [name, value] of Object.entries(xmpTags)) {
+          if (!(name in result)) result[name] = value;
+        }
+      } else {
+        textTags[key] = text;
+      }
     }
 
     // PNG text-chunk keywords surface capitalized (exiftool behavior:

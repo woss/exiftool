@@ -12,6 +12,7 @@ export interface CliOptions {
   csv?: boolean;
   xml?: boolean;
   binary?: boolean;
+  compress?: boolean;
   dateFormat?: string;
   groupHeadings?: string | boolean;
   groupPrefix?: string | boolean;
@@ -42,6 +43,7 @@ const SPECS: Record<string, OptionSpec> = {
   json: { arity: 'flag' },
   csv: { arity: 'flag' },
   binary: { arity: 'flag' },
+  compress: { arity: 'flag' },
   'date-format': { arity: 'value' },
   'group-headings': { arity: 'value' },
   'group-prefix': { arity: 'value' },
@@ -66,6 +68,7 @@ const SPECS: Record<string, OptionSpec> = {
 /** Single-character short flags (multi-char shorts are pre-normalized). */
 const SHORTS: Record<string, string> = {
   b: 'binary',
+  z: 'compress',
   d: 'date-format',
   g: 'group-headings',
   G: 'group-prefix',

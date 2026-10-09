@@ -50,6 +50,20 @@ test('writeTags with overwriteOriginal skips the backup', async () => {
   }
 });
 
+test('writeTags forwards compression to the PNG writer', async () => {
+  const file = await tempFile('.png');
+  const value = 'pipeline-compressed-comment '.repeat(40);
+  try {
+    await writeFile(file, await readFile('vendor/exiftool/t/images/PNG.png'));
+    await writeTags(file, { 'PNG:Comment': value }, { overwriteOriginal: true, compress: true });
+    const bytes = await readFile(file);
+    assertEquals(bytes.includes(Buffer.from('zTXt')), true);
+    assertEquals((await tool.read(file)).tags.Comment, value);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
 test('writeTags preserves the source modification time when requested', async () => {
   const file = await makeTmpJpeg();
   const originalMtime = new Date('2020-01-02T03:04:05.000Z');

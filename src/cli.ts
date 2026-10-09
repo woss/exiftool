@@ -65,6 +65,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
         await tool.write(file, tags, {
           overwriteOriginal: options.overwriteOriginal === true,
           preserveTime: options.preserveTime === true,
+          compress: options.compress === true,
         });
         updated++;
       } catch (e) {
