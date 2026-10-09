@@ -26,6 +26,7 @@ export interface CliOptions {
   ignore?: string[];
   output?: string;
   tagsFromFile?: string | string[];
+  tagsFromFileRequests?: { source: string; selectors: string[] }[];
   extractEmbedded?: boolean;
   overwriteOriginal?: boolean;
   preserveTime?: boolean;
@@ -93,6 +94,7 @@ function camelize(name: string): string {
 export function parseCliArgs(argv: string[]): { options: CliOptions; files: string[] } {
   const options: CliOptions = {};
   const files: string[] = [];
+  let activeTagSource: { source: string; selectors: string[] } | undefined;
   const set = (name: string, value: unknown) => {
     const key = camelize(name);
     if (name === 'tags-from-file') {
@@ -100,6 +102,8 @@ export function parseCliArgs(argv: string[]): { options: CliOptions; files: stri
       (options as Record<string, unknown>)[key] = current === undefined
         ? value
         : [...(Array.isArray(current) ? current : [current]), value];
+      activeTagSource = { source: String(value), selectors: [] };
+      options.tagsFromFileRequests = [...(options.tagsFromFileRequests ?? []), activeTagSource];
       return;
     }
     if (SPECS[name]!.collect) {
@@ -128,6 +132,11 @@ export function parseCliArgs(argv: string[]): { options: CliOptions; files: stri
         ? long(arg)
         : SHORTS[arg.slice(1, 2)];
     if (!name) {
+      const selector = arg.match(/^(-{1,2}[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)$/);
+      if (selector && activeTagSource) {
+        activeTagSource.selectors.push(selector[1]!);
+        continue;
+      }
       // Unknown dash-token: operand (e.g. -TAG=VALUE write assignments).
       files.push(arg);
       continue;
@@ -183,6 +192,10 @@ export function normalizeArgs(args: string[]): string[] {
       // -ee maps to the long-only --extract-embedded option
       if (a === '-ee') return ['--extract-embedded'];
       if (/^-[gG]\d$/.test(a)) return [a.slice(0, 2), a.slice(2)];
+      const optionName = a.slice(1).toLowerCase().replace(/_/g, '-');
+      if (!(optionName in SPECS) && /^-[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?$/.test(a)) {
+        return [a];
+      }
       return ['--' + a.slice(1)];
     }
     if (a === '-g') return ['--group-headings', '0'];

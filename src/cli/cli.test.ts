@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import { assertEquals } from '../../src/test/asserts.js';
-import { main, normalizeArgs, runAction } from '../cli.js';
+import { main, normalizeArgs, parseCliArgs, runAction } from '../cli.js';
 import type { CliOptions } from '../cli.js';
 import { ExifTool } from '../../src/exiftool.js';
 import { execFile, spawn } from 'node:child_process';
@@ -911,16 +911,40 @@ test('runAction merges repeated tagsFromFile sources in order', async () => {
   await writeFile(secondSource, await readFile('assets/03.jpg'));
   await writeFile(target, await readFile('assets/01.jpg'));
   try {
+    const parsed = parseCliArgs(normalizeArgs([
+      '-tagsFromFile', firstSource, '-Make',
+      '-tagsFromFile', secondSource, '-Model',
+      '-Software=explicit', target,
+    ]));
+    const code = await runAction({ ...parsed.options, overwriteOriginal: true }, ...parsed.files);
+    assertEquals(code, 0);
+    const tags = (await new ExifTool().read(target)).tags;
+    assertEquals(tags.Make, 'Canon');
+    assertEquals(tags.Model, 'ILCE-7RM4');
+    assertEquals(tags.Software, 'explicit');
+  } finally {
+    await rm(firstSource, { force: true });
+    await rm(secondSource, { force: true });
+    await rm(target, { force: true });
+  }
+});
+
+test('runAction lets later tagsFromFile sources override unselected values', async () => {
+  const firstSource = await tempFile('.jpg');
+  const secondSource = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(firstSource, await readFile('assets/01.jpg'));
+  await writeFile(secondSource, await readFile('assets/03.jpg'));
+  await writeFile(target, await readFile('assets/01.jpg'));
+  try {
     const code = await runAction(
       { tagsFromFile: [firstSource, secondSource], overwriteOriginal: true },
-      '-Software=explicit',
       target,
     );
     assertEquals(code, 0);
     const tags = (await new ExifTool().read(target)).tags;
     assertEquals(tags.Make, 'SONY');
     assertEquals(tags.Model, 'ILCE-7RM4');
-    assertEquals(tags.Software, 'explicit');
   } finally {
     await rm(firstSource, { force: true });
     await rm(secondSource, { force: true });

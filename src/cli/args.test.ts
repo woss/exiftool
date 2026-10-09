@@ -45,7 +45,10 @@ test('parseCliArgs — values via space and inline equals', () => {
 test('parseCliArgs — tagsFromFile uses ExifTool spelling', () => {
   assertEquals(normalizeArgs(['-tagsFromFile', 'source.jpg']), ['--tags-from-file', 'source.jpg']);
   assertEquals(parseCliArgs(['--tags-from-file', 'source.jpg']), {
-    options: { tagsFromFile: 'source.jpg' },
+    options: {
+      tagsFromFile: 'source.jpg',
+      tagsFromFileRequests: [{ source: 'source.jpg', selectors: [] }],
+    },
     files: [],
   });
 });
@@ -53,7 +56,35 @@ test('parseCliArgs — tagsFromFile uses ExifTool spelling', () => {
 test('parseCliArgs — repeated tagsFromFile options retain source order', () => {
   assertEquals(
     parseCliArgs(normalizeArgs(['-tagsFromFile', 'first.jpg', '-tagsFromFile', 'second.jpg'])),
-    { options: { tagsFromFile: ['first.jpg', 'second.jpg'] }, files: [] },
+    {
+      options: {
+        tagsFromFile: ['first.jpg', 'second.jpg'],
+        tagsFromFileRequests: [
+          { source: 'first.jpg', selectors: [] },
+          { source: 'second.jpg', selectors: [] },
+        ],
+      },
+      files: [],
+    },
+  );
+});
+
+test('parseCliArgs — source tag selectors stay attached to their source occurrence', () => {
+  assertEquals(
+    parseCliArgs(normalizeArgs([
+      '-tagsFromFile', 'first.jpg', '-Make',
+      '-tagsFromFile', 'second.jpg', '-Model', 'target.jpg',
+    ])),
+    {
+      options: {
+        tagsFromFile: ['first.jpg', 'second.jpg'],
+        tagsFromFileRequests: [
+          { source: 'first.jpg', selectors: ['-Make'] },
+          { source: 'second.jpg', selectors: ['-Model'] },
+        ],
+      },
+      files: ['target.jpg'],
+    },
   );
 });
 

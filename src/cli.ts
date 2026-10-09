@@ -55,6 +55,27 @@ function outputFormatForPath(path: string): string | undefined {
   return OUTPUT_FORMAT_BY_EXTENSION[extension];
 }
 
+function selectCopiedTags(
+  tags: Record<string, import('./types.js').TagValue>,
+  selectors: string[],
+): Record<string, import('./types.js').TagValue> {
+  if (selectors.length === 0) return tags;
+  const parsed = selectors.flatMap((selector) => {
+    const match = selector.match(/^(-{1,2})(.+)$/);
+    return match ? [{ name: match[2]!.toLowerCase(), exclude: match[1] === '--' }] : [];
+  });
+  const includes = parsed.filter((selector) => !selector.exclude);
+  const excludes = parsed.filter((selector) => selector.exclude);
+  return Object.fromEntries(Object.entries(tags).filter(([key]) => {
+    const lowerKey = key.toLowerCase();
+    const matches = (name: string) => name.includes(':')
+      ? lowerKey === name
+      : lowerKey.split(':').at(-1) === name;
+    return (includes.length === 0 || includes.some(({ name }) => matches(name))) &&
+      !excludes.some(({ name }) => matches(name));
+  }));
+}
+
 function expandWriteOutputTemplate(template: string, input: string): string {
   const filename = basename(input);
   const extension = extname(filename);
@@ -139,34 +160,23 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
         return match ? [{ operand, name: match[2]!, exclude: match[1] === '--' }] : [];
       });
     if (options.tagsFromFile !== undefined) {
-      const sourceFiles = Array.isArray(options.tagsFromFile)
-        ? options.tagsFromFile
-        : [options.tagsFromFile];
-      for (const sourceFile of sourceFiles) {
+      const sourceRequests = options.tagsFromFileRequests ??
+        (Array.isArray(options.tagsFromFile)
+          ? options.tagsFromFile.map((source) => ({ source, selectors: [] }))
+          : [{ source: options.tagsFromFile, selectors: [] }]);
+      for (const request of sourceRequests) {
+        const { source: sourceFile } = request;
         try {
-          Object.assign(sourceTags, (await tool.read(sourceFile)).tags);
+          const parsedTags = (await tool.read(sourceFile)).tags;
+          const selectors = request.selectors.length > 0
+            ? request.selectors
+            : options.tagsFromFileRequests === undefined
+              ? copySelectors.map(({ name, exclude }) => `${exclude ? '--' : '-'}${name}`)
+              : [];
+          Object.assign(sourceTags, selectCopiedTags(parsedTags, selectors));
         } catch (e) {
           console.error(`Error reading tags from ${sourceFile}: ${(e as Error).message}`);
           return 1;
-        }
-      }
-    }
-    if (copySelectors.length > 0) {
-      const includeSelectors = copySelectors.filter((selector) => !selector.exclude);
-      const excludeSelectors = copySelectors.filter((selector) => selector.exclude);
-      const matchesSelector = (key: string, name: string) => {
-        const lowerKey = key.toLowerCase();
-        const lowerName = name.toLowerCase();
-        return lowerName.includes(':')
-          ? lowerKey === lowerName
-          : lowerKey.split(':').at(-1) === lowerName;
-      };
-      for (const key of Object.keys(sourceTags)) {
-        const included = includeSelectors.length === 0 ||
-          includeSelectors.some(({ name }) => matchesSelector(key, name));
-        const excluded = excludeSelectors.some(({ name }) => matchesSelector(key, name));
-        if (!included || excluded) {
-          delete sourceTags[key];
         }
       }
     }
