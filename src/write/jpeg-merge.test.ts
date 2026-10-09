@@ -298,6 +298,37 @@ test('jpegMergeWriter creates JFIF APP0 with default fields when absent', async 
   assertEquals(local.tags.ResolutionUnit, 'inches');
 });
 
+test('jpegMergeWriter inserts, reads, and deletes JPEG ICC APP2 profile segments', async () => {
+  const profile = new Uint8Array(readFileSync('vendor/exiftool/t/images/ICC_Profile.icc'));
+  const result = jpegMergeWriter(new Uint8Array(readFileSync('assets/01.jpg')), { ICC_Profile: profile });
+  const profileSegments = parseJpegSegments(result.bytes).filter(
+    (segment) => segment.marker === 0xe2 &&
+      String.fromCharCode(...result.bytes.subarray(segment.payloadStart, segment.payloadStart + 12)) === 'ICC_PROFILE\0',
+  );
+  assertEquals(result.written, ['ICC_Profile']);
+  assertEquals(profileSegments.length, 1);
+  assertEquals(result.bytes[profileSegments[0]!.payloadStart + 12], 1);
+  assertEquals(result.bytes[profileSegments[0]!.payloadStart + 13], 1);
+  const local = await jpegParser.parse(result.bytes, 'icc.jpg');
+  assertEquals(local.tags.ProfileFileSignature, 'acsp');
+
+  const file = await tempFile('.jpg');
+  try {
+    await writeFile(file, result.bytes);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-G1', '-ProfileFileSignature', file]);
+    assertEquals(JSON.parse(stdout)[0]['ICC-header:ProfileFileSignature'], 'acsp');
+  } finally {
+    await rm(file, { force: true });
+  }
+
+  const deleted = jpegMergeWriter(result.bytes, { ICC_Profile: null });
+  assertEquals(
+    parseJpegSegments(deleted.bytes).some((segment) => segment.marker === 0xe2 &&
+      String.fromCharCode(...deleted.bytes.subarray(segment.payloadStart, segment.payloadStart + 12)) === 'ICC_PROFILE\0'),
+    false,
+  );
+});
+
 test('parseRawTiff rejects short, bad-endian, and bad-magic buffers', async () => {
   const { parseRawTiff } = await import('./jpeg-merge.js');
   assertEquals(parseRawTiff(new Uint8Array(4)), undefined);

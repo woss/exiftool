@@ -94,6 +94,7 @@ export interface MergeRequests {
   iptcKeys: string[];
   comment?: { key: string; value: string | null };
   jfif: Array<{ key: string; field: 'unit' | 'x' | 'y'; value: number }>;
+  icc?: { key: string; value: Uint8Array | null };
   skipped: string[];
 }
 
@@ -106,6 +107,7 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
   const iptc: IptcWriteRequest[] = [];
   const iptcKeys: string[] = [];
   const jfif: MergeRequests['jfif'] = [];
+  let icc: MergeRequests['icc'];
   let comment: MergeRequests['comment'];
   const skipped: string[] = [];
   for (const [key, value] of Object.entries(tags)) {
@@ -133,6 +135,11 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
           value: numeric,
         });
       }
+      continue;
+    }
+    if (/^(?:jpeg:)?icc_profile$/i.test(key)) {
+      if (value === null || value instanceof Uint8Array) icc = { key, value };
+      else skipped.push(key);
       continue;
     }
     const canonical =
@@ -175,7 +182,7 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
       exif.push({ key: `EXIF:${spec.name}`, spec, value, home });
     }
   }
-  return { exif, xmp, xmpKeys, iptc, iptcKeys, comment, jfif, skipped };
+  return { exif, xmp, xmpKeys, iptc, iptcKeys, comment, jfif, icc, skipped };
 }
 
 // ---------------------------------------------------------------------------
@@ -196,7 +203,7 @@ export interface JpegSegment {
 export function parseJpegSegments(bytes: Uint8Array): JpegSegment[] {
   const segments: JpegSegment[] = [];
   let pos = 2; // SOI
-  while (pos + 4 <= bytes.length) {
+  while (pos + 2 <= bytes.length) {
     if (bytes[pos] !== 0xff) break;
     const marker = bytes[pos + 1];
     if (marker === 0xda || marker === 0xd9) {
@@ -209,6 +216,7 @@ export function parseJpegSegments(bytes: Uint8Array): JpegSegment[] {
       pos += 2;
       continue;
     }
+    if (pos + 2 > bytes.length) break;
     const len = (bytes[pos + 2] << 8) | bytes[pos + 3];
     segments.push({
       marker,
@@ -569,6 +577,32 @@ function jfifSegment(originalPayload: Uint8Array | null, requests: MergeRequests
   return segment;
 }
 
+function iccProfileSegments(profile: Uint8Array): Uint8Array[] {
+  const headerLength = 14;
+  const maxDataLength = 0xffff - 2 - headerLength;
+  const total = Math.max(1, Math.ceil(profile.length / maxDataLength));
+  if (total > 255) throw new UnsupportedFormatError('ICC profile requires more than 255 JPEG APP2 segments');
+  const signature = new TextEncoder().encode('ICC_PROFILE\0');
+  const segments: Uint8Array[] = [];
+  for (let index = 0; index < total; index++) {
+    const data = profile.subarray(index * maxDataLength, Math.min((index + 1) * maxDataLength, profile.length));
+    const payload = new Uint8Array(headerLength + data.length);
+    payload.set(signature);
+    payload[12] = index + 1;
+    payload[13] = total;
+    payload.set(data, headerLength);
+    const segment = new Uint8Array(payload.length + 4);
+    segment[0] = 0xff;
+    segment[1] = 0xe2;
+    const length = payload.length + 2;
+    segment[2] = length >> 8;
+    segment[3] = length & 0xff;
+    segment.set(payload, 4);
+    segments.push(segment);
+  }
+  return segments;
+}
+
 /**
  * JPEG merge writer: changes ONLY the requested tags.
  *
@@ -606,6 +640,7 @@ export const jpegMergeWriter: ContainerWriter = (original, tags) => {
   const comments = segments.filter((s) => s.marker === 0xfe);
   const jfifSeg = segments.find((s) => s.marker === 0xe0 && payloadStartsWith(original, s, 'JFIF\0'));
   const adobeSeg = segments.find((s) => s.marker === 0xee && payloadStartsWith(original, s, 'Adobe'));
+  const iccSegments = segments.filter((s) => s.marker === 0xe2 && payloadStartsWith(original, s, 'ICC_PROFILE\0'));
 
   const written: string[] = [];
   const skipped: string[] = [...reqs.skipped];
@@ -727,6 +762,23 @@ export const jpegMergeWriter: ContainerWriter = (original, tags) => {
       else edits.push({ at: 2, end: 2, bytes: replacement });
       written.push(...reqs.jfif.map((request) => request.key));
     }
+  }
+  if (reqs.icc) {
+    for (const segment of iccSegments) edits.push({ at: segment.start, end: segment.end, bytes: null });
+    if (reqs.icc.value) {
+      const replacements = iccProfileSegments(reqs.icc.value);
+      if (iccSegments.length > 0) {
+        edits.push({ at: iccSegments[0]!.start, end: iccSegments[0]!.start, bytes: replacements[0]! });
+        for (const segment of replacements.slice(1)) {
+          edits.push({ at: iccSegments[0]!.start, end: iccSegments[0]!.start, bytes: segment });
+        }
+      } else {
+        const anchor = segments.find((segment) => segment.marker === 0xda)?.start ??
+          segments.find((segment) => segment.marker === 0xd9)?.start ?? original.length;
+        for (const segment of replacements) edits.push({ at: anchor, end: anchor, bytes: segment });
+      }
+    }
+    written.push(reqs.icc.key);
   }
   edits.sort((a, b) => a.at - b.at);
   const parts: Uint8Array[] = [];
