@@ -97,6 +97,8 @@ function splitPngWriteTags(tags: Record<string, TagValue>): {
   xmp: XmpPropertyRequest[];
   xmpKeys: string[];
   text: PngTextRequest[];
+  iccProfile?: { key: string; profile: Uint8Array | null };
+  iccName?: { key: string; name: string };
   skipped: string[];
 } {
   const exif: Record<string, TagValue> = {};
@@ -104,7 +106,19 @@ function splitPngWriteTags(tags: Record<string, TagValue>): {
   const xmpKeys: string[] = [];
   const text: PngTextRequest[] = [];
   const skipped: string[] = [];
+  let iccProfile: { key: string; profile: Uint8Array | null } | undefined;
+  let iccName: { key: string; name: string } | undefined;
   for (const [key, value] of Object.entries(tags)) {
+    if (/^(?:png:)?icc_profile$/i.test(key)) {
+      if (value === null || value instanceof Uint8Array) iccProfile = { key, profile: value };
+      else skipped.push(key);
+      continue;
+    }
+    if (/^png:profilename$/i.test(key)) {
+      if (typeof value === 'string') iccName = { key, name: value };
+      else skipped.push(key);
+      continue;
+    }
     const explicitPngGroup = /^png:/i.test(key);
     const textKey = explicitPngGroup ? key.slice(4).toLowerCase() : key.toLowerCase();
     const keyword = (explicitPngGroup || !/^(make|model|artist|title|description|copyright)$/.test(textKey))
@@ -123,7 +137,7 @@ function splitPngWriteTags(tags: Record<string, TagValue>): {
       exif[key] = value;
     }
   }
-  return { exif, xmp, xmpKeys, text, skipped };
+  return { exif, xmp, xmpKeys, text, iccProfile, iccName, skipped };
 }
 
 function pngTextChunk(keyword: string, value: string): { type: string; data: Uint8Array } {
@@ -147,6 +161,65 @@ function pngTextKeyword(type: string, data: Uint8Array): string | undefined {
   if (type !== 'tEXt' && type !== 'zTXt' && type !== 'iTXt') return undefined;
   const separator = data.indexOf(0);
   return separator > 0 ? new TextDecoder().decode(data.subarray(0, separator)) : undefined;
+}
+
+function adler32(data: Uint8Array): number {
+  let a = 1;
+  let b = 0;
+  for (let offset = 0; offset < data.length; offset += 5552) {
+    const end = Math.min(offset + 5552, data.length);
+    for (let index = offset; index < end; index++) {
+      a += data[index]!;
+      b += a;
+    }
+    a %= 65521;
+    b %= 65521;
+  }
+  return ((b << 16) | a) >>> 0;
+}
+
+function zlibStored(data: Uint8Array): Uint8Array {
+  const blocks = Math.max(1, Math.ceil(data.length / 0xffff));
+  const out = new Uint8Array(2 + data.length + blocks * 5 + 4);
+  out[0] = 0x78;
+  out[1] = 0x01;
+  let inputOffset = 0;
+  let outputOffset = 2;
+  for (let block = 0; block < blocks; block++) {
+    const length = Math.min(0xffff, data.length - inputOffset);
+    out[outputOffset++] = block === blocks - 1 ? 1 : 0;
+    out[outputOffset++] = length & 0xff;
+    out[outputOffset++] = length >> 8;
+    const inverse = (~length) & 0xffff;
+    out[outputOffset++] = inverse & 0xff;
+    out[outputOffset++] = inverse >> 8;
+    out.set(data.subarray(inputOffset, inputOffset + length), outputOffset);
+    inputOffset += length;
+    outputOffset += length;
+  }
+  const checksum = adler32(data);
+  out[outputOffset++] = checksum >>> 24;
+  out[outputOffset++] = checksum >>> 16;
+  out[outputOffset++] = checksum >>> 8;
+  out[outputOffset++] = checksum;
+  return out.subarray(0, outputOffset);
+}
+
+function pngIccChunk(name: string, profile: Uint8Array): { type: string; data: Uint8Array } {
+  const codepoints = [...name].map((character) => character.codePointAt(0)!);
+  if (codepoints.length < 1 || codepoints.length > 79 || codepoints.some((codepoint) => codepoint === 0 || codepoint > 0xff)) {
+    throw new UnsupportedFormatError('PNG ICC profile name must be 1 to 79 Latin-1 bytes');
+  }
+  const keyword = new Uint8Array(codepoints);
+  const compressed = zlibStored(profile);
+  const data = new Uint8Array(keyword.length + 2 + compressed.length);
+  data.set(keyword);
+  data[keyword.length + 1] = 0;
+  data.set(compressed, keyword.length + 2);
+  return {
+    type: 'iCCP',
+    data,
+  };
 }
 
 /**
@@ -194,7 +267,7 @@ export const pngWriter: ContainerWriter = (original, tags) => {
   for (let i = 0; i < 8; i++) {
     if (original[i] !== PNG_SIG[i]) throw new UnsupportedFormatError('not a PNG stream');
   }
-  const { exif, xmp, xmpKeys, text, skipped } = splitPngWriteTags(tags);
+  const { exif, xmp, xmpKeys, iccProfile, iccName, text, skipped } = splitPngWriteTags(tags);
   const dv = new DataView(original.buffer, original.byteOffset, original.byteLength);
 
   const kept: Array<{ type: string; data: Uint8Array }> = [];
@@ -210,6 +283,8 @@ export const pngWriter: ContainerWriter = (original, tags) => {
     if (pos + 12 + length > original.length) break; // truncated tail
     pos += 12 + length;
     if (type === 'IEND') continue;
+    if (type === 'iCCP' && iccProfile) continue;
+    if (type === 'sRGB' && iccProfile?.profile) continue;
     if (type === 'eXIf' && Object.keys(exif).length > 0) continue;
     if (type === 'iTXt' && xmp.length > 0) {
       // Existing XMP packet (keyword XML:com.adobe.xmp): decode for merge.
@@ -224,6 +299,16 @@ export const pngWriter: ContainerWriter = (original, tags) => {
     if (textKeyword && textByKeyword.has(textKeyword)) continue;
     kept.push({ type, data });
     if (type === 'IHDR') {
+      if (iccProfile?.profile) {
+        const profileName = iccName?.name ?? 'icm';
+        kept.push(pngIccChunk(profileName, iccProfile.profile));
+        written.push(iccProfile.key);
+        if (iccName) written.push(iccName.key);
+      } else if (iccProfile) {
+        written.push(iccProfile.key);
+      } else if (iccName) {
+        skipped.push(iccName.key);
+      }
       if (Object.keys(exif).length > 0) {
         const { bytes: tiff, written: exifWritten, skipped: exifSkipped } = buildTiff(exif);
         kept.push({ type: 'eXIf', data: tiff });

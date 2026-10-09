@@ -132,6 +132,56 @@ test('pngWriter rejects non-PNG input', () => {
   }
 });
 
+test('pngWriter inserts, replaces, and deletes an iCCP profile', async () => {
+  const profile = new Uint8Array(
+    (await import('node:fs')).readFileSync('vendor/exiftool/t/images/ICC_Profile.icc'),
+  );
+  const original = buildPng(false);
+  const written = pngWriter(original, {
+    ICC_Profile: profile,
+    'PNG:ProfileName': 'Adobe RGB (1998)',
+  });
+  assertEquals(written.written, ['ICC_Profile', 'PNG:ProfileName']);
+  const iccp = chunkDataForTest(written.bytes, 'iCCP')!;
+  assertEquals(new TextDecoder().decode(iccp.subarray(0, iccp.indexOf(0))), 'Adobe RGB (1998)');
+  const method = iccp[iccp.indexOf(0) + 1];
+  assertEquals(method, 0);
+  assertEquals(iccp[iccp.indexOf(0) + 2], 0x78);
+  assertEquals(Array.from(chunkDataForTest(written.bytes, 'IDAT')!), [1, 2, 3]);
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, written.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-ProfileFileSignature', '-ProfileName', file],
+    );
+    const info = JSON.parse(stdout)[0];
+    assertEquals(info.ProfileFileSignature, 'acsp');
+    assertEquals(info.ProfileName, 'Adobe RGB (1998)');
+
+    const deleted = pngWriter(written.bytes, { ICC_Profile: null });
+    assertEquals(chunkDataForTest(deleted.bytes, 'iCCP'), undefined);
+    await rm(file, { force: true });
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
+function chunkDataForTest(bytes: Uint8Array, wanted: string): Uint8Array | undefined {
+  let offset = 8;
+  while (offset + 12 <= bytes.length) {
+    const length = new DataView(bytes.buffer, bytes.byteOffset + offset, 4).getUint32(0, false);
+    const type = new TextDecoder().decode(bytes.subarray(offset + 4, offset + 8));
+    if (type === wanted) return bytes.subarray(offset + 8, offset + 8 + length);
+    offset += length + 12;
+  }
+  return undefined;
+}
+
 // --- WebP container ---
 
 function riffChunk(id: string, data: number[]): number[] {
