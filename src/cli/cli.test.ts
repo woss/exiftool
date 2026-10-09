@@ -928,6 +928,27 @@ test('runAction merges repeated tagsFromFile sources in order', async () => {
   }
 });
 
+test('runAction copies only explicitly selected tagsFromFile values', async () => {
+  const source = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(source, await readFile('assets/01.jpg'));
+  await writeFile(target, await readFile('assets/03.jpg'));
+  try {
+    const code = await runAction(
+      { tagsFromFile: source, overwriteOriginal: true },
+      '-Make',
+      target,
+    );
+    assertEquals(code, 0);
+    const tags = (await new ExifTool().read(target)).tags;
+    assertEquals(tags.Make, 'Canon');
+    assertEquals(tags.Model, 'ILCE-7RM4');
+  } finally {
+    await rm(source, { force: true });
+    await rm(target, { force: true });
+  }
+});
+
 test('runAction tagsFromFile reports missing source without modifying targets', async () => {
   const target = await tempFile('.jpg');
   const original = await readFile('assets/03.jpg');

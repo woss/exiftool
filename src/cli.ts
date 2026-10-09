@@ -131,6 +131,13 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
   });
   if (assignments.length > 0 || options.tagsFromFile !== undefined) {
     const sourceTags: Record<string, import('./types.js').TagValue> = {};
+    const copySelectors = options.tagsFromFile === undefined
+      ? []
+      : files.flatMap((operand) => {
+        if (assignments.some((assignment) => assignment.operand === operand)) return [];
+        const match = operand.match(/^-{1,2}([A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)$/);
+        return match ? [{ operand, name: match[1]! }] : [];
+      });
     if (options.tagsFromFile !== undefined) {
       const sourceFiles = Array.isArray(options.tagsFromFile)
         ? options.tagsFromFile
@@ -144,7 +151,21 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
         }
       }
     }
-    const paths = files.filter((file) => !assignments.some((assignment) => assignment.operand === file));
+    if (copySelectors.length > 0) {
+      for (const key of Object.keys(sourceTags)) {
+        const lowerKey = key.toLowerCase();
+        const ungroupedKey = lowerKey.split(':').at(-1);
+        if (!copySelectors.some(({ name }) => {
+          const lowerName = name.toLowerCase();
+          return lowerName.includes(':') ? lowerKey === lowerName : ungroupedKey === lowerName;
+        })) {
+          delete sourceTags[key];
+        }
+      }
+    }
+    const sourceOperands = new Set(copySelectors.map(({ operand }) => operand));
+    const paths = files.filter((file) =>
+      !assignments.some((assignment) => assignment.operand === file) && !sourceOperands.has(file));
     const explicitNames = new Set(assignments.map((assignment) => {
       const parts = assignment.key.split(':');
       return parts[parts.length - 1]!.toLowerCase();
