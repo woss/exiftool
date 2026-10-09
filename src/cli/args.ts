@@ -13,6 +13,7 @@ export interface CliOptions {
   xml?: boolean;
   binary?: boolean;
   compress?: boolean;
+  writeMode?: string;
   dateFormat?: string;
   groupHeadings?: string | boolean;
   groupPrefix?: string | boolean;
@@ -44,6 +45,7 @@ const SPECS: Record<string, OptionSpec> = {
   csv: { arity: 'flag' },
   binary: { arity: 'flag' },
   compress: { arity: 'flag' },
+  'write-mode': { arity: 'value' },
   'date-format': { arity: 'value' },
   'group-headings': { arity: 'value' },
   'group-prefix': { arity: 'value' },
@@ -158,6 +160,9 @@ export function normalizeArgs(args: string[]): string[] {
     }
     if (a === '-tagsFromFile' || a === '--tagsFromFile') {
       return ['--tags-from-file'];
+    }
+    if (a === '-wm' || a === '--wm' || a === '-writeMode' || a === '--writeMode') {
+      return ['--write-mode'];
     }
     if (a === '--ee') return ['--extract-embedded'];
     if (a.startsWith('-') && !a.startsWith('--') && a.length > 2) {

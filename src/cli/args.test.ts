@@ -16,6 +16,10 @@ test('parseCliArgs — ExifTool -z enables write compression', () => {
   });
 });
 
+test('parseCliArgs — -wm accepts a mode value', () => {
+  assertEquals(parseCliArgs(normalizeArgs(['-wm', 'cg'])).options.writeMode, 'cg');
+});
+
 test('parseCliArgs — preserve-time accepts ExifTool -P and long form', () => {
   assertEquals(parseCliArgs(['-P']).options.preserveTime, true);
   assertEquals(parseCliArgs(['--preserve-time']).options.preserveTime, true);

@@ -175,7 +175,8 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 - [ ] `-TAG=` / API null: delete from applicable groups; remove empty optional groups; retain or remove mandatory tags according to upstream behavior.
 - [x] `-TAG+=VALUE` for XMP `Subject`/`Keywords` appends to each target's existing list; unsupported scalar `+=` requests fail before writing.
 - [ ] General `-TAG+=VALUE` and list operations: support all repeatable tags, list split/join, duplicate policy, write order, and tag-specific list semantics.
-- [ ] `-wm MODE`: implement ExifTool write/create mode combinations and prevent creation or replacement when the selected mode disallows it.
+- [x] Basic `w`/`c` write-mode gating by parsed tag presence is implemented and exposed as `-wm`; `g` is accepted but group-creation semantics are not enforced yet.
+- [ ] Complete `-wm MODE` parity for group creation and metadata-specific existing-tag detection.
 - [x] Basic `-tagsFromFile FILE` copy from one parsed source is implemented; explicit assignments override copied values with the same name.
 - [ ] Advanced `-tagsFromFile`: selected/group-qualified tags, wildcards, tag renames, ordering, `-srcfile`, same-file `@`, multiple sources, and transformations applied to copied values.
 - [ ] Group and tag selection: support family-qualified names, `-GROUP:all`, tag wildcards, exclusions, duplicates, preferred groups, numeric/raw tag names, and precedence when multiple groups contain the same logical tag.

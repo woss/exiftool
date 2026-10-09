@@ -50,6 +50,35 @@ test('writeTags with overwriteOriginal skips the backup', async () => {
   }
 });
 
+test('writeTags honors write mode for existing and new tags', async () => {
+  const file = await makeTmpJpeg();
+  try {
+    const createOnly = await writeTags(
+      file,
+      { Make: 'Ignored', ImageDescription: 'Created' },
+      { overwriteOriginal: true, writeMode: 'c' },
+    );
+    assertEquals(createOnly.written.includes('EXIF:ImageDescription'), true);
+    assertEquals(createOnly.modeSkipped, ['Make']);
+    let info = await tool.read(file);
+    assertEquals(info.tags.Make, 'Canon');
+    assertEquals(info.tags.ImageDescription, 'Created');
+
+    const writeOnly = await writeTags(
+      file,
+      { Make: 'Updated', GPSMapDatum: 'WGS-84' },
+      { overwriteOriginal: true, writeMode: 'w' },
+    );
+    assertEquals(writeOnly.written.includes('EXIF:Make'), true);
+    assertEquals(writeOnly.modeSkipped, ['GPSMapDatum']);
+    info = await tool.read(file);
+    assertEquals(info.tags.Make, 'Updated');
+    assertEquals(info.tags.GPSMapDatum, undefined);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
 test('writeTags forwards compression to the PNG writer', async () => {
   const file = await tempFile('.png');
   const value = 'pipeline-compressed-comment '.repeat(40);

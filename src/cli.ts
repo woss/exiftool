@@ -98,13 +98,14 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
           overwriteOriginal: options.overwriteOriginal === true,
           preserveTime: options.preserveTime === true,
           compress: options.compress === true,
+          writeMode: options.writeMode,
         });
         const rejected = result.skipped.filter((key) =>
           explicitNames.has(key.split(':').at(-1)!.toLowerCase()));
         if (rejected.length > 0) {
           failures.push(`Error writing ${file}: unsupported tag(s): ${rejected.join(', ')}`);
         }
-        updated++;
+        if (result.written.length > 0) updated++;
       } catch (e) {
         failures.push(`Error writing ${file}: ${(e as Error).message}`);
       }

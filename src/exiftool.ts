@@ -177,6 +177,7 @@ Options:
   -r               Recurse subdirectories
   -if EXPR         Condition expression
   -P               Preserve file modification time when writing
+  -wm MODE         Set tag write mode (partial w/c support)
   -z               Compress supported text metadata when writing
   -tagsFromFile F  Copy tags from file
   -o FILE          Output filename

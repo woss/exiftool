@@ -46,8 +46,32 @@ export async function writeTagsWithTmp(
       `writing not supported for ${parser?.format ?? 'unknown'} files`,
     );
   }
-  const outcome = parser.writeBytes(original, tags, opts);
-  if (Object.keys(tags).length > 0 && outcome.written.length === 0 && outcome.skipped.length > 0) {
+  const writeMode = opts.writeMode?.toLowerCase();
+  if (writeMode !== undefined && !/^[wcg]*$/.test(writeMode)) {
+    throw new UnsupportedFormatError(`invalid write mode: ${opts.writeMode}`);
+  }
+  let writeTags = tags;
+  let modeSkipped: string[] = [];
+  if (writeMode !== undefined && writeMode !== 'wcg') {
+    const current = await parser.parse(original, filePath);
+    const currentNames = new Set(Object.keys(current.tags).map(normalizeWriteTagName));
+    writeTags = {};
+    for (const [key, value] of Object.entries(tags)) {
+      const exists = currentNames.has(normalizeWriteTagName(key));
+      const allowExisting = writeMode.includes('w');
+      const allowCreate = writeMode.includes('c');
+      if ((exists && allowExisting) || (!exists && allowCreate)) {
+        writeTags[key] = value;
+      } else {
+        modeSkipped.push(key);
+      }
+    }
+    if (Object.keys(writeTags).length === 0) {
+      return { file: filePath, written: [], skipped: [], modeSkipped };
+    }
+  }
+  const outcome = parser.writeBytes(original, writeTags, opts);
+  if (Object.keys(writeTags).length > 0 && outcome.written.length === 0 && outcome.skipped.length > 0) {
     throw new UnsupportedFormatError(`no requested tags are writable: ${outcome.skipped.join(', ')}`);
   }
   let backup: string | undefined;

@@ -639,6 +639,45 @@ test('runAction write mode with overwriteOriginal skips backup', async () => {
   }
 });
 
+test('runAction honors create-only write mode', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { overwriteOriginal: true, writeMode: 'c' },
+      '-Make=Ignored',
+      '-ImageDescription=Created',
+      tmp,
+    );
+    assertEquals(code, 0);
+    const tags = (await new ExifTool().read(tmp)).tags;
+    assertEquals(tags.Make, 'Canon');
+    assertEquals(tags.ImageDescription, 'Created');
+  } finally {
+    cap.restore();
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction create-only no-op does not report the file as updated', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { overwriteOriginal: true, writeMode: 'c' },
+      '-Make=Ignored',
+      tmp,
+    );
+    assertEquals(code, 0);
+    assertEquals(cap.out.some((line) => line.includes('image files updated')), false);
+  } finally {
+    cap.restore();
+    await rm(tmp, { force: true });
+  }
+});
+
 test('runAction write mode preserves mtime when requested', async () => {
   const tmp = await tempFile('.jpg');
   await writeFile(tmp, await readFile('assets/01.jpg'));

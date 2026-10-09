@@ -159,6 +159,9 @@ export interface WriteOptions {
 
   /** Compress supported metadata text chunks when this reduces their size. */
   compress?: boolean;
+
+  /** ExifTool write-mode letters: w (overwrite), c (create), g (create groups). */
+  writeMode?: string;
 }
 
 /**
@@ -173,6 +176,9 @@ export interface WriteResult {
 
   /** Skipped tag names (unsupported/read-only) */
   skipped: string[];
+
+  /** Tag names excluded by WriteOptions.writeMode. */
+  modeSkipped?: string[];
 
   /** Backup file path if created */
   backup?: string;
