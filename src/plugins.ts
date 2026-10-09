@@ -4,6 +4,7 @@ import { iccParser } from './format/icc.js';
 import { jpegParser } from './format/jpeg.js';
 import { gifParser } from './format/gif.js';
 import { pngParser } from './format/png.js';
+import { ppmParser } from './format/ppm.js';
 import { webpParser } from './format/webp.js';
 import { tiffRawParser } from './format/tiff-raw.js';
 import { xmpParser } from './format/xmp.js';
@@ -29,6 +30,7 @@ export const MODERN_PLUGINS: FormatParser[] = [
   jpegParser,
   gifParser,
   pngParser,
+  ppmParser,
   webpParser,
   avifParser,
   tiffRawParser,
@@ -53,6 +55,9 @@ export { gifParser };
 
 /** PNG format parser. Supports iTXt/tEXt/zTXt, eXIf, caBX (C2PA), ICC, sRGB. */
 export { pngParser };
+
+/** PPM format parser. Supports P3/P6 headers and Comment metadata writes. */
+export { ppmParser };
 
 /** WebP format parser. Supports VP8/VP8L, EXIF, XMP, ICC in VP8X chunks. */
 export { webpParser };

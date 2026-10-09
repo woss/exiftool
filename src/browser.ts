@@ -10,6 +10,7 @@ export {
   avifParser,
   jpegParser,
   pngParser,
+  ppmParser,
   webpParser,
   tiffRawParser,
   iccParser,
