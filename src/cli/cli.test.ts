@@ -722,7 +722,7 @@ test('runAction applies -if conditions to write targets', async () => {
   const cap = captureConsole();
   try {
     const code = await runAction(
-      { overwriteOriginal: true, if: ['$Make eq Canon'] },
+      { overwriteOriginal: true, if: ['$Make eq Canon and $Make ne Nikon'] },
       '-Software=conditional',
       matching,
       nonmatching,

@@ -35,13 +35,65 @@ function compare(op: ConditionOp, a: number | string, b: number | string): boole
   }
 }
 
+function splitLogical(expr: string): { terms: string[]; operators: ('and' | 'or')[] } {
+  const terms: string[] = [];
+  const operators: ('and' | 'or')[] = [];
+  let start = 0;
+  let quoted = false;
+  for (let index = 0; index < expr.length; index++) {
+    if (expr[index] === "'" && expr[index - 1] !== '\\') {
+      quoted = !quoted;
+      continue;
+    }
+    if (quoted) continue;
+    let operator: 'and' | 'or' | undefined;
+    let length = 0;
+    if (expr.startsWith('&&', index)) {
+      operator = 'and';
+      length = 2;
+    } else if (expr.startsWith('||', index)) {
+      operator = 'or';
+      length = 2;
+    } else {
+      const match = expr.slice(index).match(/^(and|or)\b/i);
+      if (match && (index === 0 || /\s/.test(expr[index - 1]!))) {
+        operator = match[1]!.toLowerCase() as 'and' | 'or';
+        length = match[0].length;
+      }
+    }
+    if (!operator) continue;
+    terms.push(expr.slice(start, index));
+    operators.push(operator);
+    index += length - 1;
+    start = index + 1;
+  }
+  terms.push(expr.slice(start));
+  return { terms, operators };
+}
+
 /**
- * Evaluate one `-if` condition expression against a file's tags.
- * Grammar: `$TagName OP value` with ops eq, ne, >, <, >=, <=.
+ * Evaluate `-if` comparisons joined by `and`/`or` or `&&`/`||`.
+ * Comparisons support eq, ne, >, <, >=, <=; AND binds more tightly than OR.
  * Numeric comparison when both sides coerce to finite numbers, else string
- * comparison. Missing tag → false.
+ * comparison. Missing tags and malformed atomic expressions evaluate false.
  */
 export function evalCondition(expr: string, tags: Record<string, TagValue>): boolean {
+  const { terms, operators } = splitLogical(expr.trim());
+  let conjunction = evalComparison(terms[0] ?? '', tags);
+  let disjunction = false;
+  for (let index = 0; index < operators.length; index++) {
+    const next = evalComparison(terms[index + 1] ?? '', tags);
+    if (operators[index] === 'and') {
+      conjunction = conjunction && next;
+    } else {
+      disjunction ||= conjunction;
+      conjunction = next;
+    }
+  }
+  return disjunction || conjunction;
+}
+
+function evalComparison(expr: string, tags: Record<string, TagValue>): boolean {
   const m = expr.trim().match(CONDITION_RE);
   if (!m) return false;
   const [, tagName, rawOp, rawValue] = m;

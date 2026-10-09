@@ -182,6 +182,7 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 - [x] Basic `-tagsFromFile FILE` copy from one parsed source is implemented; explicit assignments override copied values with the same name.
 - [ ] Advanced `-tagsFromFile`: selected/group-qualified tags, wildcards, tag renames, ordering, `-srcfile`, same-file `@`, multiple sources, and transformations applied to copied values.
 - [x] Basic `-if` write filtering evaluates target tags before mutation and leaves nonmatching files untouched.
+- [x] `-if` supports comparison expressions joined by `and`/`or` or `&&`/`||`, with AND-before-OR precedence; parentheses and full ExifTool expression semantics remain open.
 - [ ] Group and tag selection: support family-qualified names, `-GROUP:all`, tag wildcards, exclusions, duplicates, preferred groups, numeric/raw tag names, and precedence when multiple groups contain the same logical tag.
 - [x] Basic `-o FILE` writes one input to a new destination; existing directories accept batches using source basenames; `%d`/`%D`/`%f`/`%F`/`%e`/`%E` source-path tokens expand per input; bare `%c` selects the first unused collision suffix. Sources remain unchanged, existing files are not overwritten, and multiple inputs to one literal file destination are rejected.
 - [x] `-P` preserves the input modification time for in-place writes and separate `-o` outputs; output-directory batches continue after a per-file failure and return a failing status if any input fails.
