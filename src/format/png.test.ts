@@ -1,10 +1,16 @@
 import { test } from 'vitest';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { rm, writeFile } from 'node:fs/promises';
 import { assertEquals } from '../../src/test/asserts.js';
 import { detectParser } from './mod.js';
 import { pngParser } from './png.js';
 import { deflateSync } from 'node:zlib';
+import { tempFile } from '../test/tmp.js';
 
 const encoder = new TextEncoder();
+const execFileP = promisify(execFile);
+const upstreamExifTool = new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname;
 
 function concat(...parts: Uint8Array[]): Uint8Array {
   const total = parts.reduce((n, p) => n + p.length, 0);
@@ -40,6 +46,17 @@ const PNG_SIG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])
 
 function png(...chunks_: Uint8Array[]): Uint8Array {
   return concat(PNG_SIG, ...chunks_);
+}
+
+function chunkData(bytes: Uint8Array, name: string): Uint8Array | undefined {
+  let offset = PNG_SIG.length;
+  while (offset + 12 <= bytes.length) {
+    const length = new DataView(bytes.buffer, bytes.byteOffset + offset, 4).getUint32(0, false);
+    const type = new TextDecoder().decode(bytes.subarray(offset + 4, offset + 8));
+    if (type === name) return bytes.subarray(offset + 8, offset + 8 + length);
+    offset += 12 + length;
+  }
+  return undefined;
 }
 
 test('png canParse accepts signature and rejects short/garbage', () => {
@@ -120,6 +137,45 @@ test('png tEXt keyword/value split on first NUL', async () => {
   const payload = encoder.encode('Title\0A Scene');
   const result = await pngParser.parse(png(chunk('tEXt', payload), chunk('IEND', new Uint8Array(0))), 'text.png');
   assertEquals(result.tags['Title'], 'A Scene');
+});
+
+test('png writer replaces text chunks and preserves IDAT payload', async () => {
+  const pixels = new Uint8Array([1, 2, 3, 4]);
+  const source = png(
+    ihdr(1, 1),
+    chunk('IDAT', pixels),
+    chunk('tEXt', encoder.encode('Title\0Old title')),
+    chunk('IEND', new Uint8Array(0)),
+  );
+  const result = pngParser.writeBytes!(source, {
+    'PNG:Title': 'New title',
+    Comment: 'UTF-8 emoji \u{1f600}',
+    'PNG:Make': 'Written as text',
+  });
+  const info = await pngParser.parse(result.bytes, 'text.png');
+  assertEquals(result.written, ['PNG:Title', 'Comment', 'PNG:Make']);
+  assertEquals(result.skipped, []);
+  assertEquals(info.tags.Title, 'New title');
+  assertEquals(info.tags.Comment, 'UTF-8 emoji \u{1f600}');
+  assertEquals(info.tags.Make, 'Written as text');
+  assertEquals(Array.from(chunkData(result.bytes, 'IDAT')!), Array.from(pixels));
+  assertEquals(chunkData(result.bytes, 'iTXt') !== undefined, true);
+
+  const deleted = pngParser.writeBytes!(result.bytes, { 'PNG:Title': null });
+  assertEquals((await pngParser.parse(deleted.bytes, 'text.png')).tags.Title, undefined);
+});
+
+test('vendored ExifTool reads PNG textual data written by the adapter', async () => {
+  const source = new Uint8Array(await (await import('node:fs/promises')).readFile('vendor/exiftool/t/images/PNG.png'));
+  const result = pngParser.writeBytes!(source, { Title: 'Upstream PNG text' });
+  const file = await tempFile('.png');
+  try {
+    await writeFile(file, result.bytes);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-Title', file]);
+    assertEquals(JSON.parse(stdout)[0].Title, 'Upstream PNG text');
+  } finally {
+    await rm(file, { force: true });
+  }
 });
 
 test('png tEXt without separator or leading NUL is skipped', async () => {

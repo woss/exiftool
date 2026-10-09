@@ -61,6 +61,94 @@ const PNG_SIG = [137, 80, 78, 71, 13, 10, 26, 10];
 
 const PNG_XMP_KEYWORD = 'XML:com.adobe.xmp';
 
+const PNG_TEXT_TAGS: Record<string, string> = {
+  title: 'Title',
+  author: 'Author',
+  description: 'Description',
+  copyright: 'Copyright',
+  'creation time': 'CreationTime',
+  creationtime: 'CreationTime',
+  software: 'Software',
+  disclaimer: 'Disclaimer',
+  warning: 'PNGWarning',
+  source: 'Source',
+  comment: 'Comment',
+  collection: 'Collection',
+  artist: 'Artist',
+  document: 'Document',
+  label: 'Label',
+  make: 'Make',
+  model: 'Model',
+  parameters: 'Parameters',
+  'aesthetic score': 'AestheticScore',
+  aestheticscore: 'AestheticScore',
+  'create-date': 'CreateDate',
+  createdate: 'CreateDate',
+  'modify-date': 'ModDate',
+  moddate: 'ModDate',
+  timestamp: 'TimeStamp',
+  url: 'URL',
+};
+
+interface PngTextRequest { key: string; keyword: string; value: string | null }
+
+function splitPngWriteTags(tags: Record<string, TagValue>): {
+  exif: Record<string, TagValue>;
+  xmp: XmpPropertyRequest[];
+  xmpKeys: string[];
+  text: PngTextRequest[];
+  skipped: string[];
+} {
+  const exif: Record<string, TagValue> = {};
+  const xmp: XmpPropertyRequest[] = [];
+  const xmpKeys: string[] = [];
+  const text: PngTextRequest[] = [];
+  const skipped: string[] = [];
+  for (const [key, value] of Object.entries(tags)) {
+    const explicitPngGroup = /^png:/i.test(key);
+    const textKey = explicitPngGroup ? key.slice(4).toLowerCase() : key.toLowerCase();
+    const keyword = (explicitPngGroup || !/^(make|model|artist|title|description|copyright)$/.test(textKey))
+      ? PNG_TEXT_TAGS[textKey]
+      : undefined;
+    if (keyword) {
+      if (value === null || typeof value === 'string') text.push({ key, keyword, value });
+      else skipped.push(key);
+      continue;
+    }
+    const property = toXmpPropertyRequest(key, value);
+    if (property) {
+      xmp.push(property);
+      xmpKeys.push(key);
+    } else {
+      exif[key] = value;
+    }
+  }
+  return { exif, xmp, xmpKeys, text, skipped };
+}
+
+function pngTextChunk(keyword: string, value: string): { type: string; data: Uint8Array } {
+  if (/^[\x00-\xff]*$/.test(value)) {
+    const key = new TextEncoder().encode(keyword);
+    const text = new Uint8Array([...value].map((character) => character.charCodeAt(0)));
+    const data = new Uint8Array(key.length + 1 + text.length);
+    data.set(key);
+    data.set(text, key.length + 1);
+    return { type: 'tEXt', data };
+  }
+  const prefix = new TextEncoder().encode(`${keyword}\0\0\0\0\0`);
+  const text = new TextEncoder().encode(value);
+  const data = new Uint8Array(prefix.length + text.length);
+  data.set(prefix);
+  data.set(text, prefix.length);
+  return { type: 'iTXt', data };
+}
+
+function pngTextKeyword(type: string, data: Uint8Array): string | undefined {
+  if (type !== 'tEXt' && type !== 'zTXt' && type !== 'iTXt') return undefined;
+  const separator = data.indexOf(0);
+  return separator > 0 ? new TextDecoder().decode(data.subarray(0, separator)) : undefined;
+}
+
 /**
  * Splits flat write tags into EXIF-tag requests and XMP property requests
  * ('XMP-group:Property' keys or bare aliases).
@@ -106,13 +194,14 @@ export const pngWriter: ContainerWriter = (original, tags) => {
   for (let i = 0; i < 8; i++) {
     if (original[i] !== PNG_SIG[i]) throw new UnsupportedFormatError('not a PNG stream');
   }
-  const { exif, xmp, xmpKeys, skipped } = splitWriteTags(tags);
+  const { exif, xmp, xmpKeys, text, skipped } = splitPngWriteTags(tags);
   const dv = new DataView(original.buffer, original.byteOffset, original.byteLength);
 
   const kept: Array<{ type: string; data: Uint8Array }> = [];
   let existingXmp: string | null = null;
   let inserted = false;
   const written: string[] = [];
+  const textByKeyword = new Map(text.map((request) => [request.keyword.toLowerCase(), request]));
   let pos = 8;
   while (pos + 12 <= original.length) {
     const length = dv.getUint32(pos, false);
@@ -131,6 +220,8 @@ export const pngWriter: ContainerWriter = (original, tags) => {
         continue;
       }
     }
+    const textKeyword = pngTextKeyword(type, data)?.toLowerCase();
+    if (textKeyword && textByKeyword.has(textKeyword)) continue;
     kept.push({ type, data });
     if (type === 'IHDR') {
       if (Object.keys(exif).length > 0) {
@@ -142,6 +233,10 @@ export const pngWriter: ContainerWriter = (original, tags) => {
       if (xmp.length > 0) {
         kept.push(pngXmpItxt(writeXmpPacket(existingXmp, xmp)));
         written.push(...xmpKeys);
+      }
+      for (const request of text) {
+        if (request.value !== null) kept.push(pngTextChunk(request.keyword, request.value));
+        written.push(request.key);
       }
       inserted = true;
     }
