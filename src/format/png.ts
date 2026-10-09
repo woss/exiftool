@@ -3,6 +3,7 @@ import { pngWriter } from '../write/writers.js';
 import type { FileInfo, TagValue } from '../types.js';
 import type { TagDb } from '../tag-db.js';
 import { parseTiff } from '../exif/tiff.js';
+import { parseICCProfile } from '../exif/icc.js';
 import { parseXMP } from '../exif/xmp.js';
 import { computeCompositeTags } from '../exif/composite.js';
 import { parseJUMBFFromSegment } from './jumbf.js';
@@ -106,6 +107,7 @@ function readChunk(
       xmp?: boolean;
       fallback?: string;
     }> = [];
+    const compressedIccProfiles: Uint8Array[] = [];
     let offset = 8;
 
     while (offset < bytes.length) {
@@ -147,6 +149,9 @@ function readChunk(
         const nullIdx = chunk.data.indexOf(0);
         if (nullIdx > 0) {
           result['ICC_Profile_Name'] = new TextDecoder().decode(chunk.data.slice(0, nullIdx));
+          if (chunk.data[nullIdx + 1] === 0) {
+            compressedIccProfiles.push(chunk.data.slice(nullIdx + 2));
+          }
         }
       }
 
@@ -246,6 +251,11 @@ function readChunk(
       }
 
       if (chunk.type === 'IEND') break;
+    }
+
+    for (const compressed of compressedIccProfiles) {
+      const profile = await inflateZtxt(compressed);
+      if (profile) Object.assign(result, parseICCProfile(profile));
     }
 
     for (const { key, compressed, xmp, fallback } of compressedTextEntries) {

@@ -144,6 +144,33 @@ test('png iCCP without name NUL yields no tag', async () => {
   assertEquals('ICC_Profile_Name' in result.tags, false);
 });
 
+test('png iCCP exposes ICC profile fields and matches ExifTool', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const profile = new Uint8Array(await readFile('vendor/exiftool/t/images/ICC_Profile.icc'));
+  const written = pngParser.writeBytes!(
+    png(ihdr(1, 1), chunk('IEND', new Uint8Array(0))),
+    { ICC_Profile: profile, 'PNG:ProfileName': 'Adobe RGB (1998)' },
+  );
+  const local = await pngParser.parse(written.bytes, 'icc-profile.png');
+  assertEquals(local.tags.ProfileFileSignature, 'acsp');
+  assertEquals(local.tags.ProfileDescription, 'Nikon Adobe RGB 4.0.0.3000');
+  assertEquals(local.tags.ICC_Profile_Name, 'Adobe RGB (1998)');
+
+  const file = await tempFile('.png');
+  try {
+    await writeFile(file, written.bytes);
+    const { stdout } = await execFileP(upstreamExifTool, [
+      '-j', '-G1', '-ProfileFileSignature', '-ProfileDescription', '-ProfileName', file,
+    ]);
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream['ICC-header:ProfileFileSignature'], local.tags.ProfileFileSignature);
+    assertEquals(upstream['ICC_Profile:ProfileDescription'], local.tags.ProfileDescription);
+    assertEquals(upstream['PNG:ProfileName'], local.tags.ICC_Profile_Name);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
 test('png tEXt keyword/value split on first NUL', async () => {
   const payload = encoder.encode('Title\0A Scene');
   const result = await pngParser.parse(png(chunk('tEXt', payload), chunk('IEND', new Uint8Array(0))), 'text.png');
