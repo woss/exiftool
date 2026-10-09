@@ -85,6 +85,31 @@ test('jpegMergeWriter preserves EXIF values and creates XMP when absent', () => 
   assertEquals(xmpSeg !== undefined, true);
 });
 
+test('jpegMergeWriter deletes one XMP property and preserves other properties', async () => {
+  const original = new Uint8Array(readFileSync('assets/01.jpg'));
+  const seeded = jpegMergeWriter(original, {
+    'XMP-dc:Title': 'Remove me',
+    'XMP-dc:Description': 'Keep me',
+  });
+  const deleted = jpegMergeWriter(seeded.bytes, { 'XMP-dc:Title': null });
+  const local = await jpegParser.parse(deleted.bytes, 'xmp-delete.jpg');
+  assertEquals(local.tags.Title, undefined);
+  assertEquals(local.tags.Description, 'Keep me');
+  assertEquals(deleted.written, ['XMP-dc:Title']);
+  assertEquals(deleted.skipped, []);
+
+  const file = await tempFile('.jpg');
+  try {
+    await writeFile(file, deleted.bytes);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-XMP-dc:Title', '-XMP-dc:Description', file]);
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream.Title, undefined);
+    assertEquals(upstream.Description, 'Keep me');
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
 test('jpegMergeWriter replaces and deletes COM comment segments', async () => {
   const original = new Uint8Array([
     0xff, 0xd8,

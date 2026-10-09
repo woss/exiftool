@@ -9,6 +9,8 @@ import {
 } from '../exif/tiff-builder.js';
 import { UnsupportedFormatError } from './writers.js';
 import {
+  deleteXmpProperties,
+  toXmpPropertyName,
   toXmpPropertyRequest,
   writeXmpPacket,
   type XmpPropertyRequest,
@@ -91,6 +93,8 @@ export interface MergeRequests {
   exif: ExifRequest[];
   xmp: XmpPropertyRequest[];
   xmpKeys: string[];
+  xmpDeletes: string[];
+  xmpDeleteKeys: string[];
   iptc: IptcWriteRequest[];
   iptcKeys: string[];
   comment?: { key: string; value: string | null };
@@ -106,6 +110,8 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
   const exif: ExifRequest[] = [];
   const xmp: XmpPropertyRequest[] = [];
   const xmpKeys: string[] = [];
+  const xmpDeletes: string[] = [];
+  const xmpDeleteKeys: string[] = [];
   const iptc: IptcWriteRequest[] = [];
   const iptcKeys: string[] = [];
   const jfif: MergeRequests['jfif'] = [];
@@ -158,6 +164,14 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
     }
     const canonical =
       MERGE_TAG_KEYS[key.toLowerCase()] ?? MERGE_TAG_KEYS_BARE[key.toLowerCase()];
+    const xmpName = canonical && XMP_PROPERTY_NAMES[canonical]
+      ? XMP_PROPERTY_NAMES[canonical]
+      : toXmpPropertyName(key);
+    if (value === null && xmpName) {
+      xmpDeletes.push(xmpName);
+      xmpDeleteKeys.push(key);
+      continue;
+    }
     const iptcRequest = resolveIptcWriteRequest(canonical ?? key, value);
     if (iptcRequest) {
       iptc.push(iptcRequest);
@@ -196,7 +210,9 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
       exif.push({ key: `EXIF:${spec.name}`, spec, value, home });
     }
   }
-  return { exif, xmp, xmpKeys, iptc, iptcKeys, comment, jfif, icc, ducky, skipped };
+  return {
+    exif, xmp, xmpKeys, xmpDeletes, xmpDeleteKeys, iptc, iptcKeys, comment, jfif, icc, ducky, skipped,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -693,12 +709,20 @@ export const jpegMergeWriter: ContainerWriter = (original, tags) => {
 
   // --- XMP ---
   let xmpPayload: Uint8Array | null = null;
-  if (reqs.xmp.length > 0) {
-    const packet = xmpSeg
+  if (reqs.xmp.length > 0 || reqs.xmpDeletes.length > 0) {
+    let packet: string | null = xmpSeg
       ? new TextDecoder().decode(original.subarray(xmpSeg.payloadStart + XMP_APP1_HEADER.length, xmpSeg.payloadEnd))
       : null;
-    const merged = writeXmpPacket(packet, reqs.xmp);
-    xmpPayload = new TextEncoder().encode(merged);
+    if (reqs.xmp.length > 0) packet = writeXmpPacket(packet, reqs.xmp);
+    if (reqs.xmpDeletes.length > 0) {
+      if (packet !== null) {
+        packet = deleteXmpProperties(packet, reqs.xmpDeletes);
+        written.push(...reqs.xmpDeleteKeys);
+      } else {
+        skipped.push(...reqs.xmpDeleteKeys);
+      }
+    }
+    if (packet !== null) xmpPayload = new TextEncoder().encode(packet);
     written.push(...reqs.xmpKeys);
   }
 

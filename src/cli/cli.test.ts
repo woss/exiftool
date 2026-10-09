@@ -637,6 +637,21 @@ test('runAction write mode deletes an EXIF tag with an empty assignment', async 
   }
 });
 
+test('runAction deletes one embedded XMP property without removing its siblings', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    const opts = { overwriteOriginal: true };
+    assertEquals(await runAction(opts, '-XMP-dc:Title=Temporary', '-XMP-dc:Description=Keep', tmp), 0);
+    assertEquals(await runAction(opts, '-XMP-dc:Title=', tmp), 0);
+    const tags = (await new ExifTool().read(tmp)).tags;
+    assertEquals(tags.Title, undefined);
+    assertEquals(tags.Description, 'Keep');
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
 test('runAction write mode with overwriteOriginal skips backup', async () => {
   const tmp = await tempFile('.jpg');
   await writeFile(tmp, await readFile('assets/01.jpg'));
