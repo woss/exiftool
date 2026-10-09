@@ -355,6 +355,27 @@ test('runAction walks directories with recurse, extension filter, and ignore', a
   }
 });
 
+test('runAction recursively writes matching extensions only', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'exiftool-ts-write-recursive-'));
+  try {
+    await mkdir(join(root, 'nested'), { recursive: true });
+    await writeFile(join(root, 'top.jpg'), await readFile('assets/01.jpg'));
+    await writeFile(join(root, 'nested', 'inside.JPG'), await readFile('assets/03.jpg'));
+    await writeFile(join(root, 'note.txt'), 'untouched');
+    const code = await runAction(
+      { recurse: true, extension: ['jpg'], overwriteOriginal: true },
+      '-Software=recursive-write',
+      root,
+    );
+    assertEquals(code, 0);
+    assertEquals((await new ExifTool().read(join(root, 'top.jpg'))).tags.Software, 'recursive-write');
+    assertEquals((await new ExifTool().read(join(root, 'nested', 'inside.JPG'))).tags.Software, 'recursive-write');
+    assertEquals(await readFile(join(root, 'note.txt'), 'utf8'), 'untouched');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('runAction continues after unreadable files and reports each failure', async () => {
   const cap = captureConsole();
   try {
