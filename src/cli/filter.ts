@@ -40,12 +40,22 @@ function splitLogical(expr: string): { terms: string[]; operators: ('and' | 'or'
   const operators: ('and' | 'or')[] = [];
   let start = 0;
   let quoted = false;
+  let depth = 0;
   for (let index = 0; index < expr.length; index++) {
     if (expr[index] === "'" && expr[index - 1] !== '\\') {
       quoted = !quoted;
       continue;
     }
     if (quoted) continue;
+    if (expr[index] === '(') {
+      depth++;
+      continue;
+    }
+    if (expr[index] === ')') {
+      depth--;
+      continue;
+    }
+    if (depth !== 0) continue;
     let operator: 'and' | 'or' | undefined;
     let length = 0;
     if (expr.startsWith('&&', index)) {
@@ -71,6 +81,33 @@ function splitLogical(expr: string): { terms: string[]; operators: ('and' | 'or'
   return { terms, operators };
 }
 
+function stripOuterParens(expr: string): string {
+  let current = expr.trim();
+  while (current.startsWith('(') && current.endsWith(')')) {
+    let depth = 0;
+    let quoted = false;
+    let wrapsWholeExpression = true;
+    for (let index = 0; index < current.length; index++) {
+      if (current[index] === "'" && current[index - 1] !== '\\') {
+        quoted = !quoted;
+        continue;
+      }
+      if (quoted) continue;
+      if (current[index] === '(') depth++;
+      else if (current[index] === ')') {
+        depth--;
+        if (depth === 0 && index !== current.length - 1) {
+          wrapsWholeExpression = false;
+          break;
+        }
+      }
+    }
+    if (!wrapsWholeExpression || depth !== 0) break;
+    current = current.slice(1, -1).trim();
+  }
+  return current;
+}
+
 /**
  * Evaluate `-if` comparisons joined by `and`/`or` or `&&`/`||`.
  * Comparisons support eq, ne, >, <, >=, <=; AND binds more tightly than OR.
@@ -78,11 +115,13 @@ function splitLogical(expr: string): { terms: string[]; operators: ('and' | 'or'
  * comparison. Missing tags and malformed atomic expressions evaluate false.
  */
 export function evalCondition(expr: string, tags: Record<string, TagValue>): boolean {
-  const { terms, operators } = splitLogical(expr.trim());
-  let conjunction = evalComparison(terms[0] ?? '', tags);
+  const normalized = stripOuterParens(expr.trim());
+  const { terms, operators } = splitLogical(normalized);
+  if (operators.length === 0) return evalComparison(normalized, tags);
+  let conjunction = evalCondition(terms[0] ?? '', tags);
   let disjunction = false;
   for (let index = 0; index < operators.length; index++) {
-    const next = evalComparison(terms[index + 1] ?? '', tags);
+    const next = evalCondition(terms[index + 1] ?? '', tags);
     if (operators[index] === 'and') {
       conjunction = conjunction && next;
     } else {
