@@ -252,14 +252,45 @@ For each adapter, validate truncation, extended sizes, unknown boxes/chunks, dup
 
 ### 4. Implement ExifTool-Compatible Write Workflows
 
-- Support tag assignment and deletion, group-qualified tag names, wildcard/group operations where applicable, and write-mode behavior (`-wm`).
-- Implement `-tagsFromFile` with source selection, tag/group selection, ordering, and copy semantics. Test copying between different containers and metadata families.
-- Add file-level behavior for output paths, backups, overwrite controls, modification-time preservation, conditional writes, recursion, and batch failures.
-- Make binary writes tag-selective; do not concatenate all discovered binary values without framing or selection.
-- Complete argument normalization and CLI option handling for the upstream write options included in the compatibility contract. Do not advertise help entries that are not implemented.
-- Keep the library API and CLI behavior aligned; the CLI should be a thin adapter over the same write request model.
+Deliver the CLI/API work in dependency order. Section H is the detailed status checklist; these subphases group it into reviewable milestones.
 
-**Exit gate:** command-level tests compare exit status, resulting metadata, backup/output files, and diagnostics with ExifTool for each implemented workflow.
+#### 4.1 Assignment, Deletion, and Write Modes
+
+- Finish group/name/alias resolution, value conversion, and preferred-group routing for `-TAG=VALUE`.
+- Complete `-TAG=` / API-null behavior across supported groups, including mandatory/empty-group rules and unsupported-tag reporting.
+- Finish `-wm w/c/g` semantics using metadata-group presence rather than only parsed tag-name presence.
+
+**Exit gate:** set, delete, and mode tests cover existing and missing tags, group collisions, invalid values, and unchanged source bytes on failure; command results match ExifTool.
+
+#### 4.2 List Operations and Tag Copy
+
+- Generalize `-TAG+=VALUE` from the current XMP Subject/Creator and JPEG IPTC Keywords subset to other repeatable tags and format-specific list semantics.
+- Extend `-tagsFromFile` from basic single-source parsed-tag copying to group/tag selection, wildcards, renaming, ordering, `-srcfile`, same-file `@`, multiple sources, and transformations.
+- Define precedence when explicit assignments, appends, deletes, and multiple copy sources address the same logical tag.
+
+**Exit gate:** differential tests cover list replacement/append/delete and tag copying across containers, groups, repeated values, and assignment ordering.
+
+#### 4.3 Files, Batches, and Output
+
+- Complete `-o`, extension-derived destinations, overwrite/backup behavior, timestamps/permissions, sidecars, recursion, and conditional writes.
+- Report per-file and per-tag failures consistently; preserve partial batch success and stable exit statuses.
+- Finish CLI normalization and stay-open behavior for supported write options; do not advertise unsupported options.
+
+**Exit gate:** command tests compare output files, backups, timestamps, diagnostics, and exit codes with ExifTool for success, no-op, and mixed-success batches.
+
+#### 4.4 Binary and Time Workflows
+
+- Make binary writes tag-selective and define raw-byte framing; never concatenate unrelated binary tags implicitly.
+- Implement `-geotag`, `-geosync`, `-geotime`, `-globalTimeShift`, and other documented time/geotag transformations if they remain in scope.
+
+**Exit gate:** binary and time-transform tests verify selected payloads, conversions, output structure, and ExifTool parity.
+
+#### 4.5 Shared API and Capability Reporting
+
+- Represent set/add/delete/copy, source selection, write mode, warnings, and per-tag failures in a shared request/result model used by `ExifTool.write`, `writeBytes`, sidecar APIs, and the CLI.
+- Generate help, capability reporting, and documentation from implemented behavior; keep partial support explicit.
+
+**Exit gate:** API and CLI contract tests exercise the same request semantics, and advertised capabilities match the runtime writer registry.
 
 ### 5. Differential, Preservation, and Safety Verification
 
