@@ -123,6 +123,36 @@ test('pngWriter adds eXIf to files without one', async () => {
   assertEquals(info.tags.Make, 'PngNew');
 });
 
+test('pngWriter creates ExifIFD and GPS directories in a new eXIf chunk', async () => {
+  const written = pngWriter(buildPng(false), {
+    DateTimeOriginal: '2024:04:05 06:07:08',
+    GPSLatitude: 43.5,
+    GPSLongitude: -71.25,
+  });
+  const local = await pngParser.parse(written.bytes, '(test)');
+  assertEquals(local.tags.DateTimeOriginal, '2024:04:05 06:07:08');
+  assertEquals(typeof local.tags.GPSLatitude, 'string');
+  assertEquals(typeof local.tags.GPSLongitude, 'string');
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, written.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-G1', '-DateTimeOriginal', '-GPSLatitude', '-GPSLongitude', '-GPSLongitudeRef', file],
+    );
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream['ExifIFD:DateTimeOriginal'], local.tags.DateTimeOriginal);
+    assertEquals(upstream['GPS:GPSLongitude'], `71 deg 15' 0.00"`);
+    assertEquals(upstream['GPS:GPSLongitudeRef'], 'West');
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
 test('pngWriter preserves unrelated eXIf tags when updating one tag', async () => {
   const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
   const source = new Uint8Array([

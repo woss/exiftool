@@ -145,8 +145,9 @@ function toRational(value: TagValue): [number, number] | undefined {
  */
 function toGpsCoordinate(value: TagValue): [number, number, number] | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) {
-    const deg = Math.trunc(value);
-    const minFull = (value - deg) * 60;
+    const magnitude = Math.abs(value);
+    const deg = Math.trunc(magnitude);
+    const minFull = (magnitude - deg) * 60;
     const min = Math.trunc(minFull);
     const sec = Math.round((minFull - min) * 60 * 100) / 100;
     return [deg, min, sec];
@@ -154,6 +155,8 @@ function toGpsCoordinate(value: TagValue): [number, number, number] | undefined 
   if (typeof value === 'string') {
     const dms = value.match(/^(\d+) deg (\d+)' ([\d.]+)"\s*([NSEW])?/);
     if (dms) return [Number(dms[1]), Number(dms[2]), Number(dms[3])];
+    const numeric = Number(value);
+    if (Number.isFinite(numeric)) return toGpsCoordinate(numeric);
     const r = toRational(value);
     return r ? [r[0], r[1], 0] : undefined;
   }
@@ -189,6 +192,8 @@ function refFromCoordinate(value: TagValue, fallback: string): string | undefine
     const m = value.match(/([NSEW])\s*"?$/);
     if (m) return m[1];
   }
+  const numeric = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
+  if (numeric < 0) return fallback === 'N' ? 'S' : fallback === 'E' ? 'W' : fallback;
   return fallback;
 }
 

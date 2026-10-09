@@ -26,6 +26,14 @@ test('buildTiff accepts fraction strings for rational tags', () => {
   assertEquals(extractExifFromTiff(bytes).XResolution, 300);
 });
 
+test('buildTiff encodes negative decimal GPS coordinates as positive magnitudes with S/W refs', () => {
+  const { bytes } = buildTiff({ GPSLatitude: '-43.5', GPSLongitude: -71.25 });
+  const tags = extractExifFromTiff(bytes);
+  assertEquals(String(tags.GPSLatitude).endsWith('S'), true);
+  assertEquals(tags.GPSLongitudeRef, 'West');
+  assertEquals(String(tags.GPSLongitude).endsWith('W'), true);
+});
+
 test('buildTiff skips unknown tag names and reports them', () => {
   const { written, skipped } = buildTiff({ Make: 'A', ISOSpeed: 100 });
   assertEquals(written.includes('Make'), true);
