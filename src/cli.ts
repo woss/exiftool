@@ -261,7 +261,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
       ignoreDirs: options.ignore ?? [],
     });
     let outputIsDirectory = false;
-    if (options.output !== undefined) {
+    if (options.output !== undefined && options.output !== '-') {
       outputIsDirectory = /[\\/]$/.test(options.output);
       try {
         outputIsDirectory ||= (await stat(options.output)).isDirectory();
@@ -361,7 +361,10 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
             });
           } else {
             if (outputIsDirectory) await mkdir(options.output, { recursive: true });
-            const destination = outputIsDirectory
+            const stdoutOutput = options.output === '-';
+            const destination = stdoutOutput
+              ? file
+              : outputIsDirectory
               ? join(options.output, basename(file))
               : outputUsesTemplate
                 ? await resolveWriteOutputPath(options.output, file)
@@ -384,7 +387,14 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
               writeMode: options.writeMode,
             });
             const completedOutput = tempOutput;
-            await link(completedOutput, destination);
+            if (stdoutOutput) {
+              const outputBytes = await readFile(completedOutput);
+              await new Promise<void>((resolve, reject) => {
+                process.stdout.write(outputBytes, (error) => error ? reject(error) : resolve());
+              });
+            } else {
+              await link(completedOutput, destination);
+            }
             tempOutput = undefined;
             await rm(completedOutput, { force: true }).catch(() => {});
           }
@@ -401,7 +411,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
         failures.push(`Error writing ${file}: ${(e as Error).message}`);
       }
     }
-    if (updated > 0 && quietCount < 1) console.log(`${updated} image files updated`);
+    if (updated > 0 && quietCount < 1 && options.output !== '-') console.log(`${updated} image files updated`);
     if (failedCondition > 0 && quietCount < 1) console.error(`${failedCondition} files failed condition`);
     if (quietCount < 1) {
       for (const line of failures) console.error(line);

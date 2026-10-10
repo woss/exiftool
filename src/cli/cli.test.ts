@@ -618,6 +618,35 @@ test('runAction writes updated metadata to -o output without modifying input', a
   }
 });
 
+test('runAction writes metadata output to stdout for -o -', async () => {
+  const input = await tempFile('.jpg');
+  await writeFile(input, await readFile('assets/01.jpg'));
+  const original = await readFile(input);
+  const originalStdoutWrite = process.stdout.write;
+  let emitted = Buffer.alloc(0);
+  process.stdout.write = ((chunk: string | Uint8Array, encoding?: BufferEncoding | ((error?: Error | null) => void), callback?: (error?: Error | null) => void) => {
+    emitted = Buffer.from(typeof chunk === 'string' ? chunk : chunk);
+    const done = typeof encoding === 'function' ? encoding : callback;
+    done?.();
+    return true;
+  }) as typeof process.stdout.write;
+  try {
+    const code = await runAction({ output: '-', overwriteOriginal: true }, '-Software=stdout-output', input);
+    assertEquals(code, 0);
+    assertEquals(Buffer.compare(await readFile(input), original), 0);
+    const output = await tempFile('.jpg');
+    try {
+      await writeFile(output, emitted);
+      assertEquals((await new ExifTool().read(output)).tags.Software, 'stdout-output');
+    } finally {
+      await rm(output, { force: true });
+    }
+  } finally {
+    process.stdout.write = originalStdoutWrite;
+    await rm(input, { force: true });
+  }
+});
+
 test('runAction rejects multiple write inputs for a single -o destination', async () => {
   const first = await tempFile('.jpg');
   const second = await tempFile('.jpg');
