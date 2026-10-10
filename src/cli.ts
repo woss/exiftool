@@ -538,11 +538,15 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
     text = formatTabular(kept, fmtOpts);
   }
   if (options.output !== undefined) {
-    try {
-      await writeFile(options.output, text);
-    } catch (e) {
-      console.error(`Error writing ${options.output}: ${(e as Error).message}`);
-      return 1;
+    if (options.output === '-') {
+      console.log(text);
+    } else {
+      try {
+        await writeFile(options.output, text);
+      } catch (e) {
+        console.error(`Error writing ${options.output}: ${(e as Error).message}`);
+        return 1;
+      }
     }
   } else {
     console.log(text);

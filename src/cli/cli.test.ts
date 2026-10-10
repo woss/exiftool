@@ -493,6 +493,17 @@ test('runAction -o writes formatter output to a file instead of stdout', async (
   }
 });
 
+test('runAction read mode sends -o - output to stdout', async () => {
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ output: '-', json: true }, 'assets/01.jpg');
+    assertEquals(code, 0);
+    assertEquals(JSON.parse(cap.out.join('\n'))[0].Make, 'Canon');
+  } finally {
+    cap.restore();
+  }
+});
+
 test('runAction -o failure is reported and returns 1', async () => {
   const cap = captureConsole();
   try {
