@@ -193,6 +193,29 @@ test('runAction -b dumps raw binary bytes to stdout', async () => {
   }
 });
 
+test('runAction -b emits only explicitly selected binary tags', async () => {
+  const tool = new ExifTool();
+  const info = await tool.read('assets/01.jpg');
+  const selected = info.tags.ThumbnailImage;
+  if (!(selected instanceof Uint8Array)) throw new Error('expected ThumbnailImage binary data');
+  const stdout = process.stdout as unknown as { write: (data: Uint8Array) => boolean };
+  const origWrite = stdout.write.bind(stdout);
+  const collected: number[] = [];
+  stdout.write = (data: Uint8Array): boolean => {
+    collected.push(...data);
+    return true;
+  };
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ binary: true }, '-ThumbnailImage', 'assets/01.jpg');
+    assertEquals(code, 0);
+    assertEquals(Buffer.compare(Buffer.from(collected), Buffer.from(selected!)), 0);
+  } finally {
+    stdout.write = origWrite;
+    cap.restore();
+  }
+});
+
 test('runAction -b without binary tags reports failure and returns 1', async () => {
   const tmp = await tempFile('.bin');
   try {

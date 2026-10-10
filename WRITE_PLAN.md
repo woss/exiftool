@@ -200,7 +200,8 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 - [x] Write mode reuses recursive input expansion and case-insensitive `-ext` filtering; nested matching files are written and nonmatching extensions are skipped.
 - [x] `-q` suppresses per-file write diagnostics without masking a failing exit status.
 - [ ] Output/filesystem semantics: `-o`, extension-derived destinations, overwrite-original options, backups, `-P`, file permissions and timestamps, sidecars, recursion, full condition grammar, per-file errors, partial batch success, and stable exit statuses.
-- [ ] Binary writes: explicit tag selection, raw bytes, binary block copy, output delimiters/concatenation behavior, and no accidental concatenation of unrelated binary tags.
+- [x] `-b` emits selected binary tag values as raw bytes; explicit tag selection is covered byte-for-byte.
+- [ ] Binary writes: binary block copy, output delimiters/concatenation behavior, and no accidental concatenation of unrelated binary tags.
 - [ ] Date/time and geotag write workflows: port `-geotag`, `-geosync`, `-geotime`, `-globalTimeShift`, and other documented write transformations if the goal includes full CLI parity; keep these distinct from basic tag assignment.
 - [ ] Programmatic API: request/result types must represent set/add/delete/copy, source selection, write mode, warnings, and per-tag failures. `ExifTool.write`, `writeBytes`, sidecar APIs, and CLI must share the same request model.
 - [ ] Help text, generated capabilities, and docs must advertise only implemented options and format/family combinations.
