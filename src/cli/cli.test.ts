@@ -95,6 +95,32 @@ test('runAction --json emits parseable JSON array', async () => {
   }
 });
 
+test('runAction read mode projects selected tags without treating them as paths', async () => {
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ json: true }, '-Make', 'assets/01.jpg');
+    assertEquals(code, 0);
+    const [entry] = JSON.parse(cap.out.join('\n')) as Record<string, unknown>[];
+    assertEquals(entry?.Make, 'Canon');
+    assertEquals('Model' in (entry ?? {}), false);
+  } finally {
+    cap.restore();
+  }
+});
+
+test('runAction read mode excludes selected tags while retaining the rest', async () => {
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ json: true }, '--Model', 'assets/01.jpg');
+    assertEquals(code, 0);
+    const [entry] = JSON.parse(cap.out.join('\n')) as Record<string, unknown>[];
+    assertEquals(entry?.Make, 'Canon');
+    assertEquals('Model' in (entry ?? {}), false);
+  } finally {
+    cap.restore();
+  }
+});
+
 test('runAction --csv emits CSV rows', async () => {
   const cap = captureConsole();
   try {

@@ -374,7 +374,10 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
     return failures.length > 0 ? 1 : 0;
   }
 
-  const expanded = await expandInputs(files, {
+  const readSelectors = files.filter((operand) =>
+    /^-{1,2}[A-Za-z][A-Za-z0-9_*-]*(?:\?[A-Za-z0-9_*-]*)?(?::[A-Za-z][A-Za-z0-9_*-]*(?:\?[A-Za-z0-9_*-]*)?)?$/.test(operand));
+  const selectorOperands = new Set(readSelectors);
+  const expanded = await expandInputs(files.filter((file) => !selectorOperands.has(file)), {
     recurse: options.recurse === true,
     extensions: options.extension ?? [],
     ignoreDirs: options.ignore ?? [],
@@ -408,6 +411,12 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
     if (failed > 0 && quietCount < 1) {
       console.error(`${failed} files failed condition`);
     }
+  }
+  if (readSelectors.length > 0) {
+    kept = kept.map((info) => ({
+      ...info,
+      tags: selectCopiedTags(info.tags, readSelectors),
+    }));
   }
 
   const reportFailures = () => {
