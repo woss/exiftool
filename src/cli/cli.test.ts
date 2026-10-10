@@ -813,6 +813,35 @@ test('runAction writes XMP assignments to an -o .xmp sidecar', async () => {
   }
 });
 
+test('runAction creates per-input sidecars from an -o XMP template', async () => {
+  const first = await tempFile('.jpg');
+  const second = await tempFile('.jpg');
+  const outputDir = await mkdtemp(join(tmpdir(), 'exiftool-cli-xmp-batch-'));
+  await writeFile(first, await readFile('assets/01.jpg'));
+  await writeFile(second, await readFile('assets/03.jpg'));
+  const firstOriginal = await readFile(first);
+  const secondOriginal = await readFile(second);
+  try {
+    const code = await runAction(
+      { output: join(outputDir, '%f.xmp'), overwriteOriginal: true },
+      '-XMP-dc:Title=batch sidecar',
+      first,
+      second,
+    );
+    assertEquals(code, 0);
+    for (const input of [first, second]) {
+      const sidecar = join(outputDir, `${basename(input, '.jpg')}.xmp`);
+      assertEquals((await new ExifTool().read(sidecar)).tags.Title, 'batch sidecar');
+    }
+    assertEquals(Buffer.compare(await readFile(first), firstOriginal), 0);
+    assertEquals(Buffer.compare(await readFile(second), secondOriginal), 0);
+  } finally {
+    await rm(first, { force: true });
+    await rm(second, { force: true });
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
 test('runAction writes a batch to an existing -o directory', async () => {
   const first = await tempFile('.jpg');
   const second = await tempFile('.jpg');
