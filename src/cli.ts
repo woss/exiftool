@@ -165,7 +165,37 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
       : [];
   });
   if (assignments.length > 0 || options.tagsFromFile !== undefined) {
-    const sourceTags: Record<string, import('./types.js').TagValue> = {};
+    const sourceRequests = options.tagsFromFile === undefined
+      ? []
+      : options.tagsFromFileRequests ??
+        (Array.isArray(options.tagsFromFile)
+          ? options.tagsFromFile.map((source) => ({ source, selectors: [], mappings: [] }))
+          : [{ source: options.tagsFromFile, selectors: [], mappings: [] }]);
+    const selectRequestTags = (
+      parsedTags: Record<string, import('./types.js').TagValue>,
+      request: (typeof sourceRequests)[number],
+    ) => {
+      const selectors = request.selectors.length > 0
+        ? request.selectors
+        : options.tagsFromFileRequests === undefined
+          ? copySelectors.map(({ name, exclude }) => `${exclude ? '--' : '-'}${name}`)
+          : [];
+      const selectedTags = selectors.length > 0
+        ? selectCopiedTags(parsedTags, selectors)
+        : request.mappings.length > 0
+          ? {}
+          : parsedTags;
+      const mappedTags = { ...selectedTags };
+      for (const mapping of request.mappings) {
+        const value = findCopiedTagValue(parsedTags, mapping.source);
+        if (value !== undefined) mappedTags[mapping.destination] = value;
+      }
+      return mappedTags;
+    };
+    const sourceTagSets: {
+      request: (typeof sourceRequests)[number];
+      tags?: Record<string, import('./types.js').TagValue>;
+    }[] = [];
     const copySelectors = options.tagsFromFile === undefined
       ? []
       : files.flatMap((operand) => {
@@ -174,29 +204,15 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
         return match ? [{ operand, name: match[2]!, exclude: match[1] === '--' }] : [];
       });
     if (options.tagsFromFile !== undefined) {
-      const sourceRequests = options.tagsFromFileRequests ??
-        (Array.isArray(options.tagsFromFile)
-          ? options.tagsFromFile.map((source) => ({ source, selectors: [], mappings: [] }))
-          : [{ source: options.tagsFromFile, selectors: [], mappings: [] }]);
       for (const request of sourceRequests) {
         const { source: sourceFile } = request;
+        if (sourceFile === '@') {
+          sourceTagSets.push({ request });
+          continue;
+        }
         try {
           const parsedTags = (await tool.read(sourceFile)).tags;
-          const selectors = request.selectors.length > 0
-            ? request.selectors
-            : options.tagsFromFileRequests === undefined
-              ? copySelectors.map(({ name, exclude }) => `${exclude ? '--' : '-'}${name}`)
-              : [];
-          const selectedTags = selectors.length > 0
-            ? selectCopiedTags(parsedTags, selectors)
-            : request.mappings.length > 0
-              ? {}
-              : parsedTags;
-          Object.assign(sourceTags, selectedTags);
-          for (const mapping of request.mappings) {
-            const value = findCopiedTagValue(parsedTags, mapping.source);
-            if (value !== undefined) sourceTags[mapping.destination] = value;
-          }
+          sourceTagSets.push({ request, tags: selectRequestTags(parsedTags, request) });
         } catch (e) {
           console.error(`Error reading tags from ${sourceFile}: ${(e as Error).message}`);
           return 1;
@@ -233,13 +249,23 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
     let failedCondition = 0;
     for (const file of expandedWrite) {
       try {
-        const tags: Record<string, import('./types.js').TagValue> = { ...sourceTags };
         let targetTags: Record<string, import('./types.js').TagValue> | undefined;
         let targetFormat: string | undefined;
-        if (assignments.some((assignment) => assignment.append) || options.if !== undefined) {
+        const hasSelfSource = sourceTagSets.some(({ request }) => request.source === '@');
+        if (
+          assignments.some((assignment) => assignment.append) || options.if !== undefined ||
+          hasSelfSource
+        ) {
           const targetInfo = await tool.read(file);
           targetTags = targetInfo.tags;
           targetFormat = targetInfo.format;
+        }
+        const tags: Record<string, import('./types.js').TagValue> = {};
+        for (const sourceTagSet of sourceTagSets) {
+          Object.assign(
+            tags,
+            sourceTagSet.tags ?? selectRequestTags(targetTags ?? {}, sourceTagSet.request),
+          );
         }
         if (options.if !== undefined && !options.if.every((condition) => evalCondition(condition, targetTags ?? {}))) {
           failedCondition++;
