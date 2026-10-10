@@ -389,7 +389,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
                 ? await resolveWriteOutputPath(options.output, file)
                 : options.output;
             const destinationFormat = outputFormatForPath(destination);
-            if (destinationFormat !== undefined) {
+            if (destinationFormat !== undefined && destinationFormat !== 'xmp') {
               targetFormat ??= (await tool.read(file)).format;
               if (targetFormat.toLowerCase() !== destinationFormat) {
                 throw new Error(`cannot convert ${targetFormat} to ${destinationFormat.toUpperCase()} with -o`);
@@ -398,14 +398,20 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
             if (!stdoutOutput) await mkdir(dirname(destination), { recursive: true });
             const sourceStat = options.preserveTime ? await stat(file) : undefined;
             tempOutput = `${destination}.tmp-${randomUUID()}`;
-            await writeFile(tempOutput, await readFile(file), { flag: 'wx' });
-            if (sourceStat) await utimes(tempOutput, sourceStat.atime, sourceStat.mtime);
-            result = await tool.write(tempOutput, tags, {
-              overwriteOriginal: true,
-              preserveTime: options.preserveTime === true,
-              compress: options.compress === true,
-              writeMode: options.writeMode,
-            });
+            if (destinationFormat === 'xmp') {
+              const sidecar = await tool.writeSidecar(file, tags, { sidecarPath: tempOutput });
+              result = { written: sidecar.written, skipped: [] };
+              if (sourceStat) await utimes(tempOutput, sourceStat.atime, sourceStat.mtime);
+            } else {
+              await writeFile(tempOutput, await readFile(file), { flag: 'wx' });
+              if (sourceStat) await utimes(tempOutput, sourceStat.atime, sourceStat.mtime);
+              result = await tool.write(tempOutput, tags, {
+                overwriteOriginal: true,
+                preserveTime: options.preserveTime === true,
+                compress: options.compress === true,
+                writeMode: options.writeMode,
+              });
+            }
             const completedOutput = tempOutput;
             if (stdoutOutput) {
               const outputBytes = await readFile(completedOutput);

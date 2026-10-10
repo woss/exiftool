@@ -792,25 +792,22 @@ test('runAction rejects -o destinations with a different known format extension'
   }
 });
 
-test('runAction rejects JPEG bytes labeled as an XMP output file', async () => {
+test('runAction writes XMP assignments to an -o .xmp sidecar', async () => {
   const input = await tempFile('.jpg');
   const output = await tempFile('.xmp');
   await rm(output, { force: true });
   await writeFile(input, await readFile('assets/01.jpg'));
   const original = await readFile(input);
-  const cap = captureConsole();
   try {
     const code = await runAction(
       { output, overwriteOriginal: true },
-      '-Software=misleading-extension',
+      '-XMP-dc:Title=Sidecar title',
       input,
     );
-    assertEquals(code, 1);
+    assertEquals(code, 0);
     assertEquals(Buffer.compare(await readFile(input), original), 0);
-    assertEquals(await stat(output).then(() => true, () => false), false);
-    assertEquals(cap.err.some((line) => line.includes('cannot convert')), true);
+    assertEquals((await new ExifTool().read(output)).tags.Title, 'Sidecar title');
   } finally {
-    cap.restore();
     await rm(input, { force: true });
     await rm(output, { force: true });
   }
