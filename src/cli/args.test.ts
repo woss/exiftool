@@ -69,6 +69,18 @@ test('parseCliArgs — repeated tagsFromFile options retain source order', () =>
   );
 });
 
+test('parseCliArgs — srcfile candidates retain source order', () => {
+  assertEquals(
+    parseCliArgs(normalizeArgs([
+      '-srcfile', '%d%f.jpg', '-srcfile', '%d%f.xmp', 'target.nef',
+    ])),
+    {
+      options: { srcFile: ['%d%f.jpg', '%d%f.xmp'] },
+      files: ['target.nef'],
+    },
+  );
+});
+
 test('parseCliArgs — source tag selectors stay attached to their source occurrence', () => {
   assertEquals(
     parseCliArgs(normalizeArgs([

@@ -187,7 +187,8 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 - [x] Simple `*` and `?` wildcards match bare source tag names in `-tagsFromFile` selectors.
 - [x] Basic `-DSTTAG<SRCTAG` mappings copy one source value to a differently named destination, scoped to the active source.
 - [x] `-tagsFromFile @` reads each target as a source and preserves its position among repeated source requests.
-- [ ] Advanced `-tagsFromFile`: group-qualified selector semantics, `-srcfile`, and transformations applied to copied values.
+- [x] Repeatable `-srcfile FMT` candidates resolve from the original target name, choose the first existing file, and leave `@` bound to the original input.
+- [ ] Advanced `-tagsFromFile`: group-qualified selector semantics and transformations applied to copied values.
 - [x] Basic `-if` write filtering evaluates target tags before mutation and leaves nonmatching files untouched.
 - [x] `-if` supports comparisons, `=~`/`!~` slash-delimited regexes (`i`/`m`/`s`/`u` flags), `and`/`or` or `&&`/`||`, AND-before-OR precedence, and parenthesized groups; full ExifTool expression semantics remain open.
 - [x] Read mode applies bare `-TAG` / `--TAG` selectors, including simple `*` and `?` wildcards, after condition filtering.

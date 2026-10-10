@@ -148,6 +148,20 @@ async function resolveWriteOutputPath(template: string, input: string): Promise<
   }
 }
 
+async function resolveSourceFile(input: string, candidates: string[] | undefined): Promise<string> {
+  if (!candidates || candidates.length === 0) return input;
+  const resolved = candidates.map((candidate) =>
+    candidate === '@' ? input : expandWriteOutputTemplate(candidate, input));
+  for (const candidate of resolved) {
+    try {
+      if ((await stat(candidate)).isFile()) return candidate;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+  return resolved[0] ?? input;
+}
+
 async function readIptcKeywords(file: string): Promise<string[]> {
   const bytes = new Uint8Array(await readFile(file));
   if (bytes[0] !== 0xff || bytes[1] !== 0xd8) return [];
@@ -282,22 +296,27 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
     let failedCondition = 0;
     for (const file of expandedWrite) {
       try {
+        const writeTarget = await resolveSourceFile(file, options.srcFile);
         let targetTags: Record<string, import('./types.js').TagValue> | undefined;
+        let originalTags: Record<string, import('./types.js').TagValue> | undefined;
         let targetFormat: string | undefined;
         const hasSelfSource = sourceTagSets.some(({ request }) => request.source === '@');
         if (
           assignments.some((assignment) => assignment.append || assignment.remove) || options.if !== undefined ||
-          hasSelfSource
+          hasSelfSource || writeTarget !== file
         ) {
-          const targetInfo = await tool.read(file);
+          const targetInfo = await tool.read(writeTarget);
           targetTags = targetInfo.tags;
           targetFormat = targetInfo.format;
+        }
+        if (hasSelfSource) {
+          originalTags = writeTarget === file ? targetTags : (await tool.read(file)).tags;
         }
         const tags: Record<string, import('./types.js').TagValue> = {};
         for (const sourceTagSet of sourceTagSets) {
           Object.assign(
             tags,
-            sourceTagSet.tags ?? selectRequestTags(targetTags ?? {}, sourceTagSet.request),
+            sourceTagSet.tags ?? selectRequestTags(originalTags ?? targetTags ?? {}, sourceTagSet.request),
           );
         }
         if (options.if !== undefined && !options.if.every((condition) => evalCondition(condition, targetTags ?? {}))) {
@@ -339,7 +358,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
           if (IPTC_KEYWORDS_KEY.test(assignment.key)) {
             if (assignment.remove) continue;
             const existing = Object.entries(tags).find(([key]) => IPTC_KEYWORDS_KEY.test(key))?.[1] ??
-              await readIptcKeywords(file);
+              await readIptcKeywords(writeTarget);
             const values = typeof existing === 'string'
               ? [existing]
               : Array.isArray(existing)
@@ -357,7 +376,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
         let result;
         try {
           if (options.output === undefined) {
-            result = await tool.write(file, tags, {
+            result = await tool.write(writeTarget, tags, {
               overwriteOriginal: options.overwriteOriginal === true,
               preserveTime: options.preserveTime === true,
               compress: options.compress === true,
@@ -384,11 +403,11 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
             const sourceStat = options.preserveTime ? await stat(file) : undefined;
             tempOutput = `${destination}.tmp-${randomUUID()}`;
             if (destinationFormat === 'xmp') {
-              const sidecar = await tool.writeSidecar(file, tags, { sidecarPath: tempOutput });
+              const sidecar = await tool.writeSidecar(writeTarget, tags, { sidecarPath: tempOutput });
               result = { written: sidecar.written, skipped: [] };
               if (sourceStat) await utimes(tempOutput, sourceStat.atime, sourceStat.mtime);
             } else {
-              await writeFile(tempOutput, await readFile(file), { flag: 'wx' });
+              await writeFile(tempOutput, await readFile(writeTarget), { flag: 'wx' });
               if (sourceStat) await utimes(tempOutput, sourceStat.atime, sourceStat.mtime);
               result = await tool.write(tempOutput, tags, {
                 overwriteOriginal: true,

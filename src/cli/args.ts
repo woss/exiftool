@@ -31,6 +31,7 @@ export interface CliOptions {
     selectors: string[];
     mappings: { destination: string; source: string }[];
   }[];
+  srcFile?: string[];
   extractEmbedded?: boolean;
   overwriteOriginal?: boolean;
   preserveTime?: boolean;
@@ -61,6 +62,7 @@ const SPECS: Record<string, OptionSpec> = {
   xml: { arity: 'flag' },
   output: { arity: 'value' },
   'tags-from-file': { arity: 'value', collect: true },
+  'src-file': { arity: 'value', collect: true },
   recurse: { arity: 'flag' },
   extension: { arity: 'value', collect: true },
   ignore: { arity: 'value', collect: true },
@@ -195,6 +197,9 @@ export function normalizeArgs(args: string[]): string[] {
     }
     if (a === '-tagsFromFile' || a === '--tagsFromFile') {
       return ['--tags-from-file'];
+    }
+    if (a === '-srcfile' || a === '--srcfile' || a === '-srcFile' || a === '--srcFile') {
+      return ['--src-file'];
     }
     if (a === '-wm' || a === '--wm' || a === '-writeMode' || a === '--writeMode') {
       return ['--write-mode'];

@@ -1469,6 +1469,54 @@ test('runAction uses @ as the current target for tagsFromFile', async () => {
   }
 });
 
+test('runAction writes to the first existing -srcfile candidate', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'exiftool-cli-srcfile-'));
+  const original = join(root, 'photo.nef');
+  const alternate = join(root, 'photo.jpg');
+  await writeFile(original, await readFile('assets/03.jpg'));
+  await writeFile(alternate, await readFile('assets/01.jpg'));
+  const originalBytes = await readFile(original);
+  try {
+    const parsed = parseCliArgs(normalizeArgs([
+      '-tagsFromFile', '@', '-Make', '-srcfile', '%d%f.missing', '-srcfile', '%d%f.jpg',
+      '-Software=srcfile-target', original,
+    ]));
+    const code = await runAction({ ...parsed.options, overwriteOriginal: true }, ...parsed.files);
+    assertEquals(code, 0);
+    const tool = new ExifTool();
+    const updated = (await tool.read(alternate)).tags;
+    assertEquals(updated.Make, 'SONY');
+    assertEquals(updated.Software, 'srcfile-target');
+    assertEquals(Buffer.compare(await readFile(original), originalBytes), 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('runAction uses the original file as @ source and srcfile as write target', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'exiftool-cli-srcfile-source-'));
+  const original = join(root, 'photo.nef');
+  const alternate = join(root, 'photo.jpg');
+  await writeFile(original, await readFile('assets/03.jpg'));
+  await writeFile(alternate, await readFile('assets/01.jpg'));
+  const originalBytes = await readFile(original);
+  try {
+    const parsed = parseCliArgs(normalizeArgs([
+      '-tagsFromFile', '@', '-Make', '-srcfile', '%d%f.jpg',
+      '-Software=srcfile-target', original,
+    ]));
+    const code = await runAction({ ...parsed.options, overwriteOriginal: true }, ...parsed.files);
+    assertEquals(code, 0);
+    const tool = new ExifTool();
+    const updated = (await tool.read(alternate)).tags;
+    assertEquals(updated.Make, 'SONY');
+    assertEquals(updated.Software, 'srcfile-target');
+    assertEquals(Buffer.compare(await readFile(original), originalBytes), 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('runAction preserves @ position among repeated tagsFromFile sources', async () => {
   const source = await tempFile('.jpg');
   const target = await tempFile('.jpg');
