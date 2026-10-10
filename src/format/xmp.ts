@@ -63,15 +63,15 @@ export const xmpParser: FormatParser = {
       written.push(key);
     }
 
-    let packet = rawPacket ?? source;
+    let packet: string | null = rawPacket ?? source;
     if (deletes.length > 0 && packet) packet = deleteXmpProperties(packet, deletes);
     if (properties.length > 0) packet = writeXmpPacket(packet || null, properties);
     if (rawPacket === undefined && deletes.length === 0 && properties.length === 0) {
       return { bytes: original, written: [], skipped };
     }
-    if (!packet && original.length > 0) {
+    if (packet === null && original.length > 0) {
       throw new UnsupportedFormatError('XMP write would leave an empty metadata file');
     }
-    return { bytes: encoder.encode(packet), written, skipped };
+    return { bytes: encoder.encode(packet ?? ''), written, skipped };
   },
 };

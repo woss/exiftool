@@ -172,7 +172,7 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 
 - [x] CLI reports explicitly requested tags returned in `skipped`; writes with no accepted requested tags fail before replacing the source. Full group/name resolution and conversion parity remain open.
 - [ ] `-TAG=VALUE`: resolve all groups/aliases, validate ExifTool conversions, write to preferred groups, and report per-tag failures for unsupported values.
-- [x] Null assignments delete requested properties from existing JPEG, PNG, and WebP XMP packets while preserving sibling properties.
+- [x] Null assignments delete requested properties from JPEG, PNG, and WebP XMP packets while preserving siblings; deleting the last property removes the packet/chunk and clears the WebP XMP flag. Sidecars are removed when emptied; standalone XMP writes reject an empty document.
 - [x] Empty `IPTC:Keywords` assignment deletes only the JPEG IPTC datasets and preserves XMP Subject.
 - [ ] General `-TAG=` / API null deletion across applicable groups; remove empty optional groups and handle mandatory tags according to upstream behavior.
 - [x] `-TAG+=VALUE` appends XMP `Subject`/`Keywords`, `Creator`, `Contributor`, `Publisher`, `Language`, `Relation`, `Type`, `Identifier`, and `Date`, plus JPEG `IPTC:Keywords`, to each target's existing list; unsupported scalar `+=` requests fail before writing.

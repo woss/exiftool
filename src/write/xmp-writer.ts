@@ -198,7 +198,8 @@ export function toXmpPropertyName(key: string): string | undefined {
 }
 
 /** Removes matching top-level XMP properties without rewriting other XML. */
-export function deleteXmpProperties(packet: string, names: string[]): string {
+export function deleteXmpProperties(packet: string, names: string[]): string | null {
+  if (names.length === 0) return packet;
   let out = packet;
   for (const name of names) {
     const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -221,7 +222,17 @@ export function deleteXmpProperties(packet: string, names: string[]): string {
     );
     out = out.slice(0, start) + body.replace(propertyRe, '') + out.slice(end);
   }
-  return out;
+  const description = out.match(/<rdf:Description\b([^>]*)>/);
+  if (!description) return null;
+  const attributes = description[1]!
+    .replace(/\sxmlns(?::[\w.-]+)?=(?:"[^"]*"|'[^']*')/g, '')
+    .replace(/\srdf:(?:about|ID|nodeID)=(?:"[^"]*"|'[^']*')/g, '')
+    .trim();
+  if (attributes.length > 0) return out;
+  const span = topLevelDescriptionSpan(out);
+  if (!span) return null;
+  const body = out.slice(span[0], span[1]).replace(/<!--[\s\S]*?-->/g, '').trim();
+  return body.length > 0 ? out : null;
 }
 
 /**

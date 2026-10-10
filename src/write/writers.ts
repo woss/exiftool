@@ -745,7 +745,21 @@ export const webpWriter: ContainerWriter = (original, tags) => {
   if (!vp8x) throw new UnsupportedFormatError('WebP writing requires a VP8X chunk');
   const vp8xData = Uint8Array.from(vp8x.data);
   if (Object.keys(exif).length > 0) vp8xData[0] |= 0x08; // EXIF flag
-  if (xmp.length > 0 || existingXmp !== null) vp8xData[0] |= 0x04; // XMP flag
+  let outputXmp: string | null = null;
+  if (xmp.length > 0 || xmpDeletes.length > 0) {
+    outputXmp = xmp.length > 0 ? writeXmpPacket(existingXmp, xmp) : existingXmp;
+    if (xmpDeletes.length > 0) {
+      if (outputXmp !== null) {
+        outputXmp = deleteXmpProperties(outputXmp, xmpDeletes);
+        writtenOut.push(...xmpDeleteKeys);
+      } else {
+        skipped.push(...xmpDeleteKeys);
+      }
+    }
+    writtenOut.push(...xmpKeys);
+    if (outputXmp !== null) vp8xData[0] |= 0x04;
+    else vp8xData[0] &= ~0x04;
+  }
   if (iccProfile?.profile) vp8xData[0] |= 0x20; // ICC flag
   else if (iccProfile) vp8xData[0] &= ~0x20;
 
@@ -785,19 +799,7 @@ export const webpWriter: ContainerWriter = (original, tags) => {
     }
     pushChunk('EXIF', new Uint8Array([0x45, 0x78, 0x69, 0x66, 0x00, 0x00, ...tiff])); // 'Exif\0\0' prefix
   }
-  if (xmp.length > 0 || xmpDeletes.length > 0) {
-    let packet = xmp.length > 0 ? writeXmpPacket(existingXmp, xmp) : existingXmp;
-    if (xmpDeletes.length > 0) {
-      if (packet !== null) {
-        packet = deleteXmpProperties(packet, xmpDeletes);
-        writtenOut.push(...xmpDeleteKeys);
-      } else {
-        skipped.push(...xmpDeleteKeys);
-      }
-    }
-    if (packet !== null) pushChunk('XMP ', new TextEncoder().encode(packet));
-    for (const k of xmpKeys) writtenOut.push(k);
-  }
+  if (outputXmp !== null) pushChunk('XMP ', new TextEncoder().encode(outputXmp));
   for (const c of chunks) {
     if (c.id === 'EXIF' || c.id === 'VP8X') continue;
     pushChunk(c.id, c.data);

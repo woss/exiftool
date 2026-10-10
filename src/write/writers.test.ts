@@ -76,6 +76,19 @@ test('jpegWriter rejects non-JPEG input', () => {
   }
 });
 
+test('webpWriter removes its XMP chunk and clears the VP8X flag when deleting the last property', () => {
+  const seeded = webpWriter(buildWebp(), { 'XMP-dc:Title': 'Only property' });
+  const deleted = webpWriter(seeded.bytes, { 'XMP-dc:Title': null });
+  let foundXmp = false;
+  for (let pos = 12; pos + 8 <= deleted.bytes.length;) {
+    const id = new TextDecoder().decode(deleted.bytes.subarray(pos, pos + 4));
+    const size = new DataView(deleted.bytes.buffer, deleted.bytes.byteOffset + pos + 4, 4).getUint32(0, true);
+    if (id === 'XMP ') foundXmp = true;
+    pos += 8 + size + (size % 2);
+  }
+  assertEquals(foundXmp, false);
+  assertEquals((deleted.bytes[20]! & 0x04) === 0, true);
+});
 // --- PNG container ---
 
 function pngChunk(type: string, data: Uint8Array): number[] {
@@ -749,6 +762,21 @@ test('pngWriter deletes one XMP property and preserves packet siblings', async (
   } finally {
     await (await import('node:fs/promises')).rm(file, { force: true });
   }
+});
+
+test('pngWriter removes the XMP chunk when deleting its last property', () => {
+  const seeded = pngWriter(buildPng(false), { 'XMP-dc:Title': 'Only property' });
+  const deleted = pngWriter(seeded.bytes, { 'XMP-dc:Title': null });
+  let foundXmp = false;
+  for (let pos = 8; pos + 12 <= deleted.bytes.length;) {
+    const length = new DataView(deleted.bytes.buffer, deleted.bytes.byteOffset + pos, 4).getUint32(0, false);
+    const type = new TextDecoder().decode(deleted.bytes.subarray(pos + 4, pos + 8));
+    if (type === 'iTXt' && new TextDecoder().decode(deleted.bytes.subarray(pos + 8, pos + 25)) === 'XML:com.adobe.xmp') {
+      foundXmp = true;
+    }
+    pos += length + 12;
+  }
+  assertEquals(foundXmp, false);
 });
 
 test('webpWriter writes an XMP chunk readable by the parser', async () => {

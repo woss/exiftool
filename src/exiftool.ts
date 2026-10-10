@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, unlink, writeFile } from 'node:fs/promises';
 import { ExifToolCore } from './exiftool-core.js';
 import { detectParser, type ParseHints } from './format/mod.js';
 import type { FileInfo, TagValue, WriteOptions } from './types.js';
@@ -124,6 +124,10 @@ export class ExifTool extends ExifToolCore {
     }
     if (!existing && props.length === 0) return { sidecarPath, written: [] };
     const packet = existing && deletes.length > 0 ? deleteXmpProperties(existing, deletes) : existing;
+    if (packet === null && props.length === 0) {
+      if (existing !== null) await unlink(sidecarPath);
+      return { sidecarPath, written };
+    }
     if (props.length > 0 || packet) {
       await writeFile(sidecarPath, writeXmpPacket(packet, props), 'utf8');
     }

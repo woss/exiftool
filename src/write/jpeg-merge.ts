@@ -766,6 +766,8 @@ export const jpegMergeWriter: ContainerWriter = (original, tags) => {
       // EXIF first, XMP second.
       edits.push({ at: 2, end: 2, bytes: seg });
     }
+  } else if (xmpSeg && (reqs.xmpDeletes.length > 0 || reqs.xmp.length > 0)) {
+    edits.push({ at: xmpSeg.start, end: xmpSeg.end, bytes: null });
   }
   if (iptcTouched && iptcPayload) {
     const seg = app13Segment(iptcPayload);

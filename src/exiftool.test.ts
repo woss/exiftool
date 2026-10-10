@@ -212,6 +212,21 @@ test('writeSidecar deletes selected XMP properties and preserves unrelated ones'
   }
 });
 
+test('writeSidecar removes the file when deleting its last XMP property', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'exiftool-ts-sidecar-empty-'));
+  try {
+    const tool = new ExifTool();
+    const media = join(dir, 'IMG_0004.ARW');
+    const sidecar = join(dir, 'IMG_0004.ARW.xmp');
+    await tool.writeSidecar(media, { 'XMP-dc:Title': 'Remove me' });
+    const result = await tool.writeSidecar(media, { 'XMP-dc:Title': null });
+    assertEquals(result.written, ['XMP-dc:Title']);
+    assertEquals(await readdir(dir), []);
+  } finally {
+    await rm(dir, { recursive: true });
+  }
+});
+
 test('writeSidecar with no XMP keys is a no-op', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'exiftool-ts-sidecar2-'));
   try {

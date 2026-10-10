@@ -1297,6 +1297,22 @@ test('runAction deletes one embedded XMP property without removing its siblings'
   }
 });
 
+test('runAction removes an empty XMP packet after deleting its last property', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    await execFileP(upstreamExifTool, ['-XMP:All=', '-overwrite_original', tmp]);
+    const tool = new ExifTool();
+    await tool.write(tmp, { 'XMP-dc:Title': 'only property' }, { overwriteOriginal: true });
+    const code = await runAction({ overwriteOriginal: true }, '-XMP-dc:Title=', tmp);
+    assertEquals(code, 0);
+    const { stdout } = await execFileP(upstreamExifTool, ['-XMP:All', tmp]);
+    assertEquals(stdout.trim(), '');
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
 test('runAction write mode with overwriteOriginal skips backup', async () => {
   const tmp = await tempFile('.jpg');
   await writeFile(tmp, await readFile('assets/01.jpg'));
