@@ -76,6 +76,20 @@ function selectCopiedTags(
   }));
 }
 
+function findCopiedTagValue(
+  tags: Record<string, import('./types.js').TagValue>,
+  name: string,
+): import('./types.js').TagValue | undefined {
+  const normalized = name.toLowerCase();
+  const key = Object.keys(tags).find((candidate) => {
+    const lower = candidate.toLowerCase();
+    return normalized.includes(':')
+      ? lower === normalized
+      : lower.split(':').at(-1) === normalized;
+  });
+  return key === undefined ? undefined : tags[key];
+}
+
 function expandWriteOutputTemplate(template: string, input: string): string {
   const filename = basename(input);
   const extension = extname(filename);
@@ -162,8 +176,8 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
     if (options.tagsFromFile !== undefined) {
       const sourceRequests = options.tagsFromFileRequests ??
         (Array.isArray(options.tagsFromFile)
-          ? options.tagsFromFile.map((source) => ({ source, selectors: [] }))
-          : [{ source: options.tagsFromFile, selectors: [] }]);
+          ? options.tagsFromFile.map((source) => ({ source, selectors: [], mappings: [] }))
+          : [{ source: options.tagsFromFile, selectors: [], mappings: [] }]);
       for (const request of sourceRequests) {
         const { source: sourceFile } = request;
         try {
@@ -173,7 +187,16 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
             : options.tagsFromFileRequests === undefined
               ? copySelectors.map(({ name, exclude }) => `${exclude ? '--' : '-'}${name}`)
               : [];
-          Object.assign(sourceTags, selectCopiedTags(parsedTags, selectors));
+          const selectedTags = selectors.length > 0
+            ? selectCopiedTags(parsedTags, selectors)
+            : request.mappings.length > 0
+              ? {}
+              : parsedTags;
+          Object.assign(sourceTags, selectedTags);
+          for (const mapping of request.mappings) {
+            const value = findCopiedTagValue(parsedTags, mapping.source);
+            if (value !== undefined) sourceTags[mapping.destination] = value;
+          }
         } catch (e) {
           console.error(`Error reading tags from ${sourceFile}: ${(e as Error).message}`);
           return 1;

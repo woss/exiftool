@@ -47,7 +47,7 @@ test('parseCliArgs — tagsFromFile uses ExifTool spelling', () => {
   assertEquals(parseCliArgs(['--tags-from-file', 'source.jpg']), {
     options: {
       tagsFromFile: 'source.jpg',
-      tagsFromFileRequests: [{ source: 'source.jpg', selectors: [] }],
+      tagsFromFileRequests: [{ source: 'source.jpg', selectors: [], mappings: [] }],
     },
     files: [],
   });
@@ -60,8 +60,8 @@ test('parseCliArgs — repeated tagsFromFile options retain source order', () =>
       options: {
         tagsFromFile: ['first.jpg', 'second.jpg'],
         tagsFromFileRequests: [
-          { source: 'first.jpg', selectors: [] },
-          { source: 'second.jpg', selectors: [] },
+          { source: 'first.jpg', selectors: [], mappings: [] },
+          { source: 'second.jpg', selectors: [], mappings: [] },
         ],
       },
       files: [],
@@ -79,9 +79,28 @@ test('parseCliArgs — source tag selectors stay attached to their source occurr
       options: {
         tagsFromFile: ['first.jpg', 'second.jpg'],
         tagsFromFileRequests: [
-          { source: 'first.jpg', selectors: ['-Make'] },
-          { source: 'second.jpg', selectors: ['-Model'] },
+          { source: 'first.jpg', selectors: ['-Make'], mappings: [] },
+          { source: 'second.jpg', selectors: ['-Model'], mappings: [] },
         ],
+      },
+      files: ['target.jpg'],
+    },
+  );
+});
+
+test('parseCliArgs — tag redirects attach to the active tagsFromFile source', () => {
+  assertEquals(
+    parseCliArgs(normalizeArgs([
+      '-tagsFromFile', 'source.jpg', '-Model<Make', 'target.jpg',
+    ])),
+    {
+      options: {
+        tagsFromFile: 'source.jpg',
+        tagsFromFileRequests: [{
+          source: 'source.jpg',
+          selectors: [],
+          mappings: [{ destination: 'Model', source: 'Make' }],
+        }],
       },
       files: ['target.jpg'],
     },

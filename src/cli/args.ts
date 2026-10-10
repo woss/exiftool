@@ -26,7 +26,11 @@ export interface CliOptions {
   ignore?: string[];
   output?: string;
   tagsFromFile?: string | string[];
-  tagsFromFileRequests?: { source: string; selectors: string[] }[];
+  tagsFromFileRequests?: {
+    source: string;
+    selectors: string[];
+    mappings: { destination: string; source: string }[];
+  }[];
   extractEmbedded?: boolean;
   overwriteOriginal?: boolean;
   preserveTime?: boolean;
@@ -94,7 +98,11 @@ function camelize(name: string): string {
 export function parseCliArgs(argv: string[]): { options: CliOptions; files: string[] } {
   const options: CliOptions = {};
   const files: string[] = [];
-  let activeTagSource: { source: string; selectors: string[] } | undefined;
+  let activeTagSource: {
+    source: string;
+    selectors: string[];
+    mappings: { destination: string; source: string }[];
+  } | undefined;
   const set = (name: string, value: unknown) => {
     const key = camelize(name);
     if (name === 'tags-from-file') {
@@ -102,7 +110,7 @@ export function parseCliArgs(argv: string[]): { options: CliOptions; files: stri
       (options as Record<string, unknown>)[key] = current === undefined
         ? value
         : [...(Array.isArray(current) ? current : [current]), value];
-      activeTagSource = { source: String(value), selectors: [] };
+      activeTagSource = { source: String(value), selectors: [], mappings: [] };
       options.tagsFromFileRequests = [...(options.tagsFromFileRequests ?? []), activeTagSource];
       return;
     }
@@ -132,6 +140,11 @@ export function parseCliArgs(argv: string[]): { options: CliOptions; files: stri
         ? long(arg)
         : SHORTS[arg.slice(1, 2)];
     if (!name) {
+      const mapping = arg.match(/^-([A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)<([A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)$/);
+      if (mapping && activeTagSource) {
+        activeTagSource.mappings.push({ destination: mapping[1]!, source: mapping[2]! });
+        continue;
+      }
       const selector = arg.match(/^(-{1,2}[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)$/);
       if (selector && activeTagSource) {
         activeTagSource.selectors.push(selector[1]!);
@@ -174,6 +187,7 @@ export function normalizeArgs(args: string[]): string[] {
   return args.flatMap((a) => {
     // TAG=VALUE and TAG+=VALUE write assignments pass through as operands.
     if (/^-?[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?\+?=/.test(a)) return [a];
+    if (/^-[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?<[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?$/.test(a)) return [a];
     if (a === '-overwrite_original' || a === '--overwrite_original') {
       return ['--overwrite-original'];
     }

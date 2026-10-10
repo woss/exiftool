@@ -973,6 +973,26 @@ test('runAction copies only explicitly selected tagsFromFile values', async () =
   }
 });
 
+test('runAction maps a tagsFromFile source tag to a different destination name', async () => {
+  const source = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(source, await readFile('assets/01.jpg'));
+  await writeFile(target, await readFile('assets/03.jpg'));
+  try {
+    const parsed = parseCliArgs(normalizeArgs([
+      '-tagsFromFile', source, '-Model<Make', target,
+    ]));
+    const code = await runAction({ ...parsed.options, overwriteOriginal: true }, ...parsed.files);
+    assertEquals(code, 0);
+    const tags = (await new ExifTool().read(target)).tags;
+    assertEquals(tags.Make, 'SONY');
+    assertEquals(tags.Model, 'Canon');
+  } finally {
+    await rm(source, { force: true });
+    await rm(target, { force: true });
+  }
+});
+
 test('runAction excludes --TAG values from tagsFromFile without excluding other tags', async () => {
   const source = await tempFile('.jpg');
   const target = await tempFile('.jpg');
