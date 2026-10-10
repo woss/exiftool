@@ -850,6 +850,32 @@ test('runAction appends XMP Creator in sequence order', async () => {
   }
 });
 
+test('runAction appends XMP Contributor and Publisher values to RDF Bags', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    const tool = new ExifTool();
+    await tool.write(tmp, {
+      'XMP-dc:Contributor': ['first contributor'],
+      'XMP-dc:Publisher': ['first publisher'],
+    }, { overwriteOriginal: true });
+    const code = await runAction(
+      { overwriteOriginal: true },
+      '-XMP-dc:Contributor+=second contributor',
+      '-XMP-dc:Publisher+=second publisher',
+      tmp,
+    );
+    assertEquals(code, 0);
+    assertEquals((await tool.read(tmp)).tags.Contributor, [
+      'first contributor',
+      'second contributor',
+    ]);
+    assertEquals((await tool.read(tmp)).tags.Publisher, ['first publisher', 'second publisher']);
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
 test('runAction appends IPTC Keywords without mixing XMP Subject', async () => {
   const tmp = await tempFile('.jpg');
   await writeFile(tmp, await readFile('assets/01.jpg'));

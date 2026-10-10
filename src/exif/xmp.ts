@@ -115,9 +115,11 @@ export function parseXMP(_xml: string): Record<string, TagValue> {
   const result: Record<string, TagValue> = {};
 
   const TAG_REMAP: Record<string, string> = {
+    'dc:contributor': 'Contributor',
     'dc:creator': 'Creator',
     'dc:description': 'Description',
     'dc:format': 'Format',
+    'dc:publisher': 'Publisher',
     'dc:rights': 'Rights',
     'dc:subject': 'Subject',
     'dc:title': 'Title',
