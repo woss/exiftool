@@ -80,7 +80,9 @@ function selectCopiedTags(
   if (selectors.length === 0) return tags;
   const parsed = selectors.flatMap((selector) => {
     const match = selector.match(/^(-{1,2})(.+)$/);
-    return match ? [{ name: match[2]!.toLowerCase(), exclude: match[1] === '--' }] : [];
+    if (!match) return [];
+    const requestedName = match[2]!.toLowerCase();
+    return [{ name: requestedName === 'all' ? '*' : requestedName, exclude: match[1] === '--' }];
   });
   const includes = parsed.filter((selector) => !selector.exclude);
   const excludes = parsed.filter((selector) => selector.exclude);

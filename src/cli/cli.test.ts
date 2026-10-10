@@ -108,6 +108,19 @@ test('runAction read mode projects selected tags without treating them as paths'
   }
 });
 
+test('runAction treats -all as selecting every read tag', async () => {
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ json: true }, '-all', 'assets/01.jpg');
+    assertEquals(code, 0);
+    const [entry] = JSON.parse(cap.out.join('\n')) as Record<string, unknown>[];
+    assertEquals(entry?.Make, 'Canon');
+    assertEquals(entry?.Model, 'Canon EOS 700D');
+  } finally {
+    cap.restore();
+  }
+});
+
 test('runAction read mode excludes selected tags while retaining the rest', async () => {
   const cap = captureConsole();
   try {
@@ -1155,6 +1168,24 @@ test('runAction copies only explicitly selected tagsFromFile values', async () =
     const tags = (await new ExifTool().read(target)).tags;
     assertEquals(tags.Make, 'Canon');
     assertEquals(tags.Model, 'ILCE-7RM4');
+  } finally {
+    await rm(source, { force: true });
+    await rm(target, { force: true });
+  }
+});
+
+test('runAction treats -all as selecting every source tag', async () => {
+  const source = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(source, await readFile('assets/01.jpg'));
+  await writeFile(target, await readFile('assets/03.jpg'));
+  try {
+    const parsed = parseCliArgs(normalizeArgs(['-tagsFromFile', source, '-all', target]));
+    const code = await runAction({ ...parsed.options, overwriteOriginal: true }, ...parsed.files);
+    assertEquals(code, 0);
+    const tags = (await new ExifTool().read(target)).tags;
+    assertEquals(tags.Make, 'Canon');
+    assertEquals(tags.Model, 'Canon EOS 700D');
   } finally {
     await rm(source, { force: true });
     await rm(target, { force: true });
