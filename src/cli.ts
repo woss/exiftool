@@ -599,7 +599,8 @@ export async function main(
   const loop = await stayOpenLoop(
     readLines(input),
     async (args) => {
-      lastCode = await runAction(options, ...args);
+      const parsedBatch = parseCliArgs(normalizeArgs(args));
+      lastCode = await runAction({ ...options, ...parsedBatch.options }, ...parsedBatch.files);
       return lastCode;
     },
     (text) => console.log(text),

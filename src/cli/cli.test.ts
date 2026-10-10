@@ -1836,6 +1836,31 @@ test('main runs the -stay_open daemon over an injected stream', async () => {
   }
 });
 
+test('main parses write options separately for each stay-open batch', async () => {
+  const source = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(source, await readFile('assets/01.jpg'));
+  await writeFile(target, await readFile('assets/03.jpg'));
+  const enc = new TextEncoder();
+  const input = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(enc.encode(`-tagsFromFile\n${source}\n-Make\n${target}\n-execute\n-stay_open\nFalse\n`));
+      controller.close();
+    },
+  });
+  const cap = captureConsole();
+  try {
+    const code = await main({ overwriteOriginal: true, stayOpen: 'True' }, [], input);
+    assertEquals(code, 0);
+    assertEquals((await new ExifTool().read(target)).tags.Make, 'Canon');
+    assertEquals(cap.out.includes('{ready}'), true);
+  } finally {
+    cap.restore();
+    await rm(source, { force: true });
+    await rm(target, { force: true });
+  }
+});
+
 test('main propagates a failing batch exit code on shutdown', async () => {
   const enc = new TextEncoder();
   const input = new ReadableStream<Uint8Array>({
