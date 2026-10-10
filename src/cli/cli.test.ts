@@ -960,17 +960,19 @@ test('runAction appends IPTC Keywords without mixing XMP Subject', async () => {
   }
 });
 
-test('runAction removes one matching IPTC Keyword with -=', async () => {
+test('runAction leaves IPTC Keywords unchanged for -=', async () => {
   const tmp = await tempFile('.jpg');
-  await writeFile(tmp, await readFile('assets/03.jpg'));
+  await writeFile(tmp, await readFile('assets/01.jpg'));
   try {
     const tool = new ExifTool();
-    await tool.write(tmp, { 'IPTC:Keywords': ['a', 'b', 'a'] }, { overwriteOriginal: true });
-    const code = await runAction({ overwriteOriginal: true }, '-IPTC:Keywords-=a', tmp);
+    await tool.write(tmp, {
+      'IPTC:Keywords': ['only'],
+      'XMP-dc:Subject': ['keep'],
+    }, { overwriteOriginal: true });
+    const original = await readFile(tmp);
+    const code = await runAction({ overwriteOriginal: true }, '-IPTC:Keywords-=only', tmp);
     assertEquals(code, 0);
-    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-G1', '-IPTC:Keywords', tmp]);
-    const [tags] = JSON.parse(stdout) as Record<string, unknown>[];
-    assertEquals(tags?.['IPTC:Keywords'], ['b', 'a', 'windsurfing']);
+    assertEquals(Buffer.compare(await readFile(tmp), original), 0);
   } finally {
     await rm(tmp, { force: true });
   }

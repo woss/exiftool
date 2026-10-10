@@ -54,6 +54,7 @@ function xmpListAppendGroup(key: string):
   | 'identifier'
   | 'date'
   | undefined {
+  if (IPTC_KEYWORDS_KEY.test(key)) return undefined;
   const name = key.toLowerCase().split(':').at(-1);
   if (name === 'subject' || name === 'keywords') return 'subject';
   if (name === 'creator') return 'creator';
@@ -332,6 +333,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
             continue;
           }
           if (IPTC_KEYWORDS_KEY.test(assignment.key)) {
+            if (assignment.remove) continue;
             const existing = Object.entries(tags).find(([key]) => IPTC_KEYWORDS_KEY.test(key))?.[1] ??
               await readIptcKeywords(file);
             const values = typeof existing === 'string'
@@ -339,13 +341,6 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
               : Array.isArray(existing)
                 ? existing.filter((item): item is string => typeof item === 'string')
                 : [];
-            if (assignment.remove) {
-              const index = values.indexOf(value);
-              if (index === -1) continue;
-              values.splice(index, 1);
-              tags[assignment.key] = values.length > 0 ? values : null;
-              continue;
-            }
             tags[assignment.key] = [...values, value];
             continue;
           }

@@ -176,7 +176,7 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 - [x] Empty `IPTC:Keywords` assignment deletes only the JPEG IPTC datasets and preserves XMP Subject.
 - [ ] General `-TAG=` / API null deletion across applicable groups; remove empty optional groups and handle mandatory tags according to upstream behavior.
 - [x] `-TAG+=VALUE` appends XMP `Subject`/`Keywords`, `Creator`, `Contributor`, `Publisher`, `Language`, `Relation`, `Type`, `Identifier`, and `Date`, plus JPEG `IPTC:Keywords`, to each target's existing list; unsupported scalar `+=` requests fail before writing.
-- [x] `-TAG-=VALUE` removes the first matching item from those supported XMP/IPTC lists; absent values are true no-ops and unsupported scalar removals fail before mutation.
+- [x] `-TAG-=VALUE` removes the first matching item from supported XMP lists; absent values are true no-ops and unsupported scalar removals fail before mutation. IPTC Keywords `-=` remains a no-op, matching upstream.
 - [ ] General `-TAG+=VALUE` and list operations: support all repeatable tags, list split/join, duplicate policy, write order, and tag-specific list semantics.
 - [x] Basic `w`/`c` write-mode gating by parsed tag presence is implemented and exposed as `-wm`; `g` is accepted but group-creation semantics are not enforced yet.
 - [ ] Complete `-wm MODE` parity for group creation and metadata-specific existing-tag detection.
