@@ -98,3 +98,12 @@ test('boolean conditions respect parenthesized groups', () => {
   assertEquals(evalCondition('(($Make eq Apple) and ($Model eq iPhone))', tags), true);
   assertEquals(evalCondition('($Make eq Apple and $Model eq iPhone', tags), false);
 });
+
+test('regex conditions support =~ and !~ with literal slash-delimited patterns', () => {
+  assertEquals(evalCondition('$Make =~ /pp/', tags), true);
+  assertEquals(evalCondition('$Make =~ /APPLE/i', tags), true);
+  assertEquals(evalCondition('$Make !~ /Google/', tags), true);
+  assertEquals(evalCondition('$Make !~ /Apple/', tags), false);
+  assertEquals(evalCondition('$Make =~ /[/', tags), false);
+  assertEquals(evalCondition('$Make =~ /Apple/g', tags), false);
+});

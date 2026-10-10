@@ -1,8 +1,8 @@
 import type { TagValue } from '../types.js';
 
-const CONDITION_RE = /^\$([A-Za-z0-9_]+)\s*(>=|<=|eq|ne|>|<)\s*(.+)$/;
+const CONDITION_RE = /^\$([A-Za-z0-9_]+)\s*(>=|<=|=~|!~|eq|ne|>|<)\s*(.+)$/;
 
-type ConditionOp = 'eq' | 'ne' | '>' | '<' | '>=' | '<=';
+type ConditionOp = 'eq' | 'ne' | '>' | '<' | '>=' | '<=' | '=~' | '!~';
 
 function coerceNumber(s: string): number | undefined {
   const trimmed = s.trim();
@@ -32,6 +32,9 @@ function compare(op: ConditionOp, a: number | string, b: number | string): boole
       return a >= b;
     case '<=':
       return a <= b;
+    case '=~':
+    case '!~':
+      return false;
   }
 }
 
@@ -146,6 +149,18 @@ function evalComparison(expr: string, tags: Record<string, TagValue>): boolean {
   const actualStr = target instanceof Uint8Array ? '' : Array.isArray(target)
     ? target.map((v) => String(v)).join(', ')
     : String(target);
+
+  if (op === '=~' || op === '!~') {
+    const match = value.match(/^\/(.*)\/([imsu]*)$/s);
+    if (!match) return false;
+    try {
+      const pattern = new RegExp(match[1]!, match[2]);
+      const found = pattern.test(actualStr);
+      return op === '=~' ? found : !found;
+    } catch {
+      return false;
+    }
+  }
 
   const actualNum = target instanceof Uint8Array ? undefined : typeof target === 'number'
     ? target
