@@ -403,7 +403,9 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
     }
     if (updated > 0 && quietCount < 1) console.log(`${updated} image files updated`);
     if (failedCondition > 0 && quietCount < 1) console.error(`${failedCondition} files failed condition`);
-    for (const line of failures) console.error(line);
+    if (quietCount < 1) {
+      for (const line of failures) console.error(line);
+    }
     return failures.length > 0 ? 1 : 0;
   }
 

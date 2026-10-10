@@ -1419,6 +1419,20 @@ test('runAction write mode reports unsupported files and returns 1', async () =>
   }
 });
 
+test('runAction quiet suppresses write failures but preserves exit status', async () => {
+  const input = await tempFile('.txt');
+  await writeFile(input, 'not an image');
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ quiet: [true] }, '-Make=value', input);
+    assertEquals(code, 1);
+    assertEquals(cap.err.length, 0);
+  } finally {
+    cap.restore();
+    await rm(input, { force: true });
+  }
+});
+
 test('runAction -o directory continues after an unsupported batch input', async () => {
   const unsupported = await tempFile('.txt');
   const supported = await tempFile('.jpg');
