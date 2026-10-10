@@ -671,6 +671,48 @@ test('runAction writes metadata output to stdout for -o -', async () => {
   }
 });
 
+test('runAction streams every batch output for -o -', async () => {
+  const first = await tempFile('.jpg');
+  const second = await tempFile('.jpg');
+  await writeFile(first, await readFile('assets/01.jpg'));
+  await writeFile(second, await readFile('assets/03.jpg'));
+  const firstOriginal = await readFile(first);
+  const secondOriginal = await readFile(second);
+  const originalStdoutWrite = process.stdout.write;
+  const emitted: Buffer[] = [];
+  process.stdout.write = ((chunk: string | Uint8Array, encoding?: BufferEncoding | ((error?: Error | null) => void), callback?: (error?: Error | null) => void) => {
+    emitted.push(Buffer.from(typeof chunk === 'string' ? chunk : chunk));
+    const done = typeof encoding === 'function' ? encoding : callback;
+    done?.();
+    return true;
+  }) as typeof process.stdout.write;
+  try {
+    const code = await runAction(
+      { output: '-', overwriteOriginal: true },
+      '-Software=batch-stdout',
+      first,
+      second,
+    );
+    assertEquals(code, 0);
+    assertEquals(emitted.length, 2);
+    for (const bytes of emitted) {
+      const output = await tempFile('.jpg');
+      try {
+        await writeFile(output, bytes);
+        assertEquals((await new ExifTool().read(output)).tags.Software, 'batch-stdout');
+      } finally {
+        await rm(output, { force: true });
+      }
+    }
+    assertEquals(Buffer.compare(await readFile(first), firstOriginal), 0);
+    assertEquals(Buffer.compare(await readFile(second), secondOriginal), 0);
+  } finally {
+    process.stdout.write = originalStdoutWrite;
+    await rm(first, { force: true });
+    await rm(second, { force: true });
+  }
+});
+
 test('runAction rejects multiple write inputs for a single -o destination', async () => {
   const first = await tempFile('.jpg');
   const second = await tempFile('.jpg');

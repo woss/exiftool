@@ -281,7 +281,10 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
     }
     const outputUsesTemplate = options.output !== undefined &&
       (/%[dDfFeE]/.test(options.output) || /%[-+]?\d*c/.test(options.output));
-    if (options.output !== undefined && !outputIsDirectory && !outputUsesTemplate && expandedWrite.length > 1) {
+    if (
+      options.output !== undefined && options.output !== '-' && !outputIsDirectory &&
+      !outputUsesTemplate && expandedWrite.length > 1
+    ) {
       console.error('-o currently supports one input file for metadata writes');
       return 1;
     }
