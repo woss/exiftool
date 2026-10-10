@@ -225,6 +225,14 @@ test('pngWriter preserves unrelated eXIf tags when updating one tag', async () =
   }
 });
 
+test('pngWriter deletes one EXIF tag and preserves unrelated tags', async () => {
+  const seeded = pngWriter(buildPng(true), { Make: 'OldCo', Model: 'Camera' });
+  const deleted = pngWriter(seeded.bytes, { Make: null });
+  const info = await pngParser.parse(deleted.bytes, '(test)');
+  assertEquals(info.tags.Make, undefined);
+  assertEquals(info.tags.Model, 'Camera');
+});
+
 test('pngWriter rejects non-PNG input', () => {
   try {
     pngWriter(new Uint8Array(32), { Make: 'X' });
@@ -489,6 +497,14 @@ test('webpWriter sets the EXIF flag and swaps the EXIF chunk', async () => {
   const info = await webpParser.parse(out.bytes, '(test)');
   assertEquals(info.tags.WebP_EXIF, true);
   assertEquals(info.tags.Make, 'WebpCo');
+});
+
+test('webpWriter deletes one EXIF tag and preserves unrelated tags', async () => {
+  const seeded = webpWriter(buildWebp(), { Make: 'OldCo', Model: 'Camera' });
+  const deleted = webpWriter(seeded.bytes, { Make: null });
+  const info = await webpParser.parse(deleted.bytes, '(test)');
+  assertEquals(info.tags.Make, undefined);
+  assertEquals(info.tags.Model, 'Camera');
 });
 
 test('webpWriter preserves unrelated EXIF tags when updating one tag', async () => {

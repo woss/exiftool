@@ -175,6 +175,7 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 - [x] Null assignments delete requested properties from JPEG, PNG, and WebP XMP packets while preserving siblings; deleting the last property removes the packet/chunk and clears the WebP XMP flag. Sidecars are removed when emptied; standalone XMP writes reject an empty document.
 - [x] Empty `IPTC:Keywords` assignment deletes only the JPEG IPTC datasets and preserves XMP Subject.
 - [ ] General `-TAG=` / API null deletion across applicable groups; remove empty optional groups and handle mandatory tags according to upstream behavior.
+- [x] Null EXIF assignments delete one targeted tag in JPEG, PNG, and WebP while preserving unrelated EXIF entries.
 - [x] `-TAG+=VALUE` appends XMP `Subject`/`Keywords`, `Creator`, `Contributor`, `Publisher`, `Language`, `Relation`, `Type`, `Identifier`, and `Date`, plus JPEG `IPTC:Keywords`, to each target's existing list; unsupported scalar `+=` requests fail before writing.
 - [x] `-TAG-=VALUE` removes the first matching item from supported XMP lists; absent values are true no-ops and unsupported scalar removals fail before mutation. IPTC Keywords `-=` remains a no-op, matching upstream.
 - [ ] General `-TAG+=VALUE` and list operations: support all repeatable tags, list split/join, duplicate policy, write order, and tag-specific list semantics.
