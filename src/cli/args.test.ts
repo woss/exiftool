@@ -88,6 +88,25 @@ test('parseCliArgs — source tag selectors stay attached to their source occurr
   );
 });
 
+test('parseCliArgs preserves XMP-qualified tag selectors beginning with -X', () => {
+  assertEquals(
+    parseCliArgs(normalizeArgs([
+      '-tagsFromFile', 'source.jpg', '-XMP-dc:Subject', 'target.jpg',
+    ])),
+    {
+      options: {
+        tagsFromFile: 'source.jpg',
+        tagsFromFileRequests: [{
+          source: 'source.jpg',
+          selectors: ['-XMP-dc:Subject'],
+          mappings: [],
+        }],
+      },
+      files: ['target.jpg'],
+    },
+  );
+});
+
 test('parseCliArgs — tag redirects attach to the active tagsFromFile source', () => {
   assertEquals(
     parseCliArgs(normalizeArgs([

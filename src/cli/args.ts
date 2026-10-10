@@ -138,7 +138,9 @@ export function parseCliArgs(argv: string[]): { options: CliOptions; files: stri
       ? undefined // plain operands (file paths, TAG=VALUE) are never options
       : arg.startsWith('--')
         ? long(arg)
-        : SHORTS[arg.slice(1, 2)];
+        : arg.length === 2
+          ? SHORTS[arg.slice(1, 2)]
+          : undefined;
     if (!name) {
       const mapping = arg.match(/^-([A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)<([A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)$/);
       if (mapping && activeTagSource) {

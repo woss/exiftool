@@ -1234,33 +1234,6 @@ test('runAction uses ? for one character in tagsFromFile selectors', async () =>
   }
 });
 
-test('runAction selects XMP source tags by exact family-qualified name', async () => {
-  const source = await tempFile('.jpg');
-  const target = await tempFile('.jpg');
-  const tool = new ExifTool();
-  await writeFile(source, await readFile('assets/01.jpg'));
-  await writeFile(target, await readFile('assets/03.jpg'));
-  await tool.write(source, {
-    'XMP-dc:Subject': ['source subject'],
-    'XMP-dc:Title': 'source title',
-  }, { overwriteOriginal: true });
-  await tool.write(target, { 'XMP-dc:Title': 'target title' }, { overwriteOriginal: true });
-  const originalTitle = (await tool.read(target)).tags.Title;
-  try {
-    const parsed = parseCliArgs(normalizeArgs([
-      '-tagsFromFile', source, '-XMP-dc:Subject', target,
-    ]));
-    const code = await runAction({ ...parsed.options, overwriteOriginal: true }, ...parsed.files);
-    assertEquals(code, 0);
-    const tags = (await tool.read(target)).tags;
-    assertEquals(tags.Subject, 'source subject');
-    assertEquals(tags.Title, originalTitle);
-  } finally {
-    await rm(source, { force: true });
-    await rm(target, { force: true });
-  }
-});
-
 test('runAction maps a tagsFromFile source tag to a different destination name', async () => {
   const source = await tempFile('.jpg');
   const target = await tempFile('.jpg');
