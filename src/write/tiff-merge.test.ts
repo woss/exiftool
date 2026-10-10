@@ -31,6 +31,13 @@ test('tiffMergeWriter merges EXIF tags structurally', () => {
   assertEquals(Array.from(out2.bytes), Array.from(out.bytes));
 });
 
+test('tiffMergeWriter deletes one EXIF tag while preserving unrelated tags', async () => {
+  const out = tiffMergeWriter(tiff(), { Make: null });
+  const reread = await tiffRawParser.parse(out.bytes, '(test)');
+  assertEquals(reread.tags.Make, undefined);
+  assertEquals(reread.tags.Model, 'Unit 1');
+});
+
 test('tiffMergeWriter round-trips XMP idempotently', () => {
   const tags = { 'XMP-dc:Subject': ['a', 'b'], 'XMP-dc:Title': 'T' };
   const first = tiffMergeWriter(tiff(), tags);
