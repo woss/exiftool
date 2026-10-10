@@ -792,6 +792,30 @@ test('runAction rejects -o destinations with a different known format extension'
   }
 });
 
+test('runAction rejects output extensions from standalone metadata formats', async () => {
+  const input = await tempFile('.jpg');
+  const output = await tempFile('.exv');
+  await rm(output, { force: true });
+  await writeFile(input, await readFile('assets/01.jpg'));
+  const original = await readFile(input);
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { output, overwriteOriginal: true },
+      '-Software=misleading-extension',
+      input,
+    );
+    assertEquals(code, 1);
+    assertEquals(Buffer.compare(await readFile(input), original), 0);
+    assertEquals(await stat(output).then(() => true, () => false), false);
+    assertEquals(cap.err.some((line) => line.includes('cannot convert')), true);
+  } finally {
+    cap.restore();
+    await rm(input, { force: true });
+    await rm(output, { force: true });
+  }
+});
+
 test('runAction writes XMP assignments to an -o .xmp sidecar', async () => {
   const input = await tempFile('.jpg');
   const output = await tempFile('.xmp');

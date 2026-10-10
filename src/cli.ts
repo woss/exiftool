@@ -26,23 +26,6 @@ export type { CliOptions } from './cli/args.js';
 const tool = new ExifTool({ plugins: BUILTIN_PLUGINS });
 const WRITE_ASSIGNMENT = /^-?([A-Za-z][A-Za-z0-9_-]*?(?::[A-Za-z][A-Za-z0-9_-]*?)?)([+-]?)=(.*)$/;
 const IPTC_KEYWORDS_KEY = /^iptc:keywords$/i;
-const OUTPUT_FORMAT_BY_EXTENSION: Record<string, string> = {
-  avif: 'avif',
-  gif: 'gif',
-  heif: 'heif',
-  heic: 'heif',
-  jpeg: 'jpeg',
-  jpe: 'jpeg',
-  jpg: 'jpeg',
-  pbm: 'pbm',
-  pgm: 'pgm',
-  png: 'png',
-  ppm: 'ppm',
-  tif: 'tiff',
-  tiff: 'tiff',
-  webp: 'webp',
-  xmp: 'xmp',
-};
 
 function xmpListAppendGroup(key: string):
   | 'subject'
@@ -70,8 +53,10 @@ function xmpListAppendGroup(key: string):
 }
 
 function outputFormatForPath(path: string): string | undefined {
-  const extension = extname(path).slice(1).toLowerCase();
-  return OUTPUT_FORMAT_BY_EXTENSION[extension];
+  const extension = extname(path).toLowerCase();
+  return BUILTIN_PLUGINS.find((parser) =>
+    parser.extensions.some((candidate) => candidate.toLowerCase() === extension)
+  )?.format.toLowerCase();
 }
 
 function selectCopiedTags(
