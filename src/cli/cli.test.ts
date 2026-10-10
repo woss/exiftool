@@ -121,6 +121,23 @@ test('runAction read mode excludes selected tags while retaining the rest', asyn
   }
 });
 
+test('runAction evaluates -if against full tags before read-mode projection', async () => {
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { json: true, if: ['$Model eq Canon EOS 700D'] },
+      '-Make',
+      'assets/01.jpg',
+    );
+    assertEquals(code, 0);
+    const [entry] = JSON.parse(cap.out.join('\n')) as Record<string, unknown>[];
+    assertEquals(entry?.Make, 'Canon');
+    assertEquals('Model' in (entry ?? {}), false);
+  } finally {
+    cap.restore();
+  }
+});
+
 test('runAction --csv emits CSV rows', async () => {
   const cap = captureConsole();
   try {
