@@ -140,17 +140,21 @@ function expandWriteOutputTemplate(template: string, input: string): string {
 
 async function resolveWriteOutputPath(template: string, input: string): Promise<string> {
   const expanded = expandWriteOutputTemplate(template, input);
-  const counterToken = /%([-+]?)(\d*)c/g;
-  if (!/%([-+]?)(\d*)c/.test(template)) return expanded;
+  const lowerCounterToken = /%([-+]?)(\d*)c/g;
+  const upperCounterToken = /%(\d*)C/g;
+  if (!/%([-+]?)(\d*)c|%(\d*)C/.test(template)) return expanded;
   for (let counter = 0; ; counter++) {
-    counterToken.lastIndex = 0;
-    const candidate = expanded.replace(counterToken, (_token, sign: string, widthText: string) => {
+    lowerCounterToken.lastIndex = 0;
+    upperCounterToken.lastIndex = 0;
+    const lowerExpanded = expanded.replace(lowerCounterToken, (_token, sign: string, widthText: string) => {
       if (counter === 0) return '';
       const separator = sign === '+' ? '_' : sign === '-' ? '-' : '';
       const width = Number(widthText);
       const number = width > 0 ? String(counter).padStart(width, '0') : String(counter);
       return `${separator}${number}`;
     });
+    const candidate = lowerExpanded.replace(upperCounterToken, (_token, widthText: string) =>
+      String(counter).padStart(Number(widthText) || 0, '0'));
     try {
       await lstat(candidate);
     } catch {
@@ -281,7 +285,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
       }
     }
     const outputUsesTemplate = options.output !== undefined &&
-      (/%[dDfFeE]/.test(options.output) || /%[-+]?\d*c/.test(options.output));
+      (/%[dDfFeE]/.test(options.output) || /%[-+]?\d*[cC]/.test(options.output));
     if (
       options.output !== undefined && options.output !== '-' && !outputIsDirectory &&
       !outputUsesTemplate && expandedWrite.length > 1
