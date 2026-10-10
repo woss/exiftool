@@ -139,9 +139,17 @@ function expandWriteOutputTemplate(template: string, input: string): string {
 
 async function resolveWriteOutputPath(template: string, input: string): Promise<string> {
   const expanded = expandWriteOutputTemplate(template, input);
-  if (!template.includes('%c')) return expanded;
+  const counterToken = /%([-+]?)(\d*)c/g;
+  if (!/%([-+]?)(\d*)c/.test(template)) return expanded;
   for (let counter = 0; ; counter++) {
-    const candidate = expanded.replace(/%c/g, counter === 0 ? '' : String(counter));
+    counterToken.lastIndex = 0;
+    const candidate = expanded.replace(counterToken, (_token, sign: string, widthText: string) => {
+      if (counter === 0) return '';
+      const separator = sign === '+' ? '_' : sign === '-' ? '-' : '';
+      const width = Number(widthText);
+      const number = width > 0 ? String(counter).padStart(width, '0') : String(counter);
+      return `${separator}${number}`;
+    });
     try {
       await lstat(candidate);
     } catch {
@@ -271,7 +279,8 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
         // A non-existent output path is treated as a file destination.
       }
     }
-    const outputUsesTemplate = options.output !== undefined && /%[dDfFeEc]/.test(options.output);
+    const outputUsesTemplate = options.output !== undefined &&
+      (/%[dDfFeE]/.test(options.output) || /%[-+]?\d*c/.test(options.output));
     if (options.output !== undefined && !outputIsDirectory && !outputUsesTemplate && expandedWrite.length > 1) {
       console.error('-o currently supports one input file for metadata writes');
       return 1;

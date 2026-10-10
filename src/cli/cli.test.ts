@@ -843,6 +843,31 @@ test('runAction uses %c to avoid output filename collisions', async () => {
   }
 });
 
+test('runAction formats %c collision suffixes with separator and width', async () => {
+  const first = await tempFile('.jpg');
+  const second = await tempFile('.jpg');
+  const outputDir = await mkdtemp(join(tmpdir(), 'exiftool-cli-counter-width-'));
+  await writeFile(first, await readFile('assets/01.jpg'));
+  await writeFile(second, await readFile('assets/03.jpg'));
+  await writeFile(join(outputDir, 'copy.jpg'), await readFile('assets/01.jpg'));
+  try {
+    const code = await runAction(
+      { output: join(outputDir, 'copy%+2c.jpg'), overwriteOriginal: true },
+      '-Software=formatted-counter',
+      first,
+      second,
+    );
+    assertEquals(code, 0);
+    for (const filename of ['copy_01.jpg', 'copy_02.jpg']) {
+      assertEquals((await new ExifTool().read(join(outputDir, filename))).tags.Software, 'formatted-counter');
+    }
+  } finally {
+    await rm(first, { force: true });
+    await rm(second, { force: true });
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
 test('runAction applies -if conditions to write targets', async () => {
   const matching = await tempFile('.jpg');
   const nonmatching = await tempFile('.jpg');
