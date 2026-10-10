@@ -64,7 +64,8 @@ export async function writeTagsWithTmp(
       const createsXmpGroup = !exists && toXmpPropertyName(key) !== undefined &&
         !hasXmpGroup && !writeMode.includes('g');
       const allowExisting = writeMode.includes('w');
-      const allowCreate = writeMode.includes('c');
+      const allowCreate = writeMode.includes('c') ||
+        (hasXmpGroup && allowExisting && toXmpPropertyName(key) !== undefined);
       if ((exists && allowExisting) || (!exists && allowCreate && !createsXmpGroup)) {
         writeTags[key] = value;
       } else {

@@ -113,6 +113,14 @@ test('writeTags requires g to create an XMP group but allows additions to an exi
     );
     assertEquals(createdProperty.written.includes('XMP-dc:Subject'), true);
     assertEquals((await tool.read(existingGroup)).tags.Subject, 'new property');
+
+    const writeExistingGroup = await writeTags(
+      existingGroup,
+      { 'XMP-dc:Description': 'write into existing group' },
+      { overwriteOriginal: true, writeMode: 'w' },
+    );
+    assertEquals(writeExistingGroup.written.includes('XMP-dc:Description'), true);
+    assertEquals((await tool.read(existingGroup)).tags.Description, 'write into existing group');
   } finally {
     await rm(existingGroup, { force: true });
   }
