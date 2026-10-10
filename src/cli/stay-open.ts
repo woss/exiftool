@@ -37,11 +37,12 @@ export async function stayOpenLoop(
       awaitingShutdownDecision = true;
       continue;
     }
-    if (line === '-execute') {
+    const executeMatch = /^-execute(\d*)$/.exec(line);
+    if (executeMatch) {
       await exec([...pending]);
       pending.length = 0;
       batches++;
-      emit('{ready}');
+      emit(`{ready${executeMatch[1]}}`);
       continue;
     }
     pending.push(line);

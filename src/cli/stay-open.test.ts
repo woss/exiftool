@@ -25,6 +25,22 @@ test('stayOpenLoop executes each -execute batch and emits ready', async () => {
   assertEquals(emitted, ['{ready}', '{ready}']);
 });
 
+test('stayOpenLoop preserves numbered execute identifiers in ready responses', async () => {
+  const calls: string[][] = [];
+  const emitted: string[] = [];
+  const result = await stayOpenLoop(
+    feed('-Make', 'X', '-execute7'),
+    async (args) => {
+      calls.push(args);
+      return 0;
+    },
+    (text) => emitted.push(text),
+  );
+  assertEquals(result.batches, 1);
+  assertEquals(calls, [['-Make', 'X']]);
+  assertEquals(emitted, ['{ready7}']);
+});
+
 test('stayOpenLoop shuts down on -stay_open False pair', async () => {
   const calls: string[][] = [];
   const result = await stayOpenLoop(

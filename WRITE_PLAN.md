@@ -199,6 +199,7 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 - [x] In-place metadata replacement preserves source permission bits across the atomic temp-file rename.
 - [x] Write mode reuses recursive input expansion and case-insensitive `-ext` filtering; nested matching files are written and nonmatching extensions are skipped.
 - [x] `-q` suppresses per-file write diagnostics without masking a failing exit status.
+- [x] Stay-open batches accept numbered `-executeN` commands and emit the matching `{readyN}` response.
 - [ ] Output/filesystem semantics: `-o`, extension-derived destinations, overwrite-original options, backups, `-P`, file permissions and timestamps, sidecars, recursion, full condition grammar, per-file errors, partial batch success, and stable exit statuses.
 - [x] `-b` emits selected binary tag values as raw bytes; explicit tag selection is covered byte-for-byte.
 - [ ] Binary writes: binary block copy, output delimiters/concatenation behavior, and no accidental concatenation of unrelated binary tags.
