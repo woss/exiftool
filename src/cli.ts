@@ -66,13 +66,18 @@ function selectCopiedTags(
   });
   const includes = parsed.filter((selector) => !selector.exclude);
   const excludes = parsed.filter((selector) => selector.exclude);
-  return Object.fromEntries(Object.entries(tags).filter(([key]) => {
+  const matches = (key: string, name: string) => {
     const lowerKey = key.toLowerCase();
-    const matches = (name: string) => name.includes(':')
-      ? lowerKey === name
-      : lowerKey.split(':').at(-1) === name;
-    return (includes.length === 0 || includes.some(({ name }) => matches(name))) &&
-      !excludes.some(({ name }) => matches(name));
+    const lowerName = name.toLowerCase();
+    const candidate = lowerName.includes(':') ? lowerKey : lowerKey.split(':').at(-1)!;
+    const pattern = lowerName.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+      .replaceAll('*', '.*')
+      .replaceAll('?', '.');
+    return new RegExp(`^${pattern}$`).test(candidate);
+  };
+  return Object.fromEntries(Object.entries(tags).filter(([key]) => {
+    return (includes.length === 0 || includes.some(({ name }) => matches(key, name))) &&
+      !excludes.some(({ name }) => matches(key, name));
   }));
 }
 

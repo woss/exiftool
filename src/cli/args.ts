@@ -145,7 +145,7 @@ export function parseCliArgs(argv: string[]): { options: CliOptions; files: stri
         activeTagSource.mappings.push({ destination: mapping[1]!, source: mapping[2]! });
         continue;
       }
-      const selector = arg.match(/^(-{1,2}[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)$/);
+      const selector = arg.match(/^(-{1,2}[A-Za-z][A-Za-z0-9_*-]*(?:\?[A-Za-z0-9_*-]*)?(?::[A-Za-z][A-Za-z0-9_*-]*(?:\?[A-Za-z0-9_*-]*)?)?)$/);
       if (selector && activeTagSource) {
         activeTagSource.selectors.push(selector[1]!);
         continue;
@@ -207,7 +207,7 @@ export function normalizeArgs(args: string[]): string[] {
       if (a === '-ee') return ['--extract-embedded'];
       if (/^-[gG]\d$/.test(a)) return [a.slice(0, 2), a.slice(2)];
       const optionName = a.slice(1).toLowerCase().replace(/_/g, '-');
-      if (!(optionName in SPECS) && /^-[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?$/.test(a)) {
+      if (!(optionName in SPECS) && /^-[A-Za-z][A-Za-z0-9_*-]*(?:\?[A-Za-z0-9_*-]*)?(?::[A-Za-z][A-Za-z0-9_*-]*(?:\?[A-Za-z0-9_*-]*)?)?$/.test(a)) {
         return [a];
       }
       return ['--' + a.slice(1)];

@@ -181,9 +181,10 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 - [ ] Complete `-wm MODE` parity for group creation and metadata-specific existing-tag detection.
 - [x] Basic `-tagsFromFile FILE` copy supports repeated sources in order, with later sources overriding earlier ones and explicit assignments applied last.
 - [x] Bare `-TAG` / `--TAG` operands include/exclude source tags when `-tagsFromFile` is active; unselected target metadata remains untouched.
+- [x] Simple `*` and `?` wildcards match bare source tag names in `-tagsFromFile` selectors.
 - [x] Basic `-DSTTAG<SRCTAG` mappings copy one source value to a differently named destination, scoped to the active source.
 - [x] `-tagsFromFile @` reads each target as a source and preserves its position among repeated source requests.
-- [ ] Advanced `-tagsFromFile`: group-qualified selectors, wildcards, `-srcfile`, and transformations applied to copied values.
+- [ ] Advanced `-tagsFromFile`: group-qualified selector semantics, `-srcfile`, and transformations applied to copied values.
 - [x] Basic `-if` write filtering evaluates target tags before mutation and leaves nonmatching files untouched.
 - [x] `-if` supports comparison expressions joined by `and`/`or` or `&&`/`||`, AND-before-OR precedence, and parenthesized groups; full ExifTool expression semantics remain open.
 - [ ] Group and tag selection: support family-qualified names, `-GROUP:all`, tag wildcards, exclusions, duplicates, preferred groups, numeric/raw tag names, and precedence when multiple groups contain the same logical tag.
