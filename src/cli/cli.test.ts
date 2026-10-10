@@ -912,6 +912,20 @@ test('runAction removes one matching XMP list item with -=', async () => {
   }
 });
 
+test('runAction deletes an XMP list property when -= removes its last item', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    const tool = new ExifTool();
+    await tool.write(tmp, { 'XMP-dc:Subject': ['only'] }, { overwriteOriginal: true });
+    const code = await runAction({ overwriteOriginal: true }, '-XMP-dc:Subject-=only', tmp);
+    assertEquals(code, 0);
+    assertEquals((await tool.read(tmp)).tags.Subject, undefined);
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
 test('runAction does not rewrite or back up a list when -= finds no match', async () => {
   const tmp = await tempFile('.jpg');
   await writeFile(tmp, await readFile('assets/01.jpg'));
