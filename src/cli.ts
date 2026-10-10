@@ -24,7 +24,7 @@ export type { CliOptions } from './cli/args.js';
  * Pre-wired ExifTool instance with all built-in plugins for CLI use.
  */
 const tool = new ExifTool({ plugins: BUILTIN_PLUGINS });
-const WRITE_ASSIGNMENT = /^-?([A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)(\+?)=(.*)$/;
+const WRITE_ASSIGNMENT = /^-?([A-Za-z][A-Za-z0-9_-]*?(?::[A-Za-z][A-Za-z0-9_-]*?)?)([+-]?)=(.*)$/;
 const IPTC_KEYWORDS_KEY = /^iptc:keywords$/i;
 const OUTPUT_FORMAT_BY_EXTENSION: Record<string, string> = {
   avif: 'avif',
@@ -183,7 +183,13 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
   const assignments = files.flatMap((operand) => {
     const match = WRITE_ASSIGNMENT.exec(operand);
     return match
-      ? [{ operand, key: match[1]!, append: match[2] === '+', value: match[3]! }]
+      ? [{
+        operand,
+        key: match[1]!,
+        append: match[2] === '+',
+        remove: match[2] === '-',
+        value: match[3]!,
+      }]
       : [];
   });
   if (assignments.length > 0 || options.tagsFromFile !== undefined) {
@@ -275,7 +281,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
         let targetFormat: string | undefined;
         const hasSelfSource = sourceTagSets.some(({ request }) => request.source === '@');
         if (
-          assignments.some((assignment) => assignment.append) || options.if !== undefined ||
+          assignments.some((assignment) => assignment.append || assignment.remove) || options.if !== undefined ||
           hasSelfSource
         ) {
           const targetInfo = await tool.read(file);
@@ -295,12 +301,12 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
         }
         for (const assignment of assignments) {
           const value = assignment.value.length === 0 ? null : assignment.value;
-          if (!assignment.append) {
+          if (!assignment.append && !assignment.remove) {
             tags[assignment.key] = value;
             continue;
           }
           if (typeof value !== 'string') {
-            throw new Error(`+= requires a string value for ${assignment.key}`);
+            throw new Error(`${assignment.remove ? '-=' : '+='} requires a string value for ${assignment.key}`);
           }
           const xmpListGroup = xmpListAppendGroup(assignment.key);
           if (xmpListGroup) {
@@ -312,6 +318,13 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
               : Array.isArray(existing)
                 ? existing.filter((item): item is string => typeof item === 'string')
                 : [];
+            if (assignment.remove) {
+              const index = values.indexOf(value);
+              if (index === -1) continue;
+              values.splice(index, 1);
+              tags[assignment.key] = values.length > 0 ? values : null;
+              continue;
+            }
             for (const key of Object.keys(tags)) {
               if (belongsToList(key)) delete tags[key];
             }
@@ -326,13 +339,21 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
               : Array.isArray(existing)
                 ? existing.filter((item): item is string => typeof item === 'string')
                 : [];
+            if (assignment.remove) {
+              const index = values.indexOf(value);
+              if (index === -1) continue;
+              values.splice(index, 1);
+              tags[assignment.key] = values.length > 0 ? values : null;
+              continue;
+            }
             tags[assignment.key] = [...values, value];
             continue;
           }
           throw new Error(
-            `+= is currently supported only for XMP Subject/Keywords/Creator and JPEG IPTC:Keywords, not ${assignment.key}`,
+            `${assignment.remove ? '-=' : '+='} is currently supported only for XMP list properties and JPEG IPTC:Keywords, not ${assignment.key}`,
           );
         }
+        if (Object.keys(tags).length === 0) continue;
         let tempOutput: string | undefined;
         let result;
         try {

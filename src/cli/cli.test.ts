@@ -898,6 +898,37 @@ test('runAction appends additional XMP Dublin Core Bag and Seq properties', asyn
   }
 });
 
+test('runAction removes one matching XMP list item with -=', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    const tool = new ExifTool();
+    await tool.write(tmp, { 'XMP-dc:Subject': ['a', 'b', 'a'] }, { overwriteOriginal: true });
+    const code = await runAction({ overwriteOriginal: true }, '-XMP-dc:Subject-=a', tmp);
+    assertEquals(code, 0);
+    assertEquals((await tool.read(tmp)).tags.Subject, ['b', 'a']);
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction does not rewrite or back up a list when -= finds no match', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  const tool = new ExifTool();
+  await tool.write(tmp, { 'XMP-dc:Subject': ['present'] }, { overwriteOriginal: true });
+  const original = await readFile(tmp);
+  try {
+    const code = await runAction({}, '-XMP-dc:Subject-=absent', tmp);
+    assertEquals(code, 0);
+    assertEquals(Buffer.compare(await readFile(tmp), original), 0);
+    assertEquals(await stat(`${tmp}_original`).then(() => true, () => false), false);
+  } finally {
+    await rm(tmp, { force: true });
+    await rm(`${tmp}_original`, { force: true });
+  }
+});
+
 test('runAction appends IPTC Keywords without mixing XMP Subject', async () => {
   const tmp = await tempFile('.jpg');
   await writeFile(tmp, await readFile('assets/01.jpg'));
@@ -910,6 +941,22 @@ test('runAction appends IPTC Keywords without mixing XMP Subject', async () => {
       '-j', '-G1', '-IPTC:Keywords', tmp,
     ]);
     assertEquals(JSON.parse(stdout)[0]['IPTC:Keywords'], ['existing-ipTC', 'appended-ipTC']);
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction removes one matching IPTC Keyword with -=', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/03.jpg'));
+  try {
+    const tool = new ExifTool();
+    await tool.write(tmp, { 'IPTC:Keywords': ['a', 'b', 'a'] }, { overwriteOriginal: true });
+    const code = await runAction({ overwriteOriginal: true }, '-IPTC:Keywords-=a', tmp);
+    assertEquals(code, 0);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-G1', '-IPTC:Keywords', tmp]);
+    const [tags] = JSON.parse(stdout) as Record<string, unknown>[];
+    assertEquals(tags?.['IPTC:Keywords'], ['b', 'a', 'windsurfing']);
   } finally {
     await rm(tmp, { force: true });
   }
@@ -937,7 +984,7 @@ test('runAction deletes IPTC Keywords without deleting XMP Subject', async () =>
   }
 });
 
-test('runAction rejects += for unsupported scalar tags without modifying target', async () => {
+test('runAction rejects list operators for unsupported scalar tags without modifying target', async () => {
   const tmp = await tempFile('.jpg');
   const original = await readFile('assets/03.jpg');
   await writeFile(tmp, original);
@@ -947,6 +994,11 @@ test('runAction rejects += for unsupported scalar tags without modifying target'
     assertEquals(code, 1);
     assertEquals(Buffer.compare(await readFile(tmp), original), 0);
     assertEquals(cap.err.some((line) => line.includes('+= is currently supported only')), true);
+    cap.err.length = 0;
+    const removeCode = await runAction({ overwriteOriginal: true }, '-Make-=Acme', tmp);
+    assertEquals(removeCode, 1);
+    assertEquals(Buffer.compare(await readFile(tmp), original), 0);
+    assertEquals(cap.err.some((line) => line.includes('-= is currently supported only')), true);
   } finally {
     cap.restore();
     await rm(tmp, { force: true });

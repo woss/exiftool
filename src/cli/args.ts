@@ -186,7 +186,7 @@ export function parseCliArgs(argv: string[]): { options: CliOptions; files: stri
 export function normalizeArgs(args: string[]): string[] {
   return args.flatMap((a) => {
     // TAG=VALUE and TAG+=VALUE write assignments pass through as operands.
-    if (/^-?[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?\+?=/.test(a)) return [a];
+    if (/^-?[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?[+-]?=/.test(a)) return [a];
     if (/^-[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?<[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?$/.test(a)) return [a];
     if (a === '-overwrite_original' || a === '--overwrite_original') {
       return ['--overwrite-original'];
