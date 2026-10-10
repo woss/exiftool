@@ -1111,6 +1111,23 @@ test('runAction appends XMP Subject values to each target', async () => {
   }
 });
 
+test('runAction preserves duplicate XMP values when appending', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/03.jpg'));
+  try {
+    const code = await runAction(
+      { overwriteOriginal: true },
+      '-XMP-dc:Subject=duplicate',
+      '-XMP-dc:Subject+=duplicate',
+      tmp,
+    );
+    assertEquals(code, 0);
+    assertEquals((await new ExifTool().read(tmp)).tags.Subject, ['duplicate', 'duplicate']);
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
 test('runAction appends XMP Creator in sequence order', async () => {
   const tmp = await tempFile('.jpg');
   await writeFile(tmp, await readFile('assets/03.jpg'));
