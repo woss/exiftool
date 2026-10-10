@@ -387,6 +387,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
                 throw new Error(`cannot convert ${targetFormat} to ${destinationFormat.toUpperCase()} with -o`);
               }
             }
+            if (!stdoutOutput) await mkdir(dirname(destination), { recursive: true });
             const sourceStat = options.preserveTime ? await stat(file) : undefined;
             tempOutput = `${destination}.tmp-${randomUUID()}`;
             await writeFile(tempOutput, await readFile(file), { flag: 'wx' });
