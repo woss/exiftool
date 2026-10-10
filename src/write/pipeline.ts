@@ -3,6 +3,7 @@ import type { TagValue, WriteOptions, WriteResult } from '../types.js';
 import { builtinPlugins, detectParser } from '../format/mod.js';
 import type { FormatParser } from '../format/mod.js';
 import { UnsupportedFormatError } from './writers.js';
+import { toXmpPropertyName } from './xmp-writer.js';
 
 export type { WriteOptions, WriteResult };
 
@@ -55,12 +56,16 @@ export async function writeTagsWithTmp(
   if (writeMode !== undefined && writeMode !== 'wcg') {
     const current = await parser.parse(original, filePath);
     const currentNames = new Set(Object.keys(current.tags).map(normalizeWriteTagName));
+    const hasXmpGroup = Object.keys(current.tags).some((name) =>
+      name.toLowerCase() === 'xmptoolkit' || name.toLowerCase().startsWith('xmp-'));
     writeTags = {};
     for (const [key, value] of Object.entries(tags)) {
       const exists = currentNames.has(normalizeWriteTagName(key));
+      const createsXmpGroup = !exists && toXmpPropertyName(key) !== undefined &&
+        !hasXmpGroup && !writeMode.includes('g');
       const allowExisting = writeMode.includes('w');
       const allowCreate = writeMode.includes('c');
-      if ((exists && allowExisting) || (!exists && allowCreate)) {
+      if ((exists && allowExisting) || (!exists && allowCreate && !createsXmpGroup)) {
         writeTags[key] = value;
       } else {
         modeSkipped.push(key);

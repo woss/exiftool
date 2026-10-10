@@ -79,6 +79,45 @@ test('writeTags honors write mode for existing and new tags', async () => {
   }
 });
 
+test('writeTags requires g to create an XMP group but allows additions to an existing group', async () => {
+  const fresh = await tempFile('.jpg');
+  const original = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+  await writeFile(fresh, original);
+  try {
+    const createOnly = await writeTags(
+      fresh,
+      { 'XMP-dc:Subject': ['new group'] },
+      { overwriteOriginal: true, writeMode: 'c' },
+    );
+    assertEquals(createOnly.written, []);
+    assertEquals(createOnly.modeSkipped, ['XMP-dc:Subject']);
+    assertEquals(Buffer.compare(await readFile(fresh), original), 0);
+
+    const createGroup = await writeTags(
+      fresh,
+      { 'XMP-dc:Subject': ['new group'] },
+      { overwriteOriginal: true, writeMode: 'cg' },
+    );
+    assertEquals(createGroup.written.includes('XMP-dc:Subject'), true);
+    assertEquals((await tool.read(fresh)).tags.Subject, 'new group');
+  } finally {
+    await rm(fresh, { force: true });
+  }
+
+  const existingGroup = await makeTmpJpeg();
+  try {
+    const createdProperty = await writeTags(
+      existingGroup,
+      { 'XMP-dc:Subject': ['new property'] },
+      { overwriteOriginal: true, writeMode: 'c' },
+    );
+    assertEquals(createdProperty.written.includes('XMP-dc:Subject'), true);
+    assertEquals((await tool.read(existingGroup)).tags.Subject, 'new property');
+  } finally {
+    await rm(existingGroup, { force: true });
+  }
+});
+
 test('writeTags rejects invalid write modes without modifying the file', async () => {
   const file = await makeTmpJpeg();
   const original = await readFile(file);

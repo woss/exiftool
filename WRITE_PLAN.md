@@ -180,7 +180,7 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 - [x] `-TAG+=VALUE` appends XMP `Subject`/`Keywords`, `Creator`, `Contributor`, `Publisher`, `Language`, `Relation`, `Type`, `Identifier`, and `Date`, plus JPEG `IPTC:Keywords`, to each target's existing list; unsupported scalar `+=` requests fail before writing.
 - [x] `-TAG-=VALUE` removes the first matching item from supported XMP lists; absent values are true no-ops and unsupported scalar removals fail before mutation. IPTC Keywords `-=` remains a no-op, matching upstream.
 - [ ] General `-TAG+=VALUE` and list operations: support all repeatable tags, list split/join, duplicate policy, write order, and tag-specific list semantics.
-- [x] Basic `w`/`c` write-mode gating by parsed tag presence is implemented and exposed as `-wm`; `g` is accepted but group-creation semantics are not enforced yet.
+- [x] Basic `w`/`c` gating uses parsed tag presence; for XMP, `c` may add properties only to an existing XMP packet and `cg` may create the packet.
 - [ ] Complete `-wm MODE` parity for group creation and metadata-specific existing-tag detection.
 - [x] Basic `-tagsFromFile FILE` copy supports repeated sources in order, with later sources overriding earlier ones and explicit assignments applied last.
 - [x] Bare `-TAG` / `--TAG` operands include/exclude source tags when `-tagsFromFile` is active; unselected target metadata remains untouched.
