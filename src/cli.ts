@@ -43,12 +43,27 @@ const OUTPUT_FORMAT_BY_EXTENSION: Record<string, string> = {
   webp: 'webp',
 };
 
-function xmpListAppendGroup(key: string): 'subject' | 'creator' | 'contributor' | 'publisher' | undefined {
+function xmpListAppendGroup(key: string):
+  | 'subject'
+  | 'creator'
+  | 'contributor'
+  | 'publisher'
+  | 'language'
+  | 'relation'
+  | 'type'
+  | 'identifier'
+  | 'date'
+  | undefined {
   const name = key.toLowerCase().split(':').at(-1);
   if (name === 'subject' || name === 'keywords') return 'subject';
   if (name === 'creator') return 'creator';
   if (name === 'contributor') return 'contributor';
   if (name === 'publisher') return 'publisher';
+  if (name === 'language') return 'language';
+  if (name === 'relation') return 'relation';
+  if (name === 'type') return 'type';
+  if (name === 'identifier') return 'identifier';
+  if (name === 'date') return 'date';
   return undefined;
 }
 

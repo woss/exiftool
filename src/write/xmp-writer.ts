@@ -47,10 +47,15 @@ const SHAPES: Record<string, XmpPropertyShape> = {
   'dc:rights': 'alt',
   'dc:title': 'alt',
   'dc:description': 'alt',
+  'dc:date': 'seq',
   'dc:creator': 'seq',
   'dc:contributor': 'bag',
+  'dc:identifier': 'bag',
+  'dc:language': 'bag',
+  'dc:relation': 'bag',
   'dc:subject': 'bag',
   'dc:publisher': 'bag',
+  'dc:type': 'bag',
 };
 
 function xmlEscape(s: string): string {

@@ -876,6 +876,28 @@ test('runAction appends XMP Contributor and Publisher values to RDF Bags', async
   }
 });
 
+test('runAction appends additional XMP Dublin Core Bag and Seq properties', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  const properties = ['Language', 'Relation', 'Type', 'Identifier', 'Date'];
+  try {
+    const tool = new ExifTool();
+    const initial = Object.fromEntries(properties.map((property) => [`XMP-dc:${property}`, [`first ${property}`]]));
+    await tool.write(tmp, initial, { overwriteOriginal: true });
+    const code = await runAction({ overwriteOriginal: true }, ...[
+      ...properties.map((property) => `-XMP-dc:${property}+=second ${property}`),
+      tmp,
+    ]);
+    assertEquals(code, 0);
+    const tags = (await tool.read(tmp)).tags;
+    for (const property of properties) {
+      assertEquals(tags[property], [`first ${property}`, `second ${property}`]);
+    }
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
 test('runAction appends IPTC Keywords without mixing XMP Subject', async () => {
   const tmp = await tempFile('.jpg');
   await writeFile(tmp, await readFile('assets/01.jpg'));
