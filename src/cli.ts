@@ -41,6 +41,7 @@ const OUTPUT_FORMAT_BY_EXTENSION: Record<string, string> = {
   tif: 'tiff',
   tiff: 'tiff',
   webp: 'webp',
+  xmp: 'xmp',
 };
 
 function xmpListAppendGroup(key: string):
