@@ -7,7 +7,7 @@ import {
   writeTagsWithTmp,
 } from './pipeline.js';
 import { tempFile } from '../test/tmp.js';
-import { mkdir, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
 
 const tool = new ExifTool();
 
@@ -91,6 +91,17 @@ test('writeTags rejects invalid write modes without modifying the file', async (
     }
     assertEquals(error instanceof UnsupportedFormatError, true);
     assertEquals(Buffer.compare(await readFile(file), original), 0);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('writeTags preserves file permission bits during replacement', async () => {
+  const file = await makeTmpJpeg();
+  try {
+    await chmod(file, 0o640);
+    await writeTags(file, { Make: 'Updated' }, { overwriteOriginal: true });
+    assertEquals((await stat(file)).mode & 0o777, 0o640);
   } finally {
     await rm(file, { force: true });
   }
