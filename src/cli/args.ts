@@ -34,6 +34,7 @@ export interface CliOptions {
   srcFile?: string[];
   extractEmbedded?: boolean;
   overwriteOriginal?: boolean;
+  overwriteOriginalInPlace?: boolean;
   preserveTime?: boolean;
   stayOpen?: string | boolean;
   help?: boolean;
@@ -68,6 +69,7 @@ const SPECS: Record<string, OptionSpec> = {
   ignore: { arity: 'value', collect: true },
   'extract-embedded': { arity: 'flag' },
   'overwrite-original': { arity: 'flag' },
+  'overwrite-original-in-place': { arity: 'flag' },
   'preserve-time': { arity: 'flag' },
   'stay-open': { arity: 'optional' },
   version: { arity: 'flag' },
@@ -136,13 +138,17 @@ export function parseCliArgs(argv: string[]): { options: CliOptions; files: stri
       files.push(...argv.slice(i + 1));
       break;
     }
+    const singleDashLong = !arg.startsWith('--') && arg.startsWith('-') && arg.length > 2 &&
+      !arg.includes('=') && !arg.includes('<');
     const name = !arg.startsWith('-')
       ? undefined // plain operands (file paths, TAG=VALUE) are never options
       : arg.startsWith('--')
         ? long(arg)
         : arg.length === 2
           ? SHORTS[arg.slice(1, 2)]
-          : undefined;
+          : singleDashLong && arg.slice(1).toLowerCase().replace(/_/g, '-') in SPECS
+            ? arg.slice(1).toLowerCase().replace(/_/g, '-')
+            : undefined;
     if (!name) {
       const mapping = arg.match(/^-([A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)<([A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)$/);
       if (mapping && activeTagSource) {
@@ -192,8 +198,11 @@ export function normalizeArgs(args: string[]): string[] {
     // TAG=VALUE, TAG+=VALUE, and TAG-=VALUE write assignments pass through as operands.
     if (/^-?[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?[+-]?=/.test(a)) return [a];
     if (/^-[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?<[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?$/.test(a)) return [a];
-    if (a === '-overwrite_original' || a === '--overwrite_original') {
+      if (a === '-overwrite_original' || a === '--overwrite_original') {
       return ['--overwrite-original'];
+    }
+    if (a === '-overwrite_original_in_place' || a === '--overwrite_original_in_place') {
+      return ['--overwrite-original-in-place'];
     }
     if (a === '-tagsFromFile' || a === '--tagsFromFile') {
       return ['--tags-from-file'];

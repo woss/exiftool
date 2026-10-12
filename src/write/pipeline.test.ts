@@ -7,7 +7,7 @@ import {
   writeTagsWithTmp,
 } from './pipeline.js';
 import { tempFile } from '../test/tmp.js';
-import { chmod, mkdir, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
+import { chmod, link, mkdir, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
 
 const tool = new ExifTool();
 
@@ -140,6 +140,25 @@ test('writeTags rejects invalid write modes without modifying the file', async (
     assertEquals(Buffer.compare(await readFile(file), original), 0);
   } finally {
     await rm(file, { force: true });
+  }
+});
+
+test('writeTags can overwrite in place while preserving hard links', async () => {
+  const file = await makeTmpJpeg();
+  const hardlink = `${file}.hardlink`;
+  try {
+    await link(file, hardlink);
+    const originalInode = (await stat(file)).ino;
+    const result = await writeTags(file, { Software: 'in-place-write' }, {
+      overwriteOriginalInPlace: true,
+    });
+    assertEquals(result.backup, undefined);
+    assertEquals((await stat(file)).ino, originalInode);
+    assertEquals((await stat(hardlink)).ino, originalInode);
+    assertEquals((await tool.read(hardlink)).tags.Software, 'in-place-write');
+  } finally {
+    await rm(file, { force: true });
+    await rm(hardlink, { force: true });
   }
 });
 

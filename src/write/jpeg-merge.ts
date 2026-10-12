@@ -105,6 +105,87 @@ export interface MergeRequests {
 }
 
 const EXIF_IFD_POINTERS = new Set([0x8769, 0x8825, 0xa005]);
+const ORIENTATION_VALUES: Record<string, number> = {
+  'horizontal (normal)': 1,
+  'mirror horizontal': 2,
+  'rotate 180': 3,
+  'mirror vertical': 4,
+  'mirror horizontal and rotate 270 cw': 5,
+  'rotate 90 cw': 6,
+  'mirror horizontal and rotate 90 cw': 7,
+  'rotate 270 cw': 8,
+};
+const EXPOSURE_PROGRAM_VALUES: Record<string, number> = {
+  'not defined': 0,
+  manual: 1,
+  'program ae': 2,
+  'aperture-priority ae': 3,
+  'shutter speed priority ae': 4,
+  'creative (slow speed)': 5,
+  'action (high speed)': 6,
+  portrait: 7,
+  landscape: 8,
+  bulb: 9,
+};
+const METERING_MODE_VALUES: Record<string, number> = {
+  unknown: 0,
+  average: 1,
+  'center-weighted average': 2,
+  spot: 3,
+  'multi-spot': 4,
+  'multi-segment': 5,
+  partial: 6,
+  other: 255,
+};
+const RESOLUTION_UNIT_VALUES: Record<string, number> = {
+  none: 1,
+  inches: 2,
+  cm: 3,
+};
+const COLOR_SPACE_VALUES: Record<string, number> = {
+  'srgb': 1,
+  'adobe rgb': 2,
+  'uncalibrated': 0xFFFF,
+  'icc profile': 0xFFFE,
+  'wide gamut rgb': 0xFFFD,
+};
+const FOCAL_PLANE_RESOLUTION_UNIT_VALUES: Record<string, number> = {
+  none: 1,
+  inches: 2,
+  cm: 3,
+  mm: 4,
+  um: 5,
+};
+const GPS_DIFFERENTIAL_VALUES: Record<string, number> = {
+  'no correction': 0,
+  'differential corrected': 1,
+};
+
+function enumWriteValue(values: Record<string, number>, value: TagValue): TagValue {
+  if (typeof value !== 'string') return value;
+  const normalized = value.trim().toLowerCase();
+  const exact = values[normalized];
+  if (exact !== undefined) return exact;
+  const matches = Object.entries(values).filter(([label]) => label.startsWith(normalized));
+  return matches.length === 1 ? matches[0]![1] : value;
+}
+
+function exifEnumWriteValue(name: string, value: TagValue): TagValue {
+  const enumValues = name.toLowerCase() === 'exposureprogram'
+    ? EXPOSURE_PROGRAM_VALUES
+    : name.toLowerCase() === 'meteringmode'
+    ? METERING_MODE_VALUES
+    : name.toLowerCase() === 'resolutionunit'
+    ? RESOLUTION_UNIT_VALUES
+    : name.toLowerCase() === 'colorspace'
+    ? COLOR_SPACE_VALUES
+    : name.toLowerCase() === 'focalplaneresolutionunit'
+    ? FOCAL_PLANE_RESOLUTION_UNIT_VALUES
+    : name.toLowerCase() === 'gpsdifferential'
+    ? GPS_DIFFERENTIAL_VALUES
+    : undefined;
+  return enumValues ? enumWriteValue(enumValues, value) : value;
+}
 
 export function resolveMergeRequests(tags: Record<string, TagValue>): MergeRequests {
   const exif: ExifRequest[] = [];
@@ -181,7 +262,7 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
     if (canonical === 'EXIF:Copyright') {
       exif.push({ key: canonical, spec: IFD0_TAGS.copyright, value, home: 0 });
     } else if (canonical === 'EXIF:Orientation') {
-      exif.push({ key: canonical, spec: IFD0_TAGS.orientation, value, home: 0 });
+      exif.push({ key: canonical, spec: IFD0_TAGS.orientation, value: enumWriteValue(ORIENTATION_VALUES, value), home: 0 });
     } else if (canonical && XMP_PROPERTY_NAMES[canonical]) {
       const ok =
         typeof value === 'string' ||
@@ -200,14 +281,29 @@ export function resolveMergeRequests(tags: Record<string, TagValue>): MergeReque
         continue;
       }
       // Generic EXIF tag via optional group prefix.
-      const name = key.toLowerCase().replace(/^exif:/, '');
-      const spec = IFD0_TAGS[name] ?? EXIF_IFD_TAGS[name] ?? GPS_IFD_TAGS[name];
+      const separator = key.indexOf(':');
+      const requestedGroup = separator < 0 ? undefined : key.slice(0, separator).toLowerCase();
+      const name = (separator < 0 ? key : key.slice(separator + 1)).toLowerCase();
+      let spec: IfdTagSpec | undefined;
+      let home: ExifRequest['home'] = 0;
+      if (requestedGroup === 'ifd0') {
+        spec = IFD0_TAGS[name];
+      } else if (requestedGroup === 'exififd') {
+        spec = EXIF_IFD_TAGS[name];
+        home = 0x8769;
+      } else if (requestedGroup === 'gps') {
+        spec = GPS_IFD_TAGS[name];
+        home = 0x8825;
+      } else if (requestedGroup === undefined || requestedGroup === 'exif') {
+        spec = IFD0_TAGS[name] ?? EXIF_IFD_TAGS[name] ?? GPS_IFD_TAGS[name];
+        if (spec && EXIF_IFD_TAGS[name] === spec) home = 0x8769;
+        else if (spec && GPS_IFD_TAGS[name] === spec) home = 0x8825;
+      }
       if (!spec) {
         skipped.push(key);
         continue;
       }
-      const home = EXIF_IFD_TAGS[name] ? 0x8769 : GPS_IFD_TAGS[name] ? 0x8825 : 0;
-      exif.push({ key: `EXIF:${spec.name}`, spec, value, home });
+      exif.push({ key: `EXIF:${spec.name}`, spec, value: exifEnumWriteValue(spec.name, value), home });
     }
   }
   return {

@@ -5,7 +5,7 @@ import type { CliOptions } from '../cli.js';
 import { ExifTool } from '../../src/exiftool.js';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
+import { link, mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join, sep } from 'node:path';
 import { tempFile } from '../../src/test/tmp.js';
@@ -1628,6 +1628,32 @@ test('runAction write mode deletes an EXIF tag with an empty assignment', async 
   }
 });
 
+test('runAction preserves hard links when overwriteOriginalInPlace is enabled', async () => {
+  const tmp = await tempFile('.jpg');
+  const hardlink = `${tmp}.hardlink`;
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    await link(tmp, hardlink);
+    const inodeBefore = (await stat(tmp)).ino;
+    const code = await runAction({ overwriteOriginalInPlace: true }, '-Software=CLI in place', tmp);
+    assertEquals(code, 0);
+    assertEquals((await stat(tmp)).ino, inodeBefore);
+    assertEquals((await stat(hardlink)).ino, inodeBefore);
+    assertEquals((await new ExifTool().read(hardlink)).tags.Software, 'CLI in place');
+    let backupExists = true;
+    try {
+      await stat(`${tmp}_original`);
+    } catch {
+      backupExists = false;
+    }
+    assertEquals(backupExists, false);
+  } finally {
+    await rm(tmp, { force: true });
+    await rm(hardlink, { force: true });
+    await rm(`${tmp}_original`, { force: true });
+  }
+});
+
 test('runAction deletes one embedded XMP property without removing its siblings', async () => {
   const tmp = await tempFile('.jpg');
   await writeFile(tmp, await readFile('assets/01.jpg'));
@@ -1737,6 +1763,39 @@ test('runAction write mode preserves mtime when requested', async () => {
     assertEquals(Math.abs(writtenStat.mtimeMs - originalMtime.getTime()) < 1, true);
   } finally {
     await rm(tmp, { force: true });
+  }
+});
+
+test('runAction writes FileModifyDate to the filesystem mtime', async () => {
+  const tmp = await tempFile('.jpg');
+  const original = await readFile('assets/01.jpg');
+  await writeFile(tmp, original);
+  try {
+    const code = await runAction({}, '-FileModifyDate=2020:01:02 03:04:05', tmp);
+    assertEquals(code, 0);
+    const localDate = new Date(2020, 0, 2, 3, 4, 5);
+    assertEquals(Math.abs((await stat(tmp)).mtimeMs - localDate.getTime()) < 1000, true);
+    assertEquals(Buffer.compare(await readFile(tmp), original), 0);
+    let backupExists = true;
+    try {
+      await stat(`${tmp}_original`);
+    } catch {
+      backupExists = false;
+    }
+    assertEquals(backupExists, false);
+
+    const mixedCode = await runAction(
+      { overwriteOriginal: true, preserveTime: true },
+      '-Make=Acme',
+      '-FileModifyDate=2020:01:02 03:04:05+0000',
+      tmp,
+    );
+    assertEquals(mixedCode, 0);
+    assertEquals(Math.abs((await stat(tmp)).mtimeMs - Date.UTC(2020, 0, 2, 3, 4, 5)) < 1000, true);
+    assertEquals((await new ExifTool().read(tmp)).tags.Make, 'Acme');
+  } finally {
+    await rm(tmp, { force: true });
+    await rm(`${tmp}_original`, { force: true });
   }
 });
 

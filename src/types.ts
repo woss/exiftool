@@ -154,6 +154,9 @@ export interface WriteOptions {
   /** Overwrite original file without backup (default: false) */
   overwriteOriginal?: boolean;
 
+  /** Overwrite without a backup by updating the original inode instead of renaming a temp file. */
+  overwriteOriginalInPlace?: boolean;
+
   /** Preserve file modification time (default: false) */
   preserveTime?: boolean;
 

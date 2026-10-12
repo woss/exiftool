@@ -258,6 +258,219 @@ test('resolver: non-string XMP values, unknown keys, and generic EXIF tags', () 
   assertEquals(unencodable.skipped, ['EXIF:Orientation']);
 });
 
+test('jpegMergeWriter routes explicit EXIF IFD groups', async () => {
+  const original = new Uint8Array(readFileSync('assets/01.jpg'));
+  const result = jpegMergeWriter(original, {
+    'IFD0:Make': 'GroupTest',
+    'ExifIFD:DateTimeOriginal': '2021:02:03 04:05:06',
+    'GPS:GPSMapDatum': 'WGS-84',
+    'IFD0:DateTimeOriginal': 'wrong group',
+  });
+  assertEquals(result.written, [
+    'EXIF:Make', 'EXIF:DateTimeOriginal', 'EXIF:GPSMapDatum',
+  ]);
+  assertEquals(result.skipped, ['IFD0:DateTimeOriginal']);
+  const file = await tempFile('.jpg');
+  try {
+    await writeFile(file, result.bytes);
+    const { stdout } = await execFileP(upstreamExifTool, [
+      '-G1', '-Make', '-DateTimeOriginal', '-GPSMapDatum', file,
+    ]);
+    assertEquals(/\[IFD0\]\s+Make\s+: GroupTest/.test(stdout), true);
+    assertEquals(/\[ExifIFD\]\s+Date\/Time Original\s+: 2021:02:03 04:05:06/.test(stdout), true);
+    assertEquals(stdout.includes('[GPS]'), true);
+    assertEquals(stdout.includes('GPS Map Datum'), true);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('jpegMergeWriter accepts ExifTool Orientation PrintConv values', async () => {
+  const original = new Uint8Array(readFileSync('assets/01.jpg'));
+  const values = [
+    ['Horizontal (normal)', 1],
+    ['Mirror horizontal', 2],
+    ['Rotate 180', 3],
+    ['Mirror vertical', 4],
+    ['Mirror horizontal and rotate 270 CW', 5],
+    ['Rotate 90 CW', 6],
+    ['Mirror horizontal and rotate 90 CW', 7],
+    ['Rotate 270 CW', 8],
+  ] as const;
+  for (const [label, numeric] of values) {
+    const result = jpegMergeWriter(original, { 'EXIF:Orientation': label });
+    assertEquals(result.written, ['EXIF:Orientation']);
+    assertEquals(result.skipped, []);
+    const info = await jpegParser.parse(result.bytes, 'orientation.jpg');
+    assertEquals(info.tags.Orientation, label);
+    const file = await tempFile('.jpg');
+    try {
+      await writeFile(file, result.bytes);
+      const { stdout } = await execFileP(upstreamExifTool, ['-n', '-Orientation', file]);
+      assertEquals(stdout.trim().split(':').at(-1)?.trim(), String(numeric));
+    } finally {
+      await rm(file, { force: true });
+    }
+  }
+  const prefix = jpegMergeWriter(original, { 'EXIF:Orientation': 'Rotate 90' });
+  assertEquals(prefix.written, ['EXIF:Orientation']);
+  const ambiguous = jpegMergeWriter(original, { 'EXIF:Orientation': 'Rotate' });
+  assertEquals(ambiguous.skipped, ['EXIF:Orientation']);
+  const file = await tempFile('.jpg');
+  try {
+    await writeFile(file, prefix.bytes);
+    const { stdout } = await execFileP(upstreamExifTool, ['-n', '-Orientation', file]);
+    assertEquals(stdout.trim().split(':').at(-1)?.trim(), '6');
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('jpegMergeWriter accepts ExifTool ExposureProgram PrintConv values', async () => {
+  const original = new Uint8Array(readFileSync('assets/01.jpg'));
+  const values = [
+    ['Not Defined', 0],
+    ['Manual', 1],
+    ['Program AE', 2],
+    ['Aperture-priority AE', 3],
+    ['Shutter speed priority AE', 4],
+    ['Creative (Slow speed)', 5],
+    ['Action (High speed)', 6],
+    ['Portrait', 7],
+    ['Landscape', 8],
+    ['Bulb', 9],
+  ] as const;
+  let result = jpegMergeWriter(original, {});
+  for (const [label, numeric] of values) {
+    result = jpegMergeWriter(original, { 'EXIF:ExposureProgram': label });
+    assertEquals(result.written, ['EXIF:ExposureProgram']);
+    assertEquals(result.skipped, []);
+    const file = await tempFile('.jpg');
+    try {
+      await writeFile(file, result.bytes);
+      const { stdout } = await execFileP(upstreamExifTool, ['-n', '-ExposureProgram', file]);
+      assertEquals(stdout.trim().split(':').at(-1)?.trim(), String(numeric));
+    } finally {
+      await rm(file, { force: true });
+    }
+  }
+  const prefix = jpegMergeWriter(original, { 'EXIF:ExposureProgram': 'Aperture-priority' });
+  assertEquals(prefix.written, ['EXIF:ExposureProgram']);
+  const file = await tempFile('.jpg');
+  try {
+    await writeFile(file, prefix.bytes);
+    const { stdout } = await execFileP(upstreamExifTool, ['-n', '-ExposureProgram', file]);
+    assertEquals(stdout.trim().split(':').at(-1)?.trim(), '3');
+  } finally {
+    await rm(file, { force: true });
+  }
+  const ambiguous = jpegMergeWriter(original, { 'EXIF:ExposureProgram': 'A' });
+  assertEquals(ambiguous.skipped, ['EXIF:ExposureProgram']);
+});
+
+test('jpegMergeWriter accepts ExifTool MeteringMode PrintConv values', async () => {
+  const original = new Uint8Array(readFileSync('assets/01.jpg'));
+  const values = [
+    ['Unknown', 0],
+    ['Average', 1],
+    ['Center-weighted average', 2],
+    ['Spot', 3],
+    ['Multi-spot', 4],
+    ['Multi-segment', 5],
+    ['Partial', 6],
+    ['Other', 255],
+  ] as const;
+  for (const [label, numeric] of values) {
+    const result = jpegMergeWriter(original, { 'EXIF:MeteringMode': label });
+    assertEquals(result.written, ['EXIF:MeteringMode']);
+    assertEquals(result.skipped, []);
+    const file = await tempFile('.jpg');
+    try {
+      await writeFile(file, result.bytes);
+      const { stdout } = await execFileP(upstreamExifTool, ['-n', '-MeteringMode', file]);
+      assertEquals(stdout.trim().split(':').at(-1)?.trim(), String(numeric));
+    } finally {
+      await rm(file, { force: true });
+    }
+  }
+  const prefix = jpegMergeWriter(original, { 'EXIF:MeteringMode': 'Center-weighted' });
+  assertEquals(prefix.written, ['EXIF:MeteringMode']);
+  const ambiguous = jpegMergeWriter(original, { 'EXIF:MeteringMode': 'M' });
+  assertEquals(ambiguous.skipped, ['EXIF:MeteringMode']);
+});
+
+test('jpegMergeWriter accepts ExifTool ResolutionUnit PrintConv values', async () => {
+  const original = new Uint8Array(readFileSync('assets/01.jpg'));
+  const values = [['None', 1], ['inches', 2], ['cm', 3]] as const;
+  for (const [label, numeric] of values) {
+    const result = jpegMergeWriter(original, { 'EXIF:ResolutionUnit': label });
+    assertEquals(result.written, ['EXIF:ResolutionUnit']);
+    assertEquals(result.skipped, []);
+    const file = await tempFile('.jpg');
+    try {
+      await writeFile(file, result.bytes);
+      const { stdout } = await execFileP(upstreamExifTool, ['-n', '-ResolutionUnit', file]);
+      assertEquals(stdout.trim().split(':').at(-1)?.trim(), String(numeric));
+    } finally {
+      await rm(file, { force: true });
+    }
+  }
+  const prefix = jpegMergeWriter(original, { 'EXIF:ResolutionUnit': 'inch' });
+  assertEquals(prefix.written, ['EXIF:ResolutionUnit']);
+});
+
+test('jpegMergeWriter accepts ExifTool ColorSpace PrintConv values', async () => {
+  const original = new Uint8Array(readFileSync('assets/01.jpg'));
+  const values = [
+    ['sRGB', 1],
+    ['Adobe RGB', 2],
+    ['Uncalibrated', 0xFFFF],
+    ['ICC Profile', 0xFFFE],
+    ['Wide Gamut RGB', 0xFFFD],
+  ] as const;
+  for (const [label, numeric] of values) {
+    const result = jpegMergeWriter(original, { 'EXIF:ColorSpace': label });
+    assertEquals(result.written, ['EXIF:ColorSpace']);
+    assertEquals(result.skipped, []);
+    const file = await tempFile('.jpg');
+    try {
+      await writeFile(file, result.bytes);
+      const { stdout } = await execFileP(upstreamExifTool, ['-n', '-ColorSpace', file]);
+      assertEquals(stdout.trim().split(':').at(-1)?.trim(), String(numeric));
+    } finally {
+      await rm(file, { force: true });
+    }
+  }
+  const prefix = jpegMergeWriter(original, { 'EXIF:ColorSpace': 'Adobe' });
+  assertEquals(prefix.written, ['EXIF:ColorSpace']);
+});
+
+test('jpegMergeWriter accepts ExifTool FocalPlaneResolutionUnit and GPSDifferential values', async () => {
+  const original = new Uint8Array(readFileSync('assets/01.jpg'));
+  const values: Array<[string, string, number]> = [
+    ['FocalPlaneResolutionUnit', 'None', 1],
+    ['FocalPlaneResolutionUnit', 'inches', 2],
+    ['FocalPlaneResolutionUnit', 'cm', 3],
+    ['FocalPlaneResolutionUnit', 'mm', 4],
+    ['FocalPlaneResolutionUnit', 'um', 5],
+    ['GPSDifferential', 'No Correction', 0],
+    ['GPSDifferential', 'Differential Corrected', 1],
+  ];
+  for (const [name, label, numeric] of values) {
+    const result = jpegMergeWriter(original, { [`EXIF:${name}`]: label });
+    assertEquals(result.written, [`EXIF:${name}`]);
+    assertEquals(result.skipped, []);
+    const file = await tempFile('.jpg');
+    try {
+      await writeFile(file, result.bytes);
+      const { stdout } = await execFileP(upstreamExifTool, ['-n', `-${name}`, file]);
+      assertEquals(stdout.trim().split(':').at(-1)?.trim(), String(numeric));
+    } finally {
+      await rm(file, { force: true });
+    }
+  }
+});
+
 test('resolver: arbitrary properties in supported XMP namespaces', () => {
   const resolved = resolveMergeRequests({
     'XMP-photoshop:Credit': 'Agency',

@@ -378,6 +378,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
           if (options.output === undefined) {
             result = await tool.write(writeTarget, tags, {
               overwriteOriginal: options.overwriteOriginal === true,
+              overwriteOriginalInPlace: options.overwriteOriginalInPlace === true,
               preserveTime: options.preserveTime === true,
               compress: options.compress === true,
               writeMode: options.writeMode,
@@ -411,6 +412,7 @@ export async function runAction(options: CliOptions, ...files: string[]): Promis
               if (sourceStat) await utimes(tempOutput, sourceStat.atime, sourceStat.mtime);
               result = await tool.write(tempOutput, tags, {
                 overwriteOriginal: true,
+                overwriteOriginalInPlace: options.overwriteOriginalInPlace === true,
                 preserveTime: options.preserveTime === true,
                 compress: options.compress === true,
                 writeMode: options.writeMode,

@@ -35,6 +35,11 @@ test('parseCliArgs — preserve-time accepts ExifTool -P and long form', () => {
   assertEquals(parseCliArgs(['--preserve-time']).options.preserveTime, true);
 });
 
+test('parseCliArgs — overwrite-original-in-place is accepted', () => {
+  assertEquals(parseCliArgs(['--overwrite-original-in-place']).options.overwriteOriginalInPlace, true);
+  assertEquals(parseCliArgs(['-overwrite_original_in_place']).options.overwriteOriginalInPlace, true);
+});
+
 test('parseCliArgs — values via space and inline equals', () => {
   assertEquals(parseCliArgs(['-d', '%Y', '--coord-format=%+.6f', 'x.jpg']), {
     options: { dateFormat: '%Y', coordFormat: '%+.6f' },

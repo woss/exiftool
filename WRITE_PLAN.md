@@ -172,6 +172,13 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 
 - [x] CLI reports explicitly requested tags returned in `skipped`; writes with no accepted requested tags fail before replacing the source. Full group/name resolution and conversion parity remain open.
 - [ ] `-TAG=VALUE`: resolve all groups/aliases, validate ExifTool conversions, write to preferred groups, and report per-tag failures for unsupported values.
+- [x] JPEG explicit `IFD0:`, `ExifIFD:`, and `GPS:` tag prefixes route only to their matching IFD; mismatched groups are skipped. Verified with ExifTool 13.55 readback.
+- [x] JPEG EXIF Orientation accepts all eight ExifTool PrintConv strings and unique prefixes, rejects ambiguous prefixes, and serializes numeric values verified by ExifTool 13.55.
+- [x] JPEG EXIF ExposureProgram accepts all ten ExifTool PrintConv values and unique prefixes, rejects ambiguous prefixes, and serializes numeric values verified by ExifTool 13.55.
+- [x] JPEG EXIF MeteringMode accepts all eight ExifTool PrintConv values and unique prefixes, rejects ambiguous prefixes, and serializes numeric values verified by ExifTool 13.55.
+- [x] JPEG EXIF ResolutionUnit accepts its three ExifTool PrintConv values and unique prefixes, with numeric serialization verified by ExifTool 13.55.
+- [x] JPEG EXIF ColorSpace accepts all five ExifTool PrintConv values and unique prefixes, with numeric serialization verified by ExifTool 13.55.
+- [x] JPEG EXIF FocalPlaneResolutionUnit and GPSDifferential accept their documented ExifTool 13.55 PrintConv values and serialize to matching numeric values.
 - [x] Null assignments delete requested properties from JPEG, PNG, and WebP XMP packets while preserving siblings; deleting the last property removes the packet/chunk and clears the WebP XMP flag. Sidecars are removed when emptied; standalone XMP writes reject an empty document.
 - [x] Empty `IPTC:Keywords` assignment deletes only the JPEG IPTC datasets and preserves XMP Subject.
 - [ ] General `-TAG=` / API null deletion across applicable groups; remove empty optional groups and handle mandatory tags according to upstream behavior.
@@ -196,7 +203,9 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 - [ ] Group and tag selection: support family-qualified names, `-GROUP:all`, grouped wildcards, duplicate groups, preferred groups, numeric/raw tag names, and precedence when multiple groups contain the same logical tag. Runtime parsing currently flattens some group identities.
 - [x] Basic `-o FILE` writes one input to a new destination; `.xmp` destinations use the sidecar writer without modifying the media; `-o -` streams one updated image byte stream per input and formatted text in read mode; existing directories accept batches using source basenames, and parent directories are created as needed; `%d`/`%D`/`%f`/`%F`/`%e`/`%E` source-path tokens expand per input; lowercase `%c` uses supported sign/width collision suffixes and uppercase `%C` counts from zero. Sources remain unchanged, known cross-format output extensions are rejected using the parser registry, existing files are not overwritten, and multiple inputs to one literal file destination are rejected. Actual format conversion remains unsupported.
 - [x] `-P` preserves the input modification time for in-place writes and separate `-o` outputs; output-directory batches continue after a per-file failure and return a failing status if any input fails.
+- [x] `FileModifyDate` assignments update filesystem mtime directly; date-only writes leave metadata bytes unchanged and create no backup, while explicit dates override `-P` in mixed writes.
 - [x] In-place metadata replacement preserves source permission bits across the atomic temp-file rename.
+- [x] `-overwrite_original_in_place` suppresses the backup and updates the existing inode, preserving hard links; broader ExifTool filesystem-attribute parity remains open.
 - [x] Write mode reuses recursive input expansion and case-insensitive `-ext` filtering; nested matching files are written and nonmatching extensions are skipped.
 - [x] `-q` suppresses per-file write diagnostics without masking a failing exit status.
 - [x] Stay-open batches accept numbered `-executeN` commands and emit the matching `{readyN}` response.
