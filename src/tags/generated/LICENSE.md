@@ -6,6 +6,11 @@ The JSON files in this directory are derived from Phil Harvey's ExifTool
 
 - `tags.json`      — generated from `exiftool -listx` output
   (scripts/generate-tags.ts)
+- `manifest.json`  — ExifTool release/source-tree hash and SHA-256 of `tags.json`
+- `xmp-namespaces.json` — canonical XMP prefix-to-URI map from ExifTool `XMP.pm`
+- `xmp-shapes.json` — writable RDF Bag/Seq/Alt shapes extracted from ExifTool's loaded XMP tables
+- `xmp-structs.json` — recursive XMP struct field metadata extracted from ExifTool's loaded tables
+- `write-metadata.json` — core family write groups, protection/conditions, and conversion metadata from ExifTool Perl tables
 - `maker-printconv.json` — literal hash PrintConv tables extracted from the
   ExifTool Perl source (scripts/extract-maker-printconv.py)
 
@@ -31,8 +36,9 @@ release we generated these files from:
     git submodule update --init --depth 1   # clone/refresh
     cd vendor/exiftool && git fetch --depth 1 origin tag <newer> && git checkout --detach <newer>
 
-Then regenerate and commit the (reviewed) diff:
+Then update the pinned version in `scripts/generate-tags.ts`, regenerate, and
+commit the reviewed catalog, manifest, and PrintConv diff:
 
-    python3 scripts/extract-maker-printconv.py          # maker PrintConv tables
-    exiftool -listx > /tmp/listx.xml                    # + scripts/generate-tags.ts
+  pnpm generate-tags
+  python3 scripts/extract-maker-printconv.py
 

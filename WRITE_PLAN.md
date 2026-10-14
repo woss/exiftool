@@ -79,49 +79,185 @@ The grouped rows above are work queues, not permission to mark an entire group s
 
 ### A. Source-of-Truth Tag Catalog
 
-- [ ] Pin the catalog to ExifTool 13.55 and make the generation script record the upstream version/hash used.
+- [x] Pin the catalog to ExifTool 13.55 and make the generation script record the upstream version/hash used.
 - [ ] For every writable tag, capture canonical name, ID, metadata family, actual read group, preferred write group, supported file types, type, count, list shape, writable/protected status, mandatory status, and enum values.
 - [ ] Do not treat `-listx`'s `writable=true` flag as a complete write recipe. ExifTool's table source carries important `WriteGroup`, `Protected`, conditions, and custom conversion behavior that must also be extracted or explicitly ported.
 - [ ] Preserve aliases and duplicate names as a multimap keyed by name + group; never collapse distinct tags into one global name lookup.
 - [ ] Represent simple tables as generated data and expression/condition-based behavior as reviewed TypeScript handlers. Fail generation on unclassified writable types instead of silently dropping them.
 - [ ] Generate a report listing writable tags without a destination group, value encoder, inverse PrintConv, or test fixture.
+- [x] Preserve all `-listx` enum values in the generated catalog; the generation manifest inventories writable types and explicitly lists writable tags with unknown types.
+- [x] The manifest records source/version, catalog and XMP-namespace hashes, writable type/enum counts, unresolved `?` tags, and explicitly distinguishes family-1 read groups from preferred write groups.
+- [x] Catalog, XMP namespace/shape, Perl write-metadata reports, and manifest regenerate byte-for-byte deterministically from the pinned 13.55 source.
+- [x] Generate core Exif/GPS/IPTC/XMP runtime metadata from ExifTool Perl tables, including table read groups, explicit write groups, protection/conditions, list/struct flags, and conversion-handler presence; fail when a selected table cannot load.
 
 **Acceptance:** every upstream writable definition is accounted for as implemented, intentionally unsupported with a reason, or blocked by an unresolved condition. No tag is silently accepted based only on its name.
 
 ### B. EXIF, TIFF, and GPS Serializer
 
 - [ ] Replace the small hand-maintained IFD maps with the complete writable ExifTool tables for IFD0, ExifIFD, GPS, InteropIFD, IFD1, SubIFDs, and supported maker-specific TIFF directories.
-- [ ] Add all relevant TIFF field encoders: BYTE/SBYTE, ASCII, SHORT/SSHORT, LONG/SLONG, RATIONAL/SRATIONAL, UNDEFINED, FLOAT/DOUBLE, plus BigTIFF LONG8/SLONG8/IFD8 where supported.
+- [x] Add all relevant TIFF field encoders: BYTE/SBYTE, ASCII, SHORT/SSHORT, LONG/SLONG, RATIONAL/SRATIONAL, UNDEFINED, FLOAT/DOUBLE, plus BigTIFF LONG8/SLONG8/IFD8 where supported.
 - [ ] Implement value parsing and validation: signed/unsigned bounds, rational approximation and exact fractions, arrays/counts, null-terminated strings, fixed-count tags, undefined byte payloads, and byte order.
+- [x] TIFF `RATIONAL`/`SRATIONAL` components reject fractional, zero-denominator, and out-of-range values before serialization rather than truncating or wrapping.
+- [x] Decimal TIFF rationals use a bounded continued-fraction approximation; explicit `numerator/denominator` values remain exact and high-precision ExifTool 13.55 readback passes.
+- [x] TIFF unsigned BYTE/LONG numeric writes round fractional inputs before range checks, matching ExifTool; LONG overflow is rejected.
+- [x] EXIF `ExifImageWidth` and `ExifImageHeight` use their upstream SHORT storage type rather than LONG; raw TIFF type is regression-tested.
+- [x] ExifIFD `SubjectLocation` and IFD0 `PageNumber` write fixed-count two-element SHORT arrays with count and component bounds enforced; ExifTool 13.55 reads back both pairs.
+- [x] Fixed-count IFD0 `WhitePoint`, `PrimaryChromaticities`, `HalftoneHints`, `YCbCrCoefficients`, `YCbCrSubSampling`, and `ReferenceBlackWhite` enforce element counts; flattened rational pairs are validated as the declared number of values and pass ExifTool 13.55 readback.
+- [x] IFD0 `ProcessingSoftware`, `DocumentName`, `PageName`, `HostComputer`, `TargetPrinter`, `SEMInfo`, `XPosition`, and `YPosition` are writable with ExifTool 13.55 round-trip coverage.
+- [x] IFD0 `ImageWidth`, `ImageHeight`, `SubfileType`, and `OldSubfileType` write numeric/raw values with ExifTool 13.55 readback.
+- [x] IFD0 `Rating` and `RatingPercent` write SHORT values with ExifTool 13.55 readback.
+- [x] IFD0 sample/strip/tile fields `BitsPerSample`, `SamplesPerPixel`, `RowsPerStrip`, `TileWidth`, `TileLength`, `CellWidth`, `CellLength`, `MinSampleValue`, and `MaxSampleValue` pass ExifTool 13.55 readback.
+- [x] IFD0 `GeoTiffDirectory`, `GeoTiffDoubleParams`, and `GeoTiffAsciiParams` preserve declared SHORT/DOUBLE/ASCII data through ExifTool 13.55 raw readback.
+- [x] DNG `DNGVersion` and `DNGBackwardVersion` accept four bounded version bytes; `UniqueCameraModel` and UTF-8 `LocalizedCameraModel` round-trip through ExifTool 13.55.
+- [x] DNG `CameraSerialNumber` and `DNGLensInfo` write through IFD0; lens-range formatting reuses the EXIF LensInfo inverse conversion and passes ExifTool 13.55 readback.
+- [x] DNG 1.4 original size/crop, exposure offset, preview gain, profile policy/encoding, black rendering, reel, and camera-label fields use their declared TIFF types and pass ExifTool 13.55 readback.
+- [x] DNG calibration illuminants, pre-profile matrices, FrameRate, TStop, and OriginalRawFileName use upstream groups/types and pass ExifTool 13.55 readback.
+- [x] DNG `CalibrationIlluminant3` and depth metadata `DepthFormat`, `DepthUnits`, and `DepthMeasureType` write their upstream SHORT enums with ExifTool 13.55 readback.
+- [x] DNG RawDataUniqueID, PreviewSettingsDigest, RawImageDigest, OriginalRawFileDigest, and NewRawImageDigest convert validated hex strings to UNDEFINED bytes with source-declared counts; ExifTool 13.55 reads them back.
+- [x] DNGPrivateData accepts opaque byte payloads; MakerNoteSafety accepts its ExifTool enum values, both verified by ExifTool 13.55.
+- [x] DNG camera/profile signatures, profile names/copyright, preview application/settings strings, and PreviewColorSpace round-trip through ExifTool 13.55; structured ICC payloads remain separate.
+- [x] DNG `ColorMatrix1`, `AsShotNeutral`, `AsShotWhiteXY`, and `BaselineExposure` encode signed/unsigned fixed and variable rational calibration values with ExifTool 13.55 readback.
+- [x] DNG `ColorMatrix2`, camera calibration, reduction, analog balance, baseline noise/sharpness, linear response, and forward matrices use exact signed/unsigned RATIONAL list encoders.
+- [x] EXIF `FileSource`, `SceneType`, and `CFAPattern` encode their UNDEFINED byte representations, including Sigma's four-byte FileSource case and CFA dimension/count validation.
+- [x] IFD0 `Orientation`, `ResolutionUnit`, `PhotometricInterpretation`, `Thresholding`, `FillOrder`, `Compression`, `PlanarConfiguration`, and `Predictor` accept exact enum labels or unique partial labels; ambiguous prefixes and duplicate labels are skipped, verified against ExifTool 13.55.
+- [x] ExifIFD exposure, metering, lighting, sensing, sensitivity, capture, color-space (including Wide Gamut RGB), and composite-image enums accept ExifTool labels in standalone TIFF writes.
+- [x] GPS `GPSDifferential` accepts its ExifTool 13.55 enum labels in standalone TIFF writes.
+- [x] Trailing `#` raw-mode keys bypass enum/value conversions in standalone TIFF and JPEG EXIF writes; group-qualified raw requests round-trip numerically.
+- [x] IFD0 `SubfileType` accepts ExifTool enum labels while preserving numeric/raw value writes.
+- [x] TIFF FLOAT/DOUBLE values encode finite scalar and list values; IFD0 GeoTIFF `PixelScale`, `ModelTiePoint`, and `ModelTransform`, plus DNG `JXLDistance`, pass ExifTool 13.55 readback.
+- [x] TIFF SLONG values enforce signed 32-bit bounds; IFD0 `OffsetSchema` passes ExifTool 13.55 readback.
+- [x] Classic TIFF field types BYTE through DOUBLE (types 1–12, excluding reserved type 13–15) encode scalar/list values with signed bounds; BYTE accepts opaque `Uint8Array` values and SBYTE is covered directly.
+- [x] `buildTiff` supports big-endian output for field values, directory entries, and nested IFD pointers; ExifTool 13.55 reads the complete IFD0/ExifIFD/GPS/InteropIFD graph.
+- [x] Fresh little- and big-endian BigTIFF output writes IFD0 plus linked ExifIFD and Interop directories with 64-bit entry counts, offsets, and pointers; LONG8/SLONG8/IFD8 encoders are covered. GPS requests are skipped because ExifTool 13.55 does not read generated BigTIFF GPS directories with GPS tag semantics; thumbnails/SubIFDs remain unsupported.
+- [x] Fresh TIFF output can create an IFD1 JPEG thumbnail and calculate its offset alongside ExifIFD, GPS, and Interop directories; ExifTool 13.55 extracts the thumbnail byte-for-byte.
+- [x] Fresh TIFF output creates a linked IFD1 JPEG thumbnail with repaired offsets. Ordinary IFD1-qualified tags remain skipped because ExifTool 13.55 does not write them to IFD1; offset-bearing strips remain unsupported.
+- [x] Fresh TIFF output can create one DNG SubIFD with LinearizationTable, black/white levels and deltas, crop fields, NoiseProfile/NoiseReductionApplied, ActiveArea/MaskedAreas, and supported rational calibration fields; ExifTool 13.55 readback passes, while rewriting existing SubIFD trees remains refused.
+- [x] Fixed-count IFD0 rational tags reject wrong counts for both flattened numerator/denominator lists and scalar inputs; rational arrays and GeoTIFF FLOAT/DOUBLE values are ExifTool 13.55 round-trip tested.
+- [x] ExifIFD `SubjectArea` writes variable-count two-to-four-element SHORT arrays while `SubjectLocation` remains exactly two; both pass ExifTool readback.
 - [ ] Port inverse PrintConv/ValueConv behavior for enumerations and formatted values. Support numeric/raw writes (`#`), valid enum names, ExifTool's unambiguous partial-value matching, and reject ambiguous or invalid values with actionable diagnostics.
+- [x] EXIF `LensInfo` accepts numeric focal/aperture range strings and shorthand forms, expanding them to four rational values verified by ExifTool 13.55; unknown `?` components remain unsupported.
+- [x] JPEG EXIF `FocalLength` and GPS `GPSHPositioningError` accept their ExifTool `mm`/`m` PrintConv suffixes and serialize rational values; readback verified by ExifTool 13.55.
+- [x] JPEG EXIF `SubjectDistance` accepts finite values with ExifTool's `m` suffix and serializes as a rational; `inf`/`undef` remain unsupported.
+- [x] Standalone TIFF writes convert EXIF focal-length/distance unit suffixes, APEX scalar displays, and LensInfo shorthand; explicit rational arrays remain raw pairs.
+- [x] GPS `GPSProcessingMethod` and `GPSAreaInformation` emit ExifTool `ASCII\0\0\0` or endian-aware `UNICODE\0` headers; ASCII and Unicode byte payloads pass ExifTool 13.55 readback.
+- [x] EXIF `UserComment` shares the ASCII/Unicode header encoder; Unicode UTF-16 payloads pass ExifTool 13.55 readback.
+- [x] `ExifVersion` and `FlashpixVersion` normalize valid dotted values to raw four-digit strings and skip malformed lengths per ExifTool 13.55.
+- [x] EXIF `ComponentsConfiguration` writes exactly four bounded UNDEFINED bytes and passes ExifTool 13.55 readback.
+- [x] JPEG EXIF `ApertureValue`, `MaxApertureValue`, and `ShutterSpeedValue` convert display values to EXIF APEX rationals; nonpositive aperture values map to APEX zero, verified with ExifTool.
+- [x] ExifIFD `BrightnessValue` writes signed rational values and passes ExifTool 13.55 numeric readback.
+- [x] GPS destination bearing/distance tags and reference codes are writable; all four values pass ExifTool 13.55 readback.
+- [x] GPS status, measurement mode, speed unit, and direction-reference PrintConv values convert to their raw GPS codes and pass ExifTool 13.55 readback.
+- [x] GPS `GPSAltitudeRef` supports all four ExifTool 13.55 states, including EXIF 3.0 positive/negative sea-level references, verified by raw-code readback.
+- [x] Explicit `IFD0:`, `ExifIFD:`, `GPS:`, and `InteropIFD:` keys route only to the requested directory; unqualified Interop tags use their declared default group, and duplicate tag IDs are scoped per directory.
+- [x] `InteropIndex` and mandatory `InteropVersion` serialize through the ExifIFD `0xA005` pointer, verified with simultaneous IFD0, ExifIFD, GPS, and InteropIFD data in ExifTool 13.55.
+- [x] Fresh InteropIFDs synthesize mandatory `InteropVersion=0100` when another Interop tag is written without an explicit version; ExifTool 13.55 reads the generated pointer and value.
+- [x] Fresh GPS IFDs synthesize mandatory `GPSVersionID=2.3.0.0` when GPS entries are written without an explicit version; ExifTool 13.55 reads the generated version and pointer.
+- [x] Fresh ExifIFDs synthesize `ExifVersion=0232`, `ComponentsConfiguration=1 2 3 0`, and `ColorSpace=65535` unless explicitly supplied; ExifTool 13.55 reads the defaults.
+- [x] ExifIFD `TimeZoneOffset`, sensitivity integers, `ExposureIndex`, `CompositeImageCount`, `RelatedSoundFile`, `FlashEnergy`, `CompressedBitsPerPixel`, `ImageNumber`, `ImageHistory`, and `SecurityClassification` use their declared field types and pass ExifTool 13.55 readback.
+- [x] IFD0 `GrayResponseUnit` inverse-converts its decimal labels, `InkSet` uses the upstream enum, and fixed-count `TransferFunction` writes all 768 SHORT values; ExifTool 13.55 readback passes.
+- [x] InteropIFD `RelatedImageFileFormat`, `RelatedImageWidth`, and `RelatedImageHeight` write through the nested pointer; the unqualified file-format tag follows its ExifTool default group.
 - [ ] Route unqualified tags to ExifTool's preferred group; route group-qualified tags to only that group. Handle tags found in multiple groups, priority, duplicate removal, and the documented IFD0/ExifIFD ambiguity rules.
+- [x] When multiple input aliases target the same tag ID in one IFD, the last valid value wins without creating duplicate directory entries; DateTime/ModifyDate behavior matches ExifTool 13.55.
 - [ ] Create missing pointer directories and required mandatory tags; remove empty optional directories and handle mandatory tags according to EXIF version/`NoMandatory` behavior.
+- [x] `BuildTiffOptions.noMandatory` suppresses synthesized GPS/EXIF/Interop defaults in classic TIFF and BigTIFF while retaining explicit mandatory-tag values; ExifTool 13.55 readback passes for classic TIFF.
+- [x] Optional GPS directories are pruned when empty; deleting the final ordinary GPS field preserves the mandatory GPSVersionID exactly as ExifTool 13.55 does.
+- [x] ExifIFDs containing only synthesized mandatory defaults are removed after deleting the final ordinary EXIF tag; explicit mandatory writes are retained, matching ExifTool 13.55.
+- [x] JPEG merge writes explicit `InteropIFD:` tags through the nested ExifIFD pointer, synthesizes InteropVersion, and serializes nested IFD offsets for ExifTool 13.55 readback.
 - [ ] Add update, add, replace, and delete modes for existing tags, including repeated/list values. Preserve unknown entries and binary payloads byte-for-byte when their offsets are not invalidated.
+- [x] JPEG/TIFF merge writes normalize negative decimal GPS coordinates to positive DMS magnitudes and synthesize S/W references unless explicitly supplied.
 - [ ] Rebase offset-bearing entries when directory layouts change. Preserve thumbnails/previews, strips/tiles, SubIFDs, maker-note base offsets, and out-of-line data. Reject unsafe rewrites when an offset cannot be repaired.
-- [ ] Add JPEG EXIF APP1 size handling and TIFF/RAW large-offset handling; test malformed directories and cyclic/deep pointer graphs.
+- [x] EXIF rewrites of Olympus TIFF data with MakerNotes are refused rather than shifting their absolute TIFF offsets; XMP/IPTC-only JPEG writes remain allowed.
+- [x] Plain TIFF rewrites with strip/tile/SubIFD image offsets are refused when the payload cannot be safely rebased; captured JPEG IFD1 thumbnails remain preserved.
+- [x] Reject JPEG EXIF APP1 payloads that exceed the segment limit instead of emitting an invalid JPEG segment.
+- [ ] Add TIFF/RAW large-offset handling; test malformed directories and cyclic/deep pointer graphs.
 
 **Acceptance:** all writable standard EXIF/GPS tags selected for supported containers have unit encoders and upstream round-trip tests; adding or deleting one tag cannot alter unrelated decoded metadata or corrupt image data.
 
 ### C. IPTC-IIM and Photoshop Resources
 
 - [ ] Cover the complete upstream writable ApplicationRecord and EnvelopeRecord datasets, including repeated fields, fixed/digit values, coded character sets, dataset extension lengths, and record version semantics.
-- [ ] Port IPTC NewsPhoto writable entries and any special dataset conversion rules only where the upstream table marks them writable and the corresponding container supports them.
+- [x] JPEG APP13 writes IPTC NewsPhotoVersion as record 3 dataset 0 and passes ExifTool 13.55 readback.
+- [x] JPEG APP13 writes NewsPhoto image/pixel dimensions (`int16u`), `IPTCBitsPerSample` (`int8u`), and `DataCompressionMethod` (`int32u`) with ExifTool 13.55 readback; remaining NewsPhoto datasets are still open.
+- [x] Port all generated IPTC NewsPhoto writable datasets supported by the current string/int8u/int16u/int32u IIM encoder and verify readback in JPEG APP13; broader special NewsPhoto conversions remain open if the upstream table adds non-scalar types.
+- [x] Sweep all 105 writable ApplicationRecord, EnvelopeRecord, and NewsPhoto datasets through the IIM encoder; `ActionAdvised` enum labels resolve to fixed-width codes and pass ExifTool 13.55 readback.
+- [x] IPTC `RasterizedCaption` and `ObjectPreviewData` write bounded `undef` byte payloads; IIM extended dataset lengths round-trip through ExifTool 13.55.
+- [x] IPTC `digits[N]` datasets enforce exact widths for scalar and repeated values, with valid dataset round-trip and malformed widths skipped.
+- [x] Generated IPTC `values` tables inverse-convert labels for digits, string-code, and unsigned integer datasets, verified with ExifTool 13.55 across ApplicationRecord and NewsPhoto.
+- [x] IPTC By-line supports multiple dataset values, replacement, and deletion while preserving sibling IPTC fields; ExifTool 13.55 readback passes.
+- [x] IPTC date datasets accept ExifTool-formatted `YYYY:MM:DD`/`YYYY-MM-DD` values and encode the declared eight digits.
+- [x] Explicit IPTC `CodedCharacterSet` accepts `UTF8`, `UTF-8`, and `ESC % G`, storing `ESC%G`; unsupported charset labels are skipped, and new text gets a UTF-8 declaration when the same update deletes the old declaration.
+- [x] Photoshop IPTCDigest is recalculated when it matches the pre-edit IPTC MD5; an already-stale digest is preserved as an out-of-sync marker.
+- [x] JPEG APP13 splits large Photoshop payloads with repeated headers and reassembles existing Photoshop segments before IPTC updates; a 120 KB preview round-trips unchanged across edits.
+- [x] JPEG parsing concatenates consecutive Photoshop APP13 segments and decodes extended-length IIM datasets, including records following large binary previews.
 - [ ] Support set/replace/add/delete, repeatable values, character-set conversion, UTF-8 declarations, dataset ordering, and empty-record removal.
 - [ ] Expand Photoshop IRB from the IPTC `0x0404` resource to all writable resources; preserve Pascal names, padding, unknown 8BIM/8B64 resources, and resource ordering.
+- [x] IPTC updates preserve unrelated ordinary 8BIM/8B64 resource blocks byte-for-byte, including Pascal names and padding.
+- [x] Unknown Photoshop IRB resources retain their Pascal names and original data-padding bytes when IPTC is updated.
+- [x] Photoshop APP13 scalar resources `CopyrightFlag`, `URL`, `GlobalAngle`, and `GlobalAltitude` support replace/delete and ExifTool 13.55 readback; nested and binary resource types remain open.
+- [x] Nested `PhotoshopQuality` updates only an existing `0x0406` resource, preserves sibling fields, and skips without modifying files when the resource is absent.
+- [x] Photoshop APP13 `ResolutionInfo` writes X/Y fixed-point resolution and units through shared-resource byte-range patches; local parser and ExifTool 13.55 readback pass.
+- [x] Photoshop `PhotoshopThumbnail` and `PhotoshopBGRThumbnail` build the 28-byte ImageSource header from JPEG dimensions and round-trip the embedded JPEG bytes.
 - [ ] Integrate IPTC/IRB into every upstream-writable container that supports these families, not just JPEG APP13. Handle APP13 and related metadata that spans multiple JPEG segments.
-- [ ] Preserve or intentionally recalculate IPTC digest tags when Photoshop IPTC changes; verify digest behavior against upstream.
+- [x] Recalculate `IPTCDigest` when it matches the old IPTC block, preserve stale values, and verify stored/current digest semantics with ExifTool 13.55.
 
 **Acceptance:** every writable IPTC dataset and Photoshop resource has an explicit test; ExifTool reads our output and exiftool-ts reads upstream output with equivalent values and groups.
 
 ### D. XMP Serializer and Schema Catalog
 
+- [x] `rdf:Alt` shape selection is derived from generated writable XMP metadata for all mapped tables with registered prefixes (including DC, XMP, TIFF, EXIF, IPTC, Camera Raw, ACDSee, digiKam, Dex, and Pur); representative values pass ExifTool 13.55 readback.
+- [x] Language-keyed XMP `rdf:Alt` values serialize all translations, put `x-default` first, and preserve ExifTool's default-value readback.
+- [x] XMP Photoshop `ColorMode`, EXIF Extended `SensitivityType`, and TIFF `Orientation`/`PlanarConfiguration`/`YCbCrPositioning` labels inverse-convert to numeric storage values; unknown labels are rejected and ExifTool 13.55 readback passes.
+- [x] XMP enum matching accepts exact labels or unique case-insensitive prefixes and rejects ambiguous/unknown labels.
+- [x] Generated numeric and string-coded XMP enum tables inverse-convert labels to storage values; XMP2 AudioSampleType and GPS references pass ExifTool raw/display readback.
+- [x] Generated XMP enum lists convert each item to its storage code before Bag/Seq serialization; PRISM OriginPlatform passes ExifTool raw readback.
+- [x] XMP trailing `#` bypasses enum label conversion and accepts numeric storage values only, verified with ExifTool 13.55.
+- [x] Generated XMP date properties in supported namespaces normalize valid EXIF-style dates to ISO 8601, preserve fractional seconds/timezones, and reject malformed date-shaped values; PDF, PRISM, PUR, DICOM, and core readback pass ExifTool 13.55.
+- [x] XMP property upsert replaces single- or double-quoted description attributes, preserves existing namespace declarations in either quote style, and expands empty self-closing `rdf:Description` elements.
+- [x] XMP `xmpRights:Owner`, `xmp:Advisory`, and `xmp:Identifier` use upstream `rdf:Bag` shapes and pass ExifTool 13.55 array readback.
+- [x] XMP `photoshop:DocumentAncestors` and `photoshop:SupplementalCategories` serialize as upstream `rdf:Bag` properties and pass ExifTool 13.55 readback; structured list items remain open.
+- [x] XMP `Iptc4xmpCore:Scene`/`SubjectCode` serialize as Bags and `xmpTPg:PlateNames` as a Sequence; ExifTool 13.55 array readback passes.
+- [x] XMP Lightroom `HierarchicalSubject` and `WeightedFlatSubject` serialize as Bags and pass ExifTool 13.55 readback.
+- [x] XMP Camera Raw `ToneCurve` serializes as an ordered Sequence and passes ExifTool 13.55 readback.
+- [x] XMP TIFF `BitsPerSample` serializes as an ordered Sequence and passes ExifTool 13.55 readback.
+- [x] XMP `xmpTPg:MaxPageSize`, `xmpMM:DerivedFrom`, and `xmpMM:ManagedFrom` support qualified `rdf:parseType="Resource"` structs, nested namespace declarations, and schema-checked child names with ExifTool 13.55 structured readback; other structs and structured lists remain open.
+- [x] XMP `xmpMM:Ingredients` supports a Bag of validated ResourceRef structs and passes ExifTool 13.55 structured readback; other struct-list shapes remain open.
+- [x] XMP `xmpBJ:JobRef` supports a Bag of `stJob` Resource structs and passes ExifTool 13.55 structured readback.
+- [x] XMP `xmp:Thumbnails` supports an `rdf:Alt` of `xmpGImg` structs, including base64-encoded binary images with byte-exact ExifTool readback.
+- [x] XMP `xmp:PageInfo` supports a Seq of page image structs, including namespaced page number and base64 binary image readback.
+- [x] XMP `photoshop:TextLayers` supports a Seq of Layer structs and passes ExifTool 13.55 structured readback.
+- [x] XMP `xmpMM:Manifest` supports Bag ManifestItem structs, including nested ResourceRef fields, with ExifTool 13.55 structured readback.
+- [x] XMP `xmpMM:Versions` supports an ordered Seq of Version structs, including nested ResourceEvent values, with ExifTool 13.55 structured readback.
+- [x] XMP `xmpMM:History` supports an ordered Seq of scalar ResourceEvent fields with ExifTool 13.55 readback.
+- [x] XMP `xmpDM:markers` uses its source-defined lowercase property name and supports scalar Marker fields in an ordered Seq; ExifTool 13.55 readback passes.
+- [x] XMP `xmpDM:Tracks` supports a Bag of Track structs with nested Marker Sequences and passes ExifTool 13.55 structured readback.
+- [x] XMP `xmpMM:Pantry` supports Bag entries with required `InstanceID` fields and passes ExifTool 13.55 structured readback.
+- [x] XMP `xmpTPg:Colorants` supports an ordered Seq of validated Colorant structs with ExifTool 13.55 structured readback.
+- [x] XMP `xmpTPg:Fonts` supports a Bag of Font fields including the nested `childFontFiles` Seq, verified with ExifTool 13.55 structured readback.
+- [x] XMP `xmpTPg:SwatchGroups` supports an ordered Seq of group structs with nested Colorants Sequences, verified with ExifTool 13.55.
+- [x] XMP `Iptc4xmpCore:CreatorContactInfo` supports its scalar contact fields as a qualified struct with ExifTool 13.55 readback.
+- [x] XMP `Iptc4xmpExt:AboutCvTerm` supports Bag entries with a multilingual `CvTermName` child; ExifTool 13.55 structured output passes.
+- [x] XMP `Iptc4xmpExt:Contributor` and `Creator` support EntityWithRole Bags with identifier/role Bags and a multilingual Name; ExifTool 13.55 structured readback passes.
+- [x] XMP `Iptc4xmpExt:ProductInImage` supports a Bag of ProductDetails with multilingual fields and numeric GTIN; ExifTool 13.55 structured readback passes.
+- [x] XMP `Iptc4xmpExt:PublicationEvent` supports a Bag of Date/Identifier values and passes ExifTool 13.55 structured readback.
+- [x] XMP `Iptc4xmpExt:DopesheetLink` supports a flat Link/LinkQualifier Bag and passes ExifTool 13.55 structured readback.
+- [x] XMP `prism:OnSaleDay` supports a Bag of day/platform structs and passes ExifTool 13.55 structured readback.
+- [x] XMP `prism:URL` supports a Bag of URL/platform structs and passes ExifTool 13.55 structured readback.
+- [x] XMP `Iptc4xmpExt:Genre` reuses the CVTerm Bag and multilingual name schema; ExifTool 13.55 structured output passes.
 - [ ] Generate all upstream XMP namespace URIs, property names, types, writable flags, value enums, aliases, and struct definitions. Keep URI-to-prefix mapping canonical and collision-safe.
+- [x] Generate all 96 ExifTool 13.55 XMP prefix-to-URI mappings from `XMP.pm` and consume the generated map in the writer; namespace provenance is pinned to the catalog source hash.
+- [x] Generate writable XMP Bag/Seq/Alt shapes from ExifTool's loaded namespace tables and merge them under explicit serializer overrides; `Iptc4xmpExt:Creator` passes ExifTool 13.55 readback.
+- [x] Generate 108 recursive XMP struct schemas, including field namespaces, nested structs, lists, enums, and conversion flags, from the pinned Perl table API; runtime support remains intentionally schema-checked and partial.
+- [x] Resolve generated XMP family-1 group aliases (for example `XMP-iptcExt` and `XMP-getty`) to canonical namespace prefixes, verified through write/readback.
+- [x] Fail tag generation when a new writable ExifTool type label appears; retain `?` types in the manifest as explicit manual-review items.
 - [ ] Implement RDF/XML parsing and writing for attributes and elements, scalar values, `rdf:Bag`, `rdf:Seq`, `rdf:Alt`, language alternatives, nested structs, qualified properties, namespaces, and `xml:lang`/resource qualifiers.
 - [ ] Implement correct list split/join, language selection, numeric/raw modes, date/time formatting, enum inverse conversions, and structured-property flattening expected by ExifTool.
+- [x] Upsert and delete matching XMP attributes/elements across sibling top-level `rdf:Description` elements without discarding unrelated descriptions; nested Camera Raw descriptions remain untouched. ExifTool 13.55 readback passes.
 - [ ] Upsert without duplicating an existing property represented as either attribute or element; preserve unknown properties, packet wrappers, processing instructions, xpacket padding, and unrelated RDF descriptions.
 - [ ] Support property/group selection, creation, replacement, append/add, deletion, empty-structure cleanup, and XMP sidecar creation/merge.
 - [ ] Integrate XMP packet location and update semantics for JPEG, PNG, WebP, AVIF/HEIC/HEIF, TIFF/RAW, PDF, video, and every other applicable upstream-writable container.
-- [ ] Enforce packet/segment/box size constraints and use extended XMP or container-supported multipart storage where ExifTool does.
+- [x] Split oversized fresh JPEG XMP packets into a standard HasExtendedXMP pointer and MD5-addressed APP1 extension chunks; ExifTool 13.55 reads the full packet.
+- [x] Reassemble existing JPEG Extended XMP packets before update/delete; validate chunk lengths, offsets, and MD5 GUID, and remove obsolete chunks when the packet shrinks.
+- [ ] Enforce packet/box size constraints and use container-supported multipart storage for XMP outside JPEG.
 
 **Acceptance:** generated schema completeness report has no unexplained writable properties; tests cover each RDF value shape, namespace, group routing, and upsert/delete behavior; ExifTool parity verifies semantic output.
 
@@ -140,7 +276,8 @@ The grouped rows above are work queues, not permission to mark an entire group s
 
 - [ ] ICC Profile: edit/create/delete profiles and tags, preserve unknown profile elements, maintain declared size and valid profile structure; integrate ICC-in-file and standalone `.icc` behavior.
 - [ ] JFIF: writable density/unit/comment fields and exact APP0 preservation/update behavior.
-- [ ] Ducky APP12: writable quality/comment/alpha fields and block ordering/size behavior.
+- [x] Ducky APP12 writes the three ExifTool 13.55 fields (Quality, Comment, Copyright) and preserves unknown blocks byte-for-byte.
+- [ ] Ducky APP12 duplicate-block ordering and APP12 size-limit parity.
 - [ ] MIE: create, read-modify-write, delete, group, and binary block behavior, including large files and nested sections.
 - [ ] PDF: XMP, PDF Info dictionary, and other upstream-writable PDF metadata; preserve incremental/object structure or deliberately rewrite safely, and account for encryption, signatures, and linearization.
 - [ ] PNG metadata: XMP, EXIF, ICC, textual chunks, and standard PNG metadata fields with correct chunk ordering and CRCs.
@@ -176,6 +313,20 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 - [x] JPEG EXIF Orientation accepts all eight ExifTool PrintConv strings and unique prefixes, rejects ambiguous prefixes, and serializes numeric values verified by ExifTool 13.55.
 - [x] JPEG EXIF ExposureProgram accepts all ten ExifTool PrintConv values and unique prefixes, rejects ambiguous prefixes, and serializes numeric values verified by ExifTool 13.55.
 - [x] JPEG EXIF MeteringMode accepts all eight ExifTool PrintConv values and unique prefixes, rejects ambiguous prefixes, and serializes numeric values verified by ExifTool 13.55.
+- [x] JPEG EXIF `Flash` accepts all pinned PrintConv values plus the `On`/`Off` aliases; each raw value and invalid-value rejection is tested against ExifTool 13.55.
+- [x] JPEG EXIF `LightSource` accepts all 22 defined ExifTool 13.55 PrintConv labels and serializes each matching numeric code.
+- [x] JPEG EXIF `ImageUniqueID` is writable as an ExifIFD ASCII tag and passes ExifTool 13.55 readback.
+- [x] ExifIFD `RelatedSoundFile` writes as a string and passes ExifTool 13.55 readback.
+- [x] ExifIFD `SpectralSensitivity` writes as a plain string and passes ExifTool 13.55 readback.
+- [x] ExifIFD `ImageTitle` through `MetadataEditingSoftware` (`0xA436-0xA43C`) are writable strings and pass ExifTool 13.55 readback.
+- [x] ExifIFD EXIF 3.0 sensitivity fields (`SensitivityType`, SOS, REI, ISO speed, and latitude values) are writable; all eight `SensitivityType` enums pass ExifTool readback.
+- [x] ExifIFD `SelfTimerMode` is mapped as a writable SHORT and passes ExifTool 13.55 readback.
+- [x] ExifIFD `TimeZoneOffset` writes one or two signed SHORT values and rejects longer lists; both accepted counts pass ExifTool 13.55 readback.
+- [x] ExifIFD `ISO`/`ISOSpeedRatings` writes variable-count SHORT lists from arrays or comma-separated strings and passes ExifTool 13.55 readback.
+- [x] EXIF 2.32 `CompositeImage` supports all four PrintConv values; `CompositeImageCount` writes its fixed two-SHORT pair, both verified with ExifTool 13.55.
+- [x] ExifIFD `0xA401-0xA40A` and `0xA40C` scalar enum tags, plus `DigitalZoomRatio` and `FocalLengthIn35mmFormat`, are writable and ExifTool-verified; binary `DeviceSettingDescription` remains unsupported.
+- [x] ExifIFD `SensingMethod` supports all seven defined ExifTool 13.55 PrintConv values with numeric readback verification.
+- [x] ExifIFD `FileSource` standard labels, the Sigma legacy byte payload, and `SceneType` encode to their documented UNDEFINED bytes and pass ExifTool readback.
 - [x] JPEG EXIF ResolutionUnit accepts its three ExifTool PrintConv values and unique prefixes, with numeric serialization verified by ExifTool 13.55.
 - [x] JPEG EXIF ColorSpace accepts all five ExifTool PrintConv values and unique prefixes, with numeric serialization verified by ExifTool 13.55.
 - [x] JPEG EXIF FocalPlaneResolutionUnit and GPSDifferential accept their documented ExifTool 13.55 PrintConv values and serialize to matching numeric values.
@@ -228,126 +379,96 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 
 ## Phases
 
-### 0. Establish the Write-Parity Baseline
+Phases below map directly to the remaining tracker items. Serializers are the first implementation priority because container adapters, assignments, deletion, and copy workflows all depend on correct family-level encoding. Section A-I remains the detailed acceptance checklist; a phase is complete only when its specific exit gate passes.
 
-- Extract the upstream `r/w/c` file-type and metadata-format matrix for pinned ExifTool 13.55 into a machine-reviewable inventory or a compact maintained table.
-- Run capability probes against ExifTool for representative tags and write operations; do not infer writeability from read support or tag-table presence.
-- Record the port's current behavior per matrix cell, including plain TIFF versus camera RAW, embedded metadata versus XMP sidecar, and format-specific exceptions.
-- Resolve conflicts between implementation, tests, API docs, and comments before expanding the support claim.
-- Capture reference outputs and representative fixtures for each initial format and metadata family.
+### Phase 0: Establish the Parity Baseline
 
-**Exit gate:** every advertised writable format has an explicit passing test; unimplemented upstream-writeable cells are listed and prioritized.
+**Tracker:** differential capability gates, baseline prerequisites.
 
-### 1. Define Stable Write Semantics
+- Pin the matrix and tag catalog to ExifTool 13.55; record upstream version/hash and distinguish read, write, and create support.
+- Reconcile code, tests, docs, and divergences for existing adapters, especially plain TIFF versus RAW behavior and MakerNote safety.
+- Capture reference fixtures and assign matrix statuses per format, family, and operation.
 
-- Specify normalized tag keys, group-qualified names, aliases, duplicate handling, tag precedence, and behavior for unknown/read-only tags.
-- Extend `WriteOptions` only for behavior the implementation can guarantee: overwrite/backup policy, preserve modification time, write mode, and failure policy.
-- Make result reporting consistent: distinguish written, skipped, deleted, and failed requests; include warnings for destructive format limitations.
-- Keep the existing atomic replacement and backup guarantees. Ensure every error before replacement leaves the original unchanged, and clean temporary files on all failure paths.
-- Define in-place, output-file, and sidecar destinations explicitly. Preserve filesystem metadata when requested and document platform limitations.
-- Preserve unknown metadata blocks byte-for-byte whenever possible. Never silently discard a block because its parser or serializer does not understand it.
+**Exit gate:** every current capability has a test-backed status; unexplained support claims are removed before new support is added. See sections A and I.
 
-**Exit gate:** API contract tests cover success, partial support, backup, overwrite, preservation, and failure-with-original-unchanged behavior.
+### Phase 1: Complete Core Serializers (Highest Implementation Priority)
 
-### 2. Complete Core Metadata Serializers
+**Tracker:** serializers and containers, serializer portion.
 
-Implement reusable serializers independently of container mutation:
+Implement family encoders independently from container mutation, in this order:
 
-- **EXIF/TIFF:** IFD0, ExifIFD, GPS, interoperability IFD, SubIFDs, IFD1/thumbnail, data types, offsets, byte order, maker-note preservation, and tag deletion.
-- **IPTC-IIM:** datasets, character sets, repeatable values, record/version handling, and embedded-resource serialization.
-- **XMP:** schema/namespace registration, scalar and structured properties, arrays and language alternatives, existing-packet merge, deletion, unknown-property preservation, and sidecar output.
-- **Photoshop IRB/IPTC resources:** resource parsing, replacement, deletion, padding, and preservation of unrelated resources.
-- **ICC and other writable metadata blocks:** only the families marked writable/createable by the pinned upstream matrix; preserve opaque payloads and validate lengths/checksums where required.
-- **MakerNotes:** begin with preservation and safe pass-through. Add vendor-specific value writing only where reference behavior and fixtures prove it safe. Never regenerate encrypted, offset-sensitive, or signature-bound data without a vendor-specific implementation.
+1. EXIF/TIFF/GPS: complete writable tag catalog, group routing, data types, conversions, IFD graph safety, deletion, and offset preservation.
+2. XMP: namespace/schema catalog, RDF scalar and structured forms, arrays, language alternatives, merge/delete, and sidecar semantics.
+3. IPTC-IIM and Photoshop IRB: complete writable datasets/resources, repetition, character sets, deletion, ordering, and preservation.
+4. ICC and format metadata blocks: tag-level operations, validation, lengths/checksums, and opaque-field preservation.
+5. MakerNotes: preserve by default; add vendor-specific edits only with safe offset/checksum handling and redistributable fixtures.
 
-Serializer tests should assert both semantic round trips and byte preservation of unrelated blocks. EXIF/TIFF serializers should be deterministic for newly created data; merge operations should avoid reformatting untouched packets.
+For every serializer, test semantic round trips and byte preservation of unrelated blocks. Do not report support for an unimplemented family based on container writeability.
 
-**Exit gate:** each serializer passes unit tests and ExifTool read-after-write comparisons for supported tags, groups, arrays, and deletes.
+**Exit gate:** each claimed family/tag cell has focused unit and ExifTool 13.55 differential tests. See sections B-F.
 
-### 3. Expand Container Writers
+### Phase 2: Complete Existing Container Adapters, Then Expand
 
-Extend the existing plugin boundary with focused container adapters. Each adapter owns locating, replacing, inserting, deleting, and preserving metadata blocks; serializers remain shared.
+**Tracker:** serializers and containers, container portion.
 
-1. Finish JPEG, PNG, WebP, AVIF/HEIF, and plain TIFF behavior, including all supported groups and removal operations.
-2. Add TIFF-family camera RAW writing only where upstream supports it and the mutation preserves proprietary image data. Treat CR2/NEF/ARW/DNG and other variants individually; do not equate TIFF-based with safe-to-write.
-3. Add writable ISO-BMFF families such as QuickTime/MOV/MP4 and supported audio/video variants using box-level preservation and size/offset repair.
-4. Add other upstream-writable containers in prioritized groups: JP2/JXL, PDF, PSD/PSB, GIF, and additional formats according to the pinned matrix.
-5. Add create-from-scratch support only for upstream `c` formats, with distinct creation tests and API semantics.
+- Close the supported subsets and known structural gaps in JPEG/MPO, PNG, WebP, AVIF/HEIF, and plain TIFF using the Phase 1 serializers.
+- Add standalone create/update behavior for upstream `r/w/c` types with separate create tests.
+- Evaluate each TIFF-family RAW type individually; keep unsafe types read-only and document why.
+- Add ISO-BMFF, PDF, JP2/JXL, PSD/PSB, and remaining formats only in fixture-backed batches.
+- Test malformed/truncated data, offsets and sizes, duplicate blocks, padding, checksums, unknown-block preservation, and failure atomicity.
 
-For each adapter, validate truncation, extended sizes, unknown boxes/chunks, duplicate metadata blocks, padding, checksums, large-file offsets, and malformed inputs. A failed parse or write must not corrupt the source.
+**Exit gate:** each newly advertised container/family/operation has structural tests, preservation tests, and upstream read-after-write verification. See sections C-G.
 
-**Exit gate:** the supported-write matrix is updated only after each adapter passes format-specific structural tests and reference ExifTool validation.
+### Phase 3: Finish Assignment, Group Resolution, Deletion, and Write Modes
 
-### 4. Implement ExifTool-Compatible Write Workflows
+**Tracker:** assignment and delete semantics.
 
-Deliver the CLI/API work in dependency order. Section H is the detailed status checklist; these subphases group it into reviewable milestones.
+- Build shared tag resolution for names, aliases, family/group-qualified requests, duplicate names, and preferred write groups; migrate writer-specific resolution onto it incrementally.
+- Complete value conversion, numeric/raw syntax, exact and unambiguous enum matching, and per-tag failures for `-TAG=VALUE`.
+- Complete `-TAG=` and API-null deletion across supported families, including empty optional and mandatory-group behavior.
+- Finish metadata-aware `-wm w/c/g` behavior and keep failures from mutating source files.
 
-#### 4.1 Assignment, Deletion, and Write Modes
+**Exit gate:** grouped collisions, invalid values, existing/missing tags, delete behavior, and write modes match ExifTool on supported cells. See section H assignment/delete/write-mode items.
 
-- Finish group/name/alias resolution, value conversion, and preferred-group routing for `-TAG=VALUE`.
-- Complete `-TAG=` / API-null behavior across supported groups, including mandatory/empty-group rules and unsupported-tag reporting.
-- Finish `-wm w/c/g` semantics using metadata-group presence rather than only parsed tag-name presence.
+### Phase 4: Generalize List Operations and Tag Copy
 
-**Exit gate:** set, delete, and mode tests cover existing and missing tags, group collisions, invalid values, and unchanged source bytes on failure; command results match ExifTool.
+**Tracker:** list and copy workflows.
 
-#### 4.2 List Operations and Tag Copy
+- Extend append/remove/set semantics to every supported repeatable tag with tag-specific duplicate, ordering, split/join, and empty-list rules.
+- Complete `-tagsFromFile` group-qualified selection, wildcard/`-all` behavior, transformations, mappings, source ordering, `@`, and `-srcfile` interactions.
+- Define precedence among multiple copy sources, assignments, append/remove operations, and deletes.
 
-- Generalize `-TAG+=VALUE` from the current XMP Subject/Creator and JPEG IPTC Keywords subset to other repeatable tags and format-specific list semantics.
-- Extend `-tagsFromFile` from basic single-source parsed-tag copying to group/tag selection, wildcards, renaming, ordering, `-srcfile`, same-file `@`, multiple sources, and transformations.
-- Define precedence when explicit assignments, appends, deletes, and multiple copy sources address the same logical tag.
+**Exit gate:** differential tests cover repeated values, groups, source ordering, transformations, precedence, and no-op behavior. See section H list/copy items.
 
-**Exit gate:** differential tests cover list replacement/append/delete and tag copying across containers, groups, repeated values, and assignment ordering.
+### Phase 5: Finish Filesystem, Batch, and Output Semantics
 
-#### 4.3 Files, Batches, and Output
+**Tracker:** filesystem and batch parity.
 
-- Complete `-o`, extension-derived destinations, overwrite/backup behavior, timestamps/permissions, sidecars, recursion, and conditional writes.
-- Report per-file and per-tag failures consistently; preserve partial batch success and stable exit statuses.
-- Finish CLI normalization and stay-open behavior for supported write options; do not advertise unsupported options.
+- Complete output naming/destinations, overwrite and backup choices, sidecars, timestamps, permissions, and platform-specific attributes. The tested inode/hard-link behavior for `-overwrite_original_in_place` is complete; remaining native metadata attributes are not.
+- Finish recursive and conditional batches, per-file/per-tag diagnostics, partial success, stay-open option parity, and stable exit codes.
+- Preserve atomicity and clean temporary files on all pre-commit failures.
 
-**Exit gate:** command tests compare output files, backups, timestamps, diagnostics, and exit codes with ExifTool for success, no-op, and mixed-success batches.
+**Exit gate:** single and mixed-success batch tests match output files, backups, metadata, diagnostics, and exit codes. See section H output/filesystem items.
 
-#### 4.4 Binary and Time Workflows
+### Phase 6: Complete Binary, Date/Geotag, and Shared API Workflows
 
-- Make binary writes tag-selective and define raw-byte framing; never concatenate unrelated binary tags implicitly.
-- Implement `-geotag`, `-geosync`, `-geotime`, `-globalTimeShift`, and other documented time/geotag transformations if they remain in scope.
+**Tracker:** remaining CLI/API behavior.
 
-**Exit gate:** binary and time-transform tests verify selected payloads, conversions, output structure, and ExifTool parity.
+- Define binary write selection and framing so unrelated binary tags are never concatenated implicitly.
+- Implement geotag/time-shift workflows only if they remain in the declared compatibility scope; otherwise record them explicitly as unsupported.
+- Unify set/add/delete/copy requests and results across `ExifTool.write`, `writeBytes`, sidecars, and CLI; generate help and capabilities from implemented behavior.
 
-#### 4.5 Shared API and Capability Reporting
+**Exit gate:** API and CLI exercise the same request semantics, binary framing is differential-tested, and help/capabilities expose only supported behavior. See section H.
 
-- Represent set/add/delete/copy, source selection, write mode, warnings, and per-tag failures in a shared request/result model used by `ExifTool.write`, `writeBytes`, sidecar APIs, and the CLI.
-- Generate help, capability reporting, and documentation from implemented behavior; keep partial support explicit.
+### Phase 7: Differential Release Gates and Documentation
 
-**Exit gate:** API and CLI contract tests exercise the same request semantics, and advertised capabilities match the runtime writer registry.
+**Tracker:** differential capability gates.
 
-### 5. Differential, Preservation, and Safety Verification
+- Maintain a machine-readable format/family/operation matrix with status, reason, fixture, and test links.
+- Run focused bidirectional ExifTool comparisons for every `implemented` cell in CI; track intentional divergences with removal conditions.
+- Publish separate read/write/create support tables and update parity docs, API docs, help, and examples as phases land.
 
-- Add reference tests against the pinned ExifTool 13.55 for every supported format/metadata/operation matrix cell.
-- Verify both directions: exiftool-ts writes and ExifTool reads; ExifTool writes and exiftool-ts reads.
-- Compare values, groups, duplicate handling, deletion, binary payloads, and format structure. Use exact byte comparisons for payloads that should be preserved and semantic comparisons for regenerated metadata.
-- Maintain minimal synthetic fixtures for boundaries and malformed inputs, plus a small redistributable real-world fixture set for vendor-specific behavior.
-- Run a library sweep for broad regression detection, but do not treat shared-tag parity alone as proof of correct writing or preservation.
-- Track every intentional difference with format, metadata family, tag/operation, reason, fixture, and a removal condition. Keep active write divergences separate from read-value divergences.
-- Include mutation/failure tests proving invalid requests, unsupported formats, and serializer errors cannot partially replace source files.
-
-**Release gate:** all advertised write capabilities pass focused tests; no unexplained write divergence remains for the claimed support matrix; the docs and generated capability list match runtime behavior.
-
-### 6. Documentation and Capability Reporting
-
-- Publish separate read, write, and create support tables; do not use one generic “supported formats” list for all three.
-- Document tag groups writable per format, delete/copy behavior, MakerNote safety, backups, timestamp handling, and known lossy cases.
-- Generate CLI help and API capability reporting from the same writer registry where practical.
-- Update `parity.md`, API docs, and examples as each phase ships. Keep partial support explicit and avoid claiming full format support from successful parsing alone.
-
-## Suggested Delivery Order
-
-1. Baseline matrix and correct current capability claims.
-2. Complete EXIF/TIFF writing and preservation semantics across supported IFDs.
-3. Complete XMP merge/delete/sidecar behavior; then IPTC-IIM and Photoshop IRB.
-4. Close the existing JPEG/PNG/WebP/AVIF/TIFF gaps before adding containers.
-5. Add safe, individually validated RAW and ISO-BMFF writers.
-6. Add remaining upstream-writable formats in batches selected by user value and fixture availability.
-7. Complete CLI copy/delete/batch workflows and release-level parity reporting.
+**Exit gate:** no advertised capability lacks a passing focused test; no claimed cell has an unexplained divergence; docs and runtime capability data agree. See sections I and the documentation requirements in H.
 
 ## Non-Goals and Guardrails
 

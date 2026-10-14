@@ -104,7 +104,20 @@ export interface TagGroups {
  * Normalized tag value.
  * Can be string, number, boolean, binary data (Uint8Array), null, or nested arrays.
  */
-export type TagValue = string | number | boolean | Uint8Array | null | TagValue[];
+export type TagStructFieldValue =
+  | string
+  | number
+  | boolean
+  | Uint8Array
+  | (string | number | boolean)[]
+  | TagStructValue
+  | TagStructValue[];
+
+export interface TagStructValue {
+  [name: string]: TagStructFieldValue;
+}
+
+export type TagValue = string | number | boolean | Uint8Array | null | TagValue[] | TagStructValue;
 
 /**
  * Options for read operations.
