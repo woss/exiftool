@@ -36,7 +36,7 @@ memory:
   backend: mnemopi
 mnemopi:
   # per-repo isolation, like storageDir .swarm/memory
-  scoping: per-project
+  scoping: per-project-tagged
   recallLimit: 8 # memory.recall.defaultMaxItems: 8
   injectionTokenLimit: 1200 # memory.recall.defaultTokenBudget: 1200
   noEmbeddings: false # memory.embeddings.enabled: false

@@ -75,6 +75,8 @@ const IPTC_LOOKUP: Record<number, string> = {
       // surface as DisplayedUnitsX/Y (exiftool: inches/cm/points/picas).
       const view = new DataView(resData.buffer, resData.byteOffset, resData.byteLength);
       if (resData.length >= 16) {
+        result['XResolution'] = view.getUint32(0, false) / 65536;
+        result['YResolution'] = view.getUint32(8, false) / 65536;
         const unitNames: Record<number, string> = {
           1: 'inches',
           2: 'cm',
@@ -88,15 +90,22 @@ const IPTC_LOOKUP: Record<number, string> = {
       result['DisplayedUnitsX'] = resData[0] === 2 ? 'inches' : 'cm';
     } else if (resId === 0x0418) {
       result['DisplayedUnitsY'] = resData[0] === 2 ? 'inches' : 'cm';
-    } else if (resId === 0x040c) {
+    } else if (resId === 0x040c || resId === 0x0409) {
       // The thumbnail resource carries a 28-byte ImageSource header before
       // the embedded JPEG; exiftool emits the JPEG data alone.
-      result['PhotoshopThumbnail'] = resData.slice(28);
+      result[resId === 0x040c ? 'PhotoshopThumbnail' : 'PhotoshopBGRThumbnail'] = resData.slice(28);
     } else if (resId === 0x0425) {
       // The stored digest resource is 16 raw bytes; exiftool prints hex.
       result['IPTCDigest'] = [...resData]
         .map((b) => b.toString(16).padStart(2, '0'))
         .join('');
+    } else if (resId === 0x040a && resData.length >= 1) {
+      result['CopyrightFlag'] = resData[0] === 0 ? 'False' : 'True';
+    } else if (resId === 0x040b) {
+      result['URL'] = new TextDecoder().decode(resData);
+    } else if ((resId === 0x040d || resId === 0x0419) && resData.length >= 4) {
+      const value = new DataView(resData.buffer, resData.byteOffset, resData.byteLength).getUint32(0, false);
+      result[resId === 0x040d ? 'GlobalAngle' : 'GlobalAltitude'] = value;
     }
 
     offset += resSize;
@@ -135,8 +144,17 @@ function parseIPTC(data: Uint8Array): Record<string, TagValue> {
     const dsNum = data[offset];
     offset++;
 
-    const valLen = (data[offset] << 8) | data[offset + 1];
+    let valLen = (data[offset] << 8) | data[offset + 1];
     offset += 2;
+    if (valLen & 0x8000) {
+      const lengthBytes = valLen & 0x7fff;
+      if (lengthBytes < 1 || lengthBytes > 4 || offset + lengthBytes > data.length) break;
+      valLen = 0;
+      for (let index = 0; index < lengthBytes; index++) {
+        valLen = valLen * 256 + data[offset + index]!;
+      }
+      offset += lengthBytes;
+    }
 
     if (offset + valLen > data.length) break;
     const val = new TextDecoder().decode(data.slice(offset, offset + valLen));

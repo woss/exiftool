@@ -74,6 +74,33 @@ test('tiffMergeWriter refuses files with SubIFDs (raw/tile image data)', () => {
   assertEquals(threw, true);
 });
 
+test('tiffMergeWriter refuses strip-offset TIFFs it cannot preserve safely', () => {
+  const bytes = new Uint8Array(42);
+  const view = new DataView(bytes.buffer);
+  bytes.set([0x49, 0x49]);
+  view.setUint16(2, 42, true);
+  view.setUint32(4, 8, true);
+  view.setUint16(8, 2, true);
+  view.setUint16(10, 0x0111, true);
+  view.setUint16(12, 4, true);
+  view.setUint32(14, 1, true);
+  view.setUint32(18, 38, true);
+  view.setUint16(22, 0x0117, true);
+  view.setUint16(24, 4, true);
+  view.setUint32(26, 1, true);
+  view.setUint32(30, 4, true);
+  view.setUint32(34, 0, true);
+  bytes.set([0xde, 0xad, 0xbe, 0xef], 38);
+  let error: unknown;
+  try {
+    tiffMergeWriter(bytes, { 'EXIF:Copyright': 'rewrite attempt' });
+  } catch (caught) {
+    error = caught;
+  }
+  assertEquals(error instanceof UnsupportedFormatError, true);
+  assertEquals(String(error).includes('strip/tile offsets'), true);
+});
+
 test('tiffMergeWriter rejects Panasonic-magic files (version 85)', () => {
   // RW2 uses magic 0x4949 + version 85; not a writable TIFF stream here.
   const rw2Magic = new Uint8Array([0x49, 0x49, 0x55, 0x00, 8, 0, 0, 0]);

@@ -25,8 +25,27 @@ export const jpegParser: FormatParser = {
     const result: Record<string, TagValue> = {};
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     const iccParts = new Map<number, Uint8Array>();
+    const photoshopResourceParts: Uint8Array[] = [];
     let iccPartCount: number | undefined;
     let offset = 2;
+
+    const flushPhotoshopResources = () => {
+      if (photoshopResourceParts.length === 0) return;
+      const length = photoshopResourceParts.reduce((sum, part) => sum + part.length, 0);
+      const resources = new Uint8Array(length);
+      let position = 0;
+      for (const part of photoshopResourceParts) {
+        resources.set(part, position);
+        position += part.length;
+      }
+      photoshopResourceParts.length = 0;
+      const app13 = parseAPP13(resources);
+      const xmpPriority = new Set(['DateCreated', 'TimeCreated', 'DigitalCreationDate', 'DigitalCreationTime']);
+      for (const [key, value] of Object.entries(app13)) {
+        if (xmpPriority.has(key) && key in result) continue;
+        result[key] = value;
+      }
+    };
 
     while (offset < bytes.length) {
       if (bytes[offset] !== 0xff) break;
@@ -46,6 +65,9 @@ export const jpegParser: FormatParser = {
       if (segLen < 2) break;
       offset += 2;
       const data = bytes.slice(offset, offset + segLen - 2);
+      const isPhotoshopApp13 = marker === 0xed && data.length >= 14 &&
+        new TextDecoder().decode(data.subarray(0, 14)) === 'Photoshop 3.0\0';
+      if (!isPhotoshopApp13) flushPhotoshopResources();
 
       if (marker === 0xe1 && data.length >= 6) {
         const id = new TextDecoder().decode(data.slice(0, 6));
@@ -110,12 +132,7 @@ export const jpegParser: FormatParser = {
       if (marker === 0xed && data.length >= 14) {
         const psId = new TextDecoder().decode(data.slice(0, 14));
         if (psId === 'Photoshop 3.0\0') {
-          const app13 = parseAPP13(data.slice(14));
-          const xmpPriority = new Set(['DateCreated', 'TimeCreated', 'DigitalCreationDate', 'DigitalCreationTime']);
-          for (const [k, v] of Object.entries(app13)) {
-            if (xmpPriority.has(k) && k in result) continue;
-            result[k] = v;
-          }
+          photoshopResourceParts.push(data.slice(14));
         }
       }
 
@@ -199,6 +216,8 @@ export const jpegParser: FormatParser = {
 
       offset += segLen - 2;
     }
+
+    flushPhotoshopResources();
 
     if (iccPartCount !== undefined && iccParts.size === iccPartCount) {
       const parts: Uint8Array[] = [];

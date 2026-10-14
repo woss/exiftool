@@ -19,11 +19,30 @@ import { UnsupportedFormatError } from './writers.js';
  * - Files with SubIFDs (0x014A: DNG raw images, TIFF previews/tiles) are
  *   refused too: their image data is reachable only through numeric
  *   offsets the IFD-chain merge cannot preserve.
+ * - Strip and tile offset tables are refused for the same reason; JPEG
+ *   thumbnails are allowed only when their byte ranges were captured.
  * Lightroom reads `.xmp` sidecars for RAW/DNG, so this does not block the
  * Kelp desktop flow.
  */
 
 const XMP_TAG_SPEC = { id: 0x02bc, type: 7 as const, name: 'XMP' };
+
+function hasUnpreservedImageOffsets(raw: NonNullable<ReturnType<typeof parseRawTiff>>): boolean {
+  const pending = [raw.ifd0];
+  const visited = new Set<typeof raw.ifd0>();
+  while (pending.length > 0) {
+    const ifd = pending.pop()!;
+    if (visited.has(ifd)) continue;
+    visited.add(ifd);
+    for (const entry of ifd.entries) {
+      if (entry.tag === 0x0111 || entry.tag === 0x0144 || entry.tag === 0x014a) return true;
+      if ((entry.tag === 0x0201 || entry.tag === 0x0202) && !ifd.thumb) return true;
+      if (entry.sub) pending.push(entry.sub);
+    }
+    if (ifd.next) pending.push(ifd.next);
+  }
+  return false;
+}
 
 export const tiffMergeWriter: ContainerWriter = (original, tags) => {
   if (original.length < 8) throw new UnsupportedFormatError('not a TIFF stream');
@@ -44,13 +63,16 @@ export const tiffMergeWriter: ContainerWriter = (original, tags) => {
   }
   const raw = parseRawTiff(original);
   if (!raw) throw new UnsupportedFormatError('malformed TIFF structure');
-  // Files with SubIFDs (0x014A — DNG raw images, TIFF previews/tiles) carry
-  // image data reachable only through numeric offsets inside those sub-IFDs;
-  // the structural merge preserves IFD chains, not arbitrary pointee data.
-  // Rewriting them would corrupt the image payload, so they are refused.
+  // Refuse structures whose image payloads are addressed by offsets the
+  // serializer cannot retain; it preserves the IFD chain, not arbitrary data.
   if (raw.ifd0.entries.some((e) => e.tag === 0x014a)) {
     throw new UnsupportedFormatError(
       `${classified} files with SubIFDs (raw image data) are never rewritten in place; use an .xmp sidecar`,
+    );
+  }
+  if (hasUnpreservedImageOffsets(raw)) {
+    throw new UnsupportedFormatError(
+      `${classified} files with strip/tile offsets cannot be safely rewritten in place; use an .xmp sidecar`,
     );
   }
 
