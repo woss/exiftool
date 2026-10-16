@@ -104,7 +104,20 @@ export interface TagGroups {
  * Normalized tag value.
  * Can be string, number, boolean, binary data (Uint8Array), null, or nested arrays.
  */
-export type TagValue = string | number | boolean | Uint8Array | null | TagValue[];
+export type TagStructFieldValue =
+  | string
+  | number
+  | boolean
+  | Uint8Array
+  | (string | number | boolean)[]
+  | TagStructValue
+  | TagStructValue[];
+
+export interface TagStructValue {
+  [name: string]: TagStructFieldValue;
+}
+
+export type TagValue = string | number | boolean | Uint8Array | null | TagValue[] | TagStructValue;
 
 /**
  * Options for read operations.
@@ -154,8 +167,17 @@ export interface WriteOptions {
   /** Overwrite original file without backup (default: false) */
   overwriteOriginal?: boolean;
 
+  /** Overwrite without a backup by updating the original inode instead of renaming a temp file. */
+  overwriteOriginalInPlace?: boolean;
+
   /** Preserve file modification time (default: false) */
   preserveTime?: boolean;
+
+  /** Compress supported metadata text chunks when this reduces their size. */
+  compress?: boolean;
+
+  /** ExifTool write-mode letters: w (overwrite), c (create), g (create groups). */
+  writeMode?: string;
 }
 
 /**
@@ -170,6 +192,9 @@ export interface WriteResult {
 
   /** Skipped tag names (unsupported/read-only) */
   skipped: string[];
+
+  /** Tag names excluded by WriteOptions.writeMode. */
+  modeSkipped?: string[];
 
   /** Backup file path if created */
   backup?: string;
@@ -235,6 +260,7 @@ export interface WriteOutcome {
 export type ContainerWriter = (
   original: Uint8Array,
   tags: Record<string, TagValue>,
+  options?: Pick<WriteOptions, 'compress'>,
 ) => WriteOutcome;
 
 /**

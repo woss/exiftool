@@ -1,10 +1,17 @@
 import { test } from 'vitest';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
+import { rm, writeFile } from 'node:fs/promises';
 import { assertEquals } from '../../src/test/asserts.js';
 import { detectParser } from './mod.js';
 import { pngParser } from './png.js';
 import { deflateSync } from 'node:zlib';
+import { tempFile } from '../test/tmp.js';
+import { buildXmpPropertiesPacket } from '../write/xmp-writer.js';
 
 const encoder = new TextEncoder();
+const execFileP = promisify(execFile);
+const upstreamExifTool = new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname;
 
 function concat(...parts: Uint8Array[]): Uint8Array {
   const total = parts.reduce((n, p) => n + p.length, 0);
@@ -27,6 +34,17 @@ function chunk(type: string, payload: Uint8Array): Uint8Array {
   return out;
 }
 
+function chunkDataForTest(bytes: Uint8Array, wanted: string): Uint8Array | undefined {
+  let offset = PNG_SIG.length;
+  while (offset + 12 <= bytes.length) {
+    const length = new DataView(bytes.buffer, bytes.byteOffset + offset, 4).getUint32(0, false);
+    const type = new TextDecoder().decode(bytes.subarray(offset + 4, offset + 8));
+    if (type === wanted) return bytes.subarray(offset + 8, offset + 8 + length);
+    offset += length + 12;
+  }
+  return undefined;
+}
+
 function ihdr(w: number, h: number): Uint8Array {
   const d = new Uint8Array(13);
   new DataView(d.buffer).setUint32(0, w, false);
@@ -42,10 +60,35 @@ function png(...chunks_: Uint8Array[]): Uint8Array {
   return concat(PNG_SIG, ...chunks_);
 }
 
+function chunkData(bytes: Uint8Array, name: string): Uint8Array | undefined {
+  let offset = PNG_SIG.length;
+  while (offset + 12 <= bytes.length) {
+    const length = new DataView(bytes.buffer, bytes.byteOffset + offset, 4).getUint32(0, false);
+    const type = new TextDecoder().decode(bytes.subarray(offset + 4, offset + 8));
+    if (type === name) return bytes.subarray(offset + 8, offset + 8 + length);
+    offset += 12 + length;
+  }
+  return undefined;
+}
+
 test('png canParse accepts signature and rejects short/garbage', () => {
   assertEquals(pngParser.canParse(png(ihdr(1, 1))), true);
   assertEquals(pngParser.canParse(new Uint8Array(7)), false);
   assertEquals(pngParser.canParse(encoder.encode('NOTPNG!!')), false);
+});
+
+test('png parser inflates compressed XMP and keeps the first packet value', async () => {
+  const first = encoder.encode(buildXmpPropertiesPacket([{ name: 'dc:title', value: 'First title' }]));
+  const second = encoder.encode(buildXmpPropertiesPacket([{ name: 'dc:title', value: 'Second title' }]));
+  const keyword = encoder.encode('XML:com.adobe.xmp');
+  const prefix = concat(keyword, new Uint8Array([0, 1, 0, 0, 0]));
+  const compressedPacket = (packet: Uint8Array) =>
+    chunk('iTXt', concat(prefix, deflateSync(packet)));
+  const parsed = await pngParser.parse(
+    png(ihdr(1, 1), compressedPacket(first), compressedPacket(second), chunk('IEND', new Uint8Array(0))),
+    'compressed-xmp.png',
+  );
+  assertEquals(parsed.tags.Title, 'First title');
 });
 
 test('png IHDR extracts dimensions and color info', async () => {
@@ -116,10 +159,222 @@ test('png iCCP without name NUL yields no tag', async () => {
   assertEquals('ICC_Profile_Name' in result.tags, false);
 });
 
+test('png iCCP exposes ICC profile fields and matches ExifTool', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const profile = new Uint8Array(await readFile('vendor/exiftool/t/images/ICC_Profile.icc'));
+  const written = pngParser.writeBytes!(
+    png(ihdr(1, 1), chunk('IEND', new Uint8Array(0))),
+    { ICC_Profile: profile, 'PNG:ProfileName': 'Adobe RGB (1998)' },
+  );
+  const local = await pngParser.parse(written.bytes, 'icc-profile.png');
+  assertEquals(local.tags.ProfileFileSignature, 'acsp');
+  assertEquals(local.tags.ProfileDescription, 'Nikon Adobe RGB 4.0.0.3000');
+  assertEquals(local.tags.ICC_Profile_Name, 'Adobe RGB (1998)');
+
+  const file = await tempFile('.png');
+  try {
+    await writeFile(file, written.bytes);
+    const { stdout } = await execFileP(upstreamExifTool, [
+      '-j', '-G1', '-ProfileFileSignature', '-ProfileDescription', '-ProfileName', file,
+    ]);
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream['ICC-header:ProfileFileSignature'], local.tags.ProfileFileSignature);
+    assertEquals(upstream['ICC_Profile:ProfileDescription'], local.tags.ProfileDescription);
+    assertEquals(upstream['PNG:ProfileName'], local.tags.ICC_Profile_Name);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
 test('png tEXt keyword/value split on first NUL', async () => {
   const payload = encoder.encode('Title\0A Scene');
   const result = await pngParser.parse(png(chunk('tEXt', payload), chunk('IEND', new Uint8Array(0))), 'text.png');
   assertEquals(result.tags['Title'], 'A Scene');
+});
+
+test('png Creation Time converts RFC-1123 value to ExifTool format', async () => {
+  const source = png(
+    ihdr(1, 1),
+    chunk('tEXt', encoder.encode('Creation Time\0Fri, 5 Apr 2024 06:07:08 GMT')),
+    chunk('IEND', new Uint8Array(0)),
+  );
+  const result = await pngParser.parse(source, 'creation-time.png');
+  assertEquals(result.tags.CreationTime, '2024:04:05 06:07:08+00:00');
+
+  const file = await tempFile('.png');
+  try {
+    await writeFile(file, source);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-G1', '-CreationTime', file]);
+    assertEquals(JSON.parse(stdout)[0]['PNG:CreationTime'], result.tags.CreationTime);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('png writable text keywords use ExifTool canonical tag names', async () => {
+  const source = png(
+    ihdr(1, 1),
+    chunk('tEXt', encoder.encode('Warning\0warning text')),
+    chunk('tEXt', encoder.encode('aesthetic_score\0aesthetic value')),
+    chunk('tEXt', encoder.encode('create-date\0' + '2024-04-05T06:07:08Z')),
+    chunk('tEXt', encoder.encode('modify-date\0' + '2024-04-05T06:07:08-05:00')),
+    chunk('tEXt', encoder.encode('URL\0https://example.test')),
+    chunk('IEND', new Uint8Array(0)),
+  );
+  const result = await pngParser.parse(source, 'text-key-names.png');
+  assertEquals(result.tags.PNGWarning, 'warning text');
+  assertEquals(result.tags.AestheticScore, 'aesthetic value');
+  assertEquals(result.tags.CreateDate, '2024:04:05 06:07:08Z');
+  assertEquals(result.tags.ModDate, '2024:04:05 06:07:08-05:00');
+  assertEquals(result.tags.URL, 'https://example.test');
+
+  const file = await tempFile('.png');
+  try {
+    await writeFile(file, source);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-G1', file]);
+    const upstream = JSON.parse(stdout)[0];
+    for (const key of ['PNG:PNGWarning', 'PNG:AestheticScore', 'PNG:CreateDate', 'PNG:ModDate', 'PNG:URL']) {
+      assertEquals(upstream[key], result.tags[key.slice(4)]);
+    }
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('png writer replaces text chunks and preserves IDAT payload', async () => {
+  const pixels = new Uint8Array([1, 2, 3, 4]);
+  const source = png(
+    ihdr(1, 1),
+    chunk('IDAT', pixels),
+    chunk('tEXt', encoder.encode('Title\0Old title')),
+    chunk('IEND', new Uint8Array(0)),
+  );
+  const result = pngParser.writeBytes!(source, {
+    'PNG:Title': 'New title',
+    Comment: 'UTF-8 emoji \u{1f600}',
+    'PNG:Make': 'Written as text',
+  });
+  const info = await pngParser.parse(result.bytes, 'text.png');
+  assertEquals(result.written, ['PNG:Title', 'Comment', 'PNG:Make']);
+  assertEquals(result.skipped, []);
+  assertEquals(info.tags.Title, 'New title');
+  assertEquals(info.tags.Comment, 'UTF-8 emoji \u{1f600}');
+  assertEquals(info.tags.Make, 'Written as text');
+  assertEquals(Array.from(chunkData(result.bytes, 'IDAT')!), Array.from(pixels));
+  assertEquals(chunkData(result.bytes, 'iTXt') !== undefined, true);
+
+  const deleted = pngParser.writeBytes!(result.bytes, { 'PNG:Title': null });
+  assertEquals((await pngParser.parse(deleted.bytes, 'text.png')).tags.Title, undefined);
+});
+
+test('pngWriter updates pHYs, gAMA, and sRGB chunks with ExifTool conversions', async () => {
+  const { readFile, writeFile, rm } = await import('node:fs/promises');
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const { tempFile } = await import('../test/tmp.js');
+  const upstream = new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname;
+  const source = new Uint8Array(await readFile('vendor/exiftool/t/images/PNG.png'));
+  const result = pngParser.writeBytes!(source, {
+    'PNG:PixelsPerUnitX': 1234,
+    'PNG:PixelsPerUnitY': 5678,
+    'PNG:PixelUnits': 'meters',
+    'PNG:Gamma': 2.2,
+    'PNG:SRGBRendering': 'Saturation',
+  });
+  const local = await pngParser.parse(result.bytes, 'ancillary.png');
+  assertEquals(local.tags.PixelsPerUnitX, 1234);
+  assertEquals(local.tags.PixelsPerUnitY, 5678);
+  assertEquals(local.tags.PixelUnits, 'meters');
+  assertEquals(Math.abs(Number(local.tags.Gamma) - 2.2) < 0.0001, true);
+  assertEquals(local.tags.SRGBRendering, 'Saturation');
+
+  const file = await tempFile('.png');
+  try {
+    await writeFile(file, result.bytes);
+    const { stdout } = await promisify(execFile)(upstream, [
+      '-j', '-G1', '-PNG-pHYs:PixelsPerUnitX', '-PNG-pHYs:PixelsPerUnitY',
+      '-PNG-pHYs:PixelUnits', '-PNG:Gamma', '-PNG:SRGBRendering', file,
+    ]);
+    const info = JSON.parse(stdout)[0];
+    assertEquals(info['PNG-pHYs:PixelsPerUnitX'], 1234);
+    assertEquals(info['PNG-pHYs:PixelsPerUnitY'], 5678);
+    assertEquals(info['PNG-pHYs:PixelUnits'], 'meters');
+    assertEquals(info['PNG:Gamma'], 2.2);
+    assertEquals(info['PNG:SRGBRendering'], 'Saturation');
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('pngWriter updates and deletes tIME ModifyDate', async () => {
+  const { readFile, writeFile, rm } = await import('node:fs/promises');
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const { tempFile } = await import('../test/tmp.js');
+  const upstream = new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname;
+  const source = new Uint8Array(await readFile('vendor/exiftool/t/images/PNG.png'));
+  const result = pngParser.writeBytes!(source, { 'PNG:ModifyDate': '2024:01:02 03:04:05' });
+  const local = await pngParser.parse(result.bytes, 'time.png');
+  assertEquals(local.tags.ModifyDate, '2024:01:02 03:04:05');
+  const timeData = chunkDataForTest(result.bytes, 'tIME')!;
+  assertEquals(Array.from(timeData), [7, 232, 1, 2, 3, 4, 5]);
+
+  const file = await tempFile('.png');
+  try {
+    await writeFile(file, result.bytes);
+    const { stdout } = await promisify(execFile)(upstream, ['-j', '-G1', '-PNG:ModifyDate', file]);
+    assertEquals(JSON.parse(stdout)[0]['PNG:ModifyDate'], '2024:01:02 03:04:05');
+  } finally {
+    await rm(file, { force: true });
+  }
+
+  const deleted = pngParser.writeBytes!(result.bytes, { 'PNG:ModifyDate': null });
+  assertEquals(chunkDataForTest(deleted.bytes, 'tIME'), undefined);
+});
+
+test('pngWriter writes language-qualified iTXt keywords', async () => {
+  const { readFile, writeFile, rm } = await import('node:fs/promises');
+  const { execFile } = await import('node:child_process');
+  const { promisify } = await import('node:util');
+  const { tempFile } = await import('../test/tmp.js');
+  const upstream = new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname;
+  const source = new Uint8Array(await readFile('vendor/exiftool/t/images/PNG.png'));
+  const first = pngParser.writeBytes!(source, {
+    'PNG:Comment-fr': 'Bonjour',
+    'PNG:Comment-es': 'Hola',
+  });
+  const result = pngParser.writeBytes!(first.bytes, { 'PNG:Comment-fr': 'Commentaire français' });
+  const info = await pngParser.parse(result.bytes, 'language.png');
+  assertEquals(info.tags['Comment-fr'], 'Commentaire français');
+  assertEquals(info.tags['Comment-es'], 'Hola');
+  const data = chunkDataForTest(result.bytes, 'iTXt')!;
+  const keywordEnd = data.indexOf(0);
+  const languageStart = keywordEnd + 3;
+  const languageEnd = data.indexOf(0, languageStart);
+  assertEquals(new TextDecoder().decode(data.subarray(0, keywordEnd)), 'Comment');
+  assertEquals(new TextDecoder().decode(data.subarray(languageStart, languageEnd)), 'fr');
+
+  const file = await tempFile('.png');
+  try {
+    await writeFile(file, result.bytes);
+    const { stdout } = await promisify(execFile)(upstream, ['-j', '-G1', '-PNG:Comment-fr', file]);
+    assertEquals(JSON.parse(stdout)[0]['PNG:Comment-fr'], 'Commentaire français');
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('vendored ExifTool reads PNG textual data written by the adapter', async () => {
+  const source = new Uint8Array(await (await import('node:fs/promises')).readFile('vendor/exiftool/t/images/PNG.png'));
+  const result = pngParser.writeBytes!(source, { Title: 'Upstream PNG text' });
+  const file = await tempFile('.png');
+  try {
+    await writeFile(file, result.bytes);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-Title', file]);
+    assertEquals(JSON.parse(stdout)[0].Title, 'Upstream PNG text');
+  } finally {
+    await rm(file, { force: true });
+  }
 });
 
 test('png tEXt without separator or leading NUL is skipped', async () => {
@@ -190,7 +445,7 @@ test('png gAMA converts gamma to float', async () => {
   const d = new Uint8Array(4);
   new DataView(d.buffer).setUint32(0, 45455, false);
   const result = await pngParser.parse(png(chunk('gAMA', d), chunk('IEND', new Uint8Array(0))), 'g.png');
-  assertEquals(Math.abs((result.tags['Gamma'] as number) - 0.45455) < 1e-9, true);
+  assertEquals(Math.abs((result.tags['Gamma'] as number) - 2.2) < 0.0001, true);
 });
 
 test('png pHYs exposes pixel density', async () => {
@@ -200,9 +455,9 @@ test('png pHYs exposes pixel density', async () => {
   dv.setUint32(4, 2835, false);
   d[8] = 1;
   const result = await pngParser.parse(png(chunk('pHYs', d), chunk('IEND', new Uint8Array(0))), 'p.png');
-  assertEquals(result.tags['XPixelsPerUnit'], 2835);
-  assertEquals(result.tags['YPixelsPerUnit'], 2835);
-  assertEquals(result.tags['UnitSpecifier'], 1);
+  assertEquals(result.tags['PixelsPerUnitX'], 2835);
+  assertEquals(result.tags['PixelsPerUnitY'], 2835);
+  assertEquals(result.tags['PixelUnits'], 'meters');
 });
 
 test('png trailing garbage shorter than a chunk header ends the walk', async () => {

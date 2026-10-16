@@ -1,7 +1,15 @@
 import type { ContainerWriter, TagValue, WriteOutcome } from '../types.js';
 import { buildTiff } from '../exif/tiff-builder.js';
 import { crc32 } from '../utils/crc32.js';
-import { toXmpPropertyRequest, writeXmpPacket, type XmpPropertyRequest } from './xmp-writer.js';
+import { zlibSync } from 'fflate';
+import {
+  deleteXmpProperties,
+  toXmpPropertyName,
+  toXmpPropertyRequest,
+  writeXmpPacket,
+  type XmpPropertyRequest,
+} from './xmp-writer.js';
+import { mergeExifTiff, resolveMergeRequests } from './jpeg-merge.js';
 
 /**
  * Error thrown when a format does not support writing tags.
@@ -60,6 +68,345 @@ export const jpegWriter: ContainerWriter = (original, tags) => {
 const PNG_SIG = [137, 80, 78, 71, 13, 10, 26, 10];
 
 const PNG_XMP_KEYWORD = 'XML:com.adobe.xmp';
+const PNG_DATA_CHUNKS = new Set(['IDAT', 'JDAT', 'JDAA']);
+const PNG_MOVABLE_METADATA = new Set(['tEXt', 'zTXt', 'iTXt', 'eXIf']);
+const PNG_NO_LEAPFROG = new Set(['SAVE', 'SEEK', 'IHDR', 'JHDR', 'IEND', 'MEND', 'DHDR', 'BASI', 'CLON', 'PAST', 'SHOW', 'MAGN']);
+
+const PNG_TEXT_TAGS: Record<string, string> = {
+  title: 'Title',
+  author: 'Author',
+  description: 'Description',
+  copyright: 'Copyright',
+  'creation time': 'CreationTime',
+  creationtime: 'CreationTime',
+  software: 'Software',
+  disclaimer: 'Disclaimer',
+  warning: 'PNGWarning',
+  source: 'Source',
+  comment: 'Comment',
+  collection: 'Collection',
+  artist: 'Artist',
+  document: 'Document',
+  label: 'Label',
+  make: 'Make',
+  model: 'Model',
+  parameters: 'Parameters',
+  'aesthetic score': 'AestheticScore',
+  aestheticscore: 'AestheticScore',
+  'create-date': 'create-date',
+  createdate: 'create-date',
+  'modify-date': 'modify-date',
+  moddate: 'modify-date',
+  timestamp: 'TimeStamp',
+  url: 'URL',
+};
+
+interface PngTextRequest {
+  key: string;
+  keyword: string;
+  value: string | null;
+  language?: string;
+  encoding?: { type: 'tEXt' | 'zTXt' | 'iTXt'; compressed: boolean };
+}
+interface PngAncillaryRequest { key: string; tag: 'gamma' | 'srgb' | 'physX' | 'physY' | 'physUnit'; value: number | null }
+interface PngTimeRequest { key: string; value: string | null }
+
+function splitPngWriteTags(tags: Record<string, TagValue>): {
+  exif: Record<string, TagValue>;
+  xmp: XmpPropertyRequest[];
+  xmpKeys: string[];
+  xmpDeletes: string[];
+  xmpDeleteKeys: string[];
+  text: PngTextRequest[];
+  iccProfile?: { key: string; profile: Uint8Array | null };
+  iccName?: { key: string; name: string };
+  ancillary: PngAncillaryRequest[];
+  time?: PngTimeRequest;
+  skipped: string[];
+} {
+  const exif: Record<string, TagValue> = {};
+  const xmp: XmpPropertyRequest[] = [];
+  const xmpKeys: string[] = [];
+  const xmpDeletes: string[] = [];
+  const xmpDeleteKeys: string[] = [];
+  const text: PngTextRequest[] = [];
+  const skipped: string[] = [];
+  let iccProfile: { key: string; profile: Uint8Array | null } | undefined;
+  let iccName: { key: string; name: string } | undefined;
+  let time: PngTimeRequest | undefined;
+  const ancillary: PngAncillaryRequest[] = [];
+  for (const [key, value] of Object.entries(tags)) {
+    if (/^(?:png:)?modifydate$/i.test(key)) {
+      if (value === null || typeof value === 'string') time = { key, value };
+      else skipped.push(key);
+      continue;
+    }
+    const ancillaryName = key.toLowerCase().replace(/^png:/, '');
+    const ancillaryNames: Record<string, PngAncillaryRequest['tag']> = {
+      gamma: 'gamma',
+      srgbrendering: 'srgb',
+      pixelsperunitx: 'physX',
+      pixelsperunity: 'physY',
+      pixelunits: 'physUnit',
+    };
+    const ancillaryTag = ancillaryNames[ancillaryName];
+    if (ancillaryTag) {
+      let number: number | null | undefined;
+      if (value === null) number = null;
+      else if (ancillaryTag === 'physUnit' && typeof value === 'string') {
+        const unit = value.trim().toLowerCase();
+        number = unit === 'unknown' ? 0 : unit === 'meters' || unit === 'meter' ? 1 : undefined;
+      } else if (ancillaryTag === 'srgb' && typeof value === 'string') {
+        const intents: Record<string, number> = {
+          perceptual: 0,
+          'relative colorimetric': 1,
+          saturation: 2,
+          'absolute colorimetric': 3,
+        };
+        number = intents[value.trim().toLowerCase()];
+      } else if (typeof value === 'number' || typeof value === 'string') {
+        const parsed = Number(value);
+        number = Number.isFinite(parsed) ? parsed : undefined;
+      }
+      const integer = ancillaryTag !== 'gamma';
+      const max = ancillaryTag === 'srgb' ? 3 : ancillaryTag === 'physUnit' ? 1 : 0xffffffff;
+      if (number === null || (number !== undefined && number > 0 &&
+          (integer ? Number.isInteger(number) : Number.isFinite(1e5 / number)) && number >= 0 && number <= max)) {
+        ancillary.push({ key, tag: ancillaryTag, value: number });
+      } else {
+        skipped.push(key);
+      }
+      continue;
+    }
+    if (/^(?:png:)?icc_profile$/i.test(key)) {
+      if (value === null || value instanceof Uint8Array) iccProfile = { key, profile: value };
+      else skipped.push(key);
+      continue;
+    }
+    if (/^png:profilename$/i.test(key)) {
+      if (typeof value === 'string') iccName = { key, name: value };
+      else skipped.push(key);
+      continue;
+    }
+    const explicitPngGroup = /^png:/i.test(key);
+    const textKey = explicitPngGroup ? key.slice(4).toLowerCase() : key.toLowerCase();
+    const textBase = Object.keys(PNG_TEXT_TAGS)
+      .sort((a, b) => b.length - a.length)
+      .find((candidate) => textKey === candidate || textKey.startsWith(`${candidate}-`));
+    const language = textBase && textKey.length > textBase.length ? textKey.slice(textBase.length + 1) : undefined;
+    const keyword = (explicitPngGroup || !/^(make|model|artist|title|description|copyright)$/.test(textBase ?? textKey))
+      ? (textBase ? PNG_TEXT_TAGS[textBase] : undefined)
+      : undefined;
+    if (keyword) {
+      if (value === null || typeof value === 'string') {
+        if (language && !/^[a-z]{2}(?:-[a-z0-9]{2,8})*$/i.test(language)) skipped.push(key);
+        else text.push({ key, keyword, value, language });
+      }
+      else skipped.push(key);
+      continue;
+    }
+    const xmpName = toXmpPropertyName(key);
+    if (value === null && xmpName) {
+      xmpDeletes.push(xmpName);
+      xmpDeleteKeys.push(key);
+      continue;
+    }
+    const property = toXmpPropertyRequest(key, value);
+    if (property) {
+      xmp.push(property);
+      xmpKeys.push(key);
+    } else {
+      exif[key] = value;
+    }
+  }
+  return { exif, xmp, xmpKeys, xmpDeletes, xmpDeleteKeys, text, iccProfile, iccName, ancillary, time, skipped };
+}
+
+function splitWebpWriteTags(tags: Record<string, TagValue>): {
+  exif: Record<string, TagValue>;
+  xmp: XmpPropertyRequest[];
+  xmpKeys: string[];
+  xmpDeletes: string[];
+  xmpDeleteKeys: string[];
+  iccProfile?: { key: string; profile: Uint8Array | null };
+  skipped: string[];
+} {
+  const split = splitWriteTags(tags);
+  const exif = { ...split.exif };
+  const skipped = [...split.skipped];
+  let iccProfile: { key: string; profile: Uint8Array | null } | undefined;
+  for (const [key, value] of Object.entries(exif)) {
+    if (!/^(?:webp:)?icc_profile$/i.test(key)) continue;
+    delete exif[key];
+    if (value === null || value instanceof Uint8Array) iccProfile = { key, profile: value };
+    else skipped.push(key);
+  }
+  return { ...split, exif, iccProfile, skipped };
+}
+
+function pngTimeChunk(value: string): Uint8Array {
+  const match = value.trim().match(/^(\d{4})[:-](\d{2})[:-](\d{2})[ T](\d{2}):(\d{2}):(\d{2})$/);
+  if (!match) throw new UnsupportedFormatError(`invalid PNG ModifyDate: ${value}`);
+  const [, yearText, monthText, dayText, hourText, minuteText, secondText] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const second = Number(secondText);
+  const date = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  if (year < 1 || year > 0xffff || date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 ||
+      date.getUTCDate() !== day || hour > 23 || minute > 59 || second > 60) {
+    throw new UnsupportedFormatError(`invalid PNG ModifyDate: ${value}`);
+  }
+  const data = new Uint8Array(7);
+  const view = new DataView(data.buffer);
+  view.setUint16(0, year, false);
+  data[2] = month;
+  data[3] = day;
+  data[4] = hour;
+  data[5] = minute;
+  data[6] = second;
+  return data;
+}
+
+function formatPngTextDate(value: string): string {
+  const match = /^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/.exec(value);
+  if (!match) return value;
+  return `${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}${match[7] ?? ''}${match[8] ?? ''}`;
+}
+
+function pngTextChunk(
+  keyword: string,
+  value: string,
+  language?: string,
+  compress = false,
+  encoding?: PngTextRequest['encoding'],
+): { type: string; data: Uint8Array } {
+  const shouldCompress = compress || encoding?.compressed === true;
+  if (shouldCompress) {
+    const latin1 = /^[\x00-\xff]*$/.test(value);
+    const text = encoding?.type === 'zTXt' && latin1
+      ? new Uint8Array([...value].map((character) => character.charCodeAt(0)))
+      : new TextEncoder().encode(value);
+    const compressed = zlibSync(text);
+    if (compressed.length < text.length || encoding?.compressed) {
+      const useItxt = encoding?.type === 'iTXt' ||
+        (encoding?.type !== 'zTXt' && (language || /[^\x00-\x7f]/.test(value)));
+      if (useItxt) {
+        const prefix = new TextEncoder().encode(`${keyword}\0\u0001\0${language ?? ''}\0\0`);
+        const data = new Uint8Array(prefix.length + compressed.length);
+        data.set(prefix);
+        data.set(compressed, prefix.length);
+        return { type: 'iTXt', data };
+      }
+      const key = new TextEncoder().encode(keyword);
+      const data = new Uint8Array(key.length + 2 + compressed.length);
+      data.set(key);
+      data[key.length + 1] = 0;
+      data.set(compressed, key.length + 2);
+      return { type: 'zTXt', data };
+    }
+  }
+  if (encoding?.type === 'iTXt') {
+    const prefix = new TextEncoder().encode(language
+      ? `${keyword}\0\0\0${language}\0\0`
+      : `${keyword}\0\0\0\0\0`);
+    const text = new TextEncoder().encode(value);
+    const data = new Uint8Array(prefix.length + text.length);
+    data.set(prefix);
+    data.set(text, prefix.length);
+    return { type: 'iTXt', data };
+  }
+  if (!language && /^[\x00-\xff]*$/.test(value)) {
+    const key = new TextEncoder().encode(keyword);
+    const text = new Uint8Array([...value].map((character) => character.charCodeAt(0)));
+    const data = new Uint8Array(key.length + 1 + text.length);
+    data.set(key);
+    data.set(text, key.length + 1);
+    return { type: 'tEXt', data };
+  }
+  const prefix = new TextEncoder().encode(language
+    ? `${keyword}\0\0\0${language}\0\0`
+    : `${keyword}\0\0\0\0\0`);
+  const text = new TextEncoder().encode(value);
+  const data = new Uint8Array(prefix.length + text.length);
+  data.set(prefix);
+  data.set(text, prefix.length);
+  return { type: 'iTXt', data };
+}
+
+function pngTextIdentifier(type: string, data: Uint8Array): string | undefined {
+  if (type !== 'tEXt' && type !== 'zTXt' && type !== 'iTXt') return undefined;
+  const separator = data.indexOf(0);
+  if (separator <= 0) return undefined;
+  const keyword = new TextDecoder().decode(data.subarray(0, separator)).toLowerCase();
+  if (type !== 'iTXt') return `${keyword}\0`;
+  const languageStart = separator + 3;
+  const languageEnd = data.indexOf(0, languageStart);
+  if (languageEnd < 0) return undefined;
+  const language = new TextDecoder().decode(data.subarray(languageStart, languageEnd)).toLowerCase();
+  return `${keyword}\0${language}`;
+}
+
+function adler32(data: Uint8Array): number {
+  let a = 1;
+  let b = 0;
+  for (let offset = 0; offset < data.length; offset += 5552) {
+    const end = Math.min(offset + 5552, data.length);
+    for (let index = offset; index < end; index++) {
+      a += data[index]!;
+      b += a;
+    }
+    a %= 65521;
+    b %= 65521;
+  }
+  return ((b << 16) | a) >>> 0;
+}
+
+function zlibStored(data: Uint8Array): Uint8Array {
+  const blocks = Math.max(1, Math.ceil(data.length / 0xffff));
+  const out = new Uint8Array(2 + data.length + blocks * 5 + 4);
+  out[0] = 0x78;
+  out[1] = 0x01;
+  let inputOffset = 0;
+  let outputOffset = 2;
+  for (let block = 0; block < blocks; block++) {
+    const length = Math.min(0xffff, data.length - inputOffset);
+    out[outputOffset++] = block === blocks - 1 ? 1 : 0;
+    out[outputOffset++] = length & 0xff;
+    out[outputOffset++] = length >> 8;
+    const inverse = (~length) & 0xffff;
+    out[outputOffset++] = inverse & 0xff;
+    out[outputOffset++] = inverse >> 8;
+    out.set(data.subarray(inputOffset, inputOffset + length), outputOffset);
+    inputOffset += length;
+    outputOffset += length;
+  }
+  const checksum = adler32(data);
+  out[outputOffset++] = checksum >>> 24;
+  out[outputOffset++] = checksum >>> 16;
+  out[outputOffset++] = checksum >>> 8;
+  out[outputOffset++] = checksum;
+  return out.subarray(0, outputOffset);
+}
+
+function pngIccChunk(name: string, profile: Uint8Array): { type: string; data: Uint8Array } {
+  const codepoints = [...name].map((character) => character.codePointAt(0)!);
+  if (codepoints.length < 1 || codepoints.length > 79 || codepoints.some((codepoint) => codepoint === 0 || codepoint > 0xff)) {
+    throw new UnsupportedFormatError('PNG ICC profile name must be 1 to 79 Latin-1 bytes');
+  }
+  const keyword = new Uint8Array(codepoints);
+  const compressed = zlibStored(profile);
+  const data = new Uint8Array(keyword.length + 2 + compressed.length);
+  data.set(keyword);
+  data[keyword.length + 1] = 0;
+  data.set(compressed, keyword.length + 2);
+  return {
+    type: 'iCCP',
+    data,
+  };
+}
 
 /**
  * Splits flat write tags into EXIF-tag requests and XMP property requests
@@ -69,13 +416,23 @@ export function splitWriteTags(tags: Record<string, TagValue>): {
   exif: Record<string, TagValue>;
   xmp: XmpPropertyRequest[];
   xmpKeys: string[];
+  xmpDeletes: string[];
+  xmpDeleteKeys: string[];
   skipped: string[];
 } {
   const exif: Record<string, TagValue> = {};
   const xmp: XmpPropertyRequest[] = [];
   const xmpKeys: string[] = [];
+  const xmpDeletes: string[] = [];
+  const xmpDeleteKeys: string[] = [];
   const skipped: string[] = [];
   for (const [key, value] of Object.entries(tags)) {
+    const xmpName = toXmpPropertyName(key);
+    if (value === null && xmpName) {
+      xmpDeletes.push(xmpName);
+      xmpDeleteKeys.push(key);
+      continue;
+    }
     const prop = toXmpPropertyRequest(key, value);
     if (prop) {
       xmp.push(prop);
@@ -84,7 +441,7 @@ export function splitWriteTags(tags: Record<string, TagValue>): {
       exif[key] = value;
     }
   }
-  return { exif, xmp, xmpKeys, skipped };
+  return { exif, xmp, xmpKeys, xmpDeletes, xmpDeleteKeys, skipped };
 }
 
 /** PNG iTXt chunk carrying an uncompressed XMP packet (XMP spec §1.1.1). */
@@ -98,50 +455,227 @@ function pngXmpItxt(packet: string): { type: string; data: Uint8Array } {
 }
 
 /**
- * PNG: drops existing eXIf chunks (when EXIF tags requested) and existing
- * XMP iTXt chunks (when XMP tags requested), inserting fresh ones after
- * IHDR. The XMP iTXt is uncompressed with keyword XML:com.adobe.xmp.
+ * PNG: drops replaced metadata chunks, inserts new chunks after IHDR, and
+ * moves eligible text/EXIF chunks found after image data before the first
+ * data chunk. The XMP iTXt is uncompressed with keyword XML:com.adobe.xmp.
  */
-export const pngWriter: ContainerWriter = (original, tags) => {
+export const pngWriter: ContainerWriter = (original, tags, options) => {
   for (let i = 0; i < 8; i++) {
     if (original[i] !== PNG_SIG[i]) throw new UnsupportedFormatError('not a PNG stream');
   }
-  const { exif, xmp, xmpKeys, skipped } = splitWriteTags(tags);
+  const { exif, xmp, xmpKeys, xmpDeletes, xmpDeleteKeys, iccProfile, iccName, text, ancillary, time, skipped } = splitPngWriteTags(tags);
   const dv = new DataView(original.buffer, original.byteOffset, original.byteLength);
 
   const kept: Array<{ type: string; data: Uint8Array }> = [];
   let existingXmp: string | null = null;
   let inserted = false;
   const written: string[] = [];
+  const textByKeyword = new Map(text.map((request) => [
+    `${request.keyword.toLowerCase()}\0${request.language?.toLowerCase() ?? ''}`,
+    request,
+  ]));
+  let existingExifTiff: Uint8Array | undefined;
+  let existingIccName: string | undefined;
+  let scanPos = 8;
+  while (scanPos + 12 <= original.length) {
+    const length = dv.getUint32(scanPos, false);
+    if (scanPos + 12 + length > original.length) break;
+    const type = String.fromCharCode(...original.subarray(scanPos + 4, scanPos + 8));
+    const data = original.subarray(scanPos + 8, scanPos + 8 + length);
+    if (type === 'eXIf' && !existingExifTiff) existingExifTiff = data.slice();
+    if (type === 'iCCP' && existingIccName === undefined) {
+      const separator = data.indexOf(0);
+      if (separator > 0) existingIccName = new TextDecoder().decode(data.subarray(0, separator));
+    }
+    if (type === 'iTXt' && (xmp.length > 0 || xmpDeletes.length > 0)) {
+      const keywordEnd = data.indexOf(0);
+      const keyword = keywordEnd > 0 ? new TextDecoder().decode(data.subarray(0, keywordEnd)) : '';
+      if (keyword === PNG_XMP_KEYWORD && data[keywordEnd + 1] === 0) {
+        const languageEnd = data.indexOf(0, keywordEnd + 3);
+        const translatedEnd = languageEnd < 0 ? -1 : data.indexOf(0, languageEnd + 1);
+        if (translatedEnd >= 0) existingXmp = new TextDecoder().decode(data.subarray(translatedEnd + 1));
+      }
+    }
+    const identifier = pngTextIdentifier(type, data);
+    const request = identifier ? textByKeyword.get(identifier) : undefined;
+    if (request && !request.encoding) {
+      const separator = data.indexOf(0);
+      request.encoding = {
+        type: type as 'tEXt' | 'zTXt' | 'iTXt',
+        compressed: type === 'zTXt' || (type === 'iTXt' && data[separator + 1] === 1),
+      };
+    }
+    scanPos += length + 12;
+  }
+  const hoistedOffsets = new Set<number>();
+  const hoistedChunks: Array<{ type: string; data: Uint8Array }> = [];
+  let sawImageData = false;
+  scanPos = 8;
+  while (scanPos + 12 <= original.length) {
+    const length = dv.getUint32(scanPos, false);
+    if (scanPos + 12 + length > original.length) break;
+    const type = String.fromCharCode(...original.subarray(scanPos + 4, scanPos + 8));
+    if (sawImageData) {
+      if (PNG_NO_LEAPFROG.has(type)) break;
+      if (PNG_MOVABLE_METADATA.has(type)) {
+        const data = original.subarray(scanPos + 8, scanPos + 8 + length);
+        const identifier = pngTextIdentifier(type, data);
+        const replacedText = identifier !== undefined && textByKeyword.has(identifier);
+        const replacedXmp = type === 'iTXt' && (xmp.length > 0 || xmpDeletes.length > 0) &&
+          new TextDecoder().decode(data.subarray(0, data.indexOf(0))) === PNG_XMP_KEYWORD;
+        if (!replacedText && !replacedXmp && !(type === 'eXIf' && Object.keys(exif).length > 0)) {
+          hoistedOffsets.add(scanPos);
+          hoistedChunks.push({ type, data: data.slice() });
+        }
+      }
+    } else if (PNG_DATA_CHUNKS.has(type)) {
+      sawImageData = true;
+    }
+    scanPos += length + 12;
+  }
+  let imageDataInserted = false;
+  const writeGamma = ancillary.find((request) => request.tag === 'gamma');
+  const writeSrgb = ancillary.find((request) => request.tag === 'srgb');
+  const physRequests = ancillary.filter((request) => request.tag.startsWith('phys'));
+  const writePhys = physRequests.length > 0;
   let pos = 8;
   while (pos + 12 <= original.length) {
+    const chunkOffset = pos;
     const length = dv.getUint32(pos, false);
     const type = String.fromCharCode(...original.subarray(pos + 4, pos + 8));
     const data = original.slice(pos + 8, pos + 8 + length);
     if (pos + 12 + length > original.length) break; // truncated tail
     pos += 12 + length;
     if (type === 'IEND') continue;
+    if (type === 'iCCP' && iccProfile) continue;
+    if (type === 'sRGB' && iccProfile?.profile) continue;
+    if (type === 'gAMA' && writeGamma) continue;
+    if (type === 'sRGB' && writeSrgb) continue;
+    if (type === 'pHYs' && writePhys) continue;
+    if (type === 'tIME' && time) continue;
     if (type === 'eXIf' && Object.keys(exif).length > 0) continue;
-    if (type === 'iTXt' && xmp.length > 0) {
+    if (type === 'iTXt' && (xmp.length > 0 || xmpDeletes.length > 0)) {
       // Existing XMP packet (keyword XML:com.adobe.xmp): decode for merge.
       const kwEnd = data.indexOf(0);
       const keyword = kwEnd > 0 ? String.fromCharCode(...data.subarray(0, kwEnd)) : '';
       if (keyword === PNG_XMP_KEYWORD) {
-        existingXmp = new TextDecoder().decode(data.subarray(kwEnd + 4));
+        const languageEnd = data.indexOf(0, kwEnd + 3);
+        const translatedEnd = languageEnd < 0 ? -1 : data.indexOf(0, languageEnd + 1);
+        if (data[kwEnd + 1] === 0 && translatedEnd >= 0) {
+          existingXmp = new TextDecoder().decode(data.subarray(translatedEnd + 1));
+        }
         continue;
       }
     }
+    const textIdentifier = pngTextIdentifier(type, data);
+    if (textIdentifier) {
+      const request = textByKeyword.get(textIdentifier);
+      if (request) continue;
+    }
+    if (hoistedOffsets.has(chunkOffset)) {
+      continue;
+    }
+    if ((PNG_DATA_CHUNKS.has(type) || type === 'IEND') && !imageDataInserted) {
+      kept.push(...hoistedChunks);
+      hoistedChunks.length = 0;
+      imageDataInserted = true;
+    }
     kept.push({ type, data });
     if (type === 'IHDR') {
+      if (iccProfile?.profile) {
+        const profileName = iccName?.name ?? existingIccName ?? 'icm';
+        kept.push(pngIccChunk(profileName, iccProfile.profile));
+        written.push(iccProfile.key);
+        if (iccName) written.push(iccName.key);
+      } else if (iccProfile) {
+        written.push(iccProfile.key);
+      } else if (iccName) {
+        skipped.push(iccName.key);
+      }
+      if (writeSrgb?.value !== null && (writeSrgb || iccProfile?.profile)) {
+        if (writeSrgb) {
+          kept.push({ type: 'sRGB', data: new Uint8Array([writeSrgb.value!]) });
+          written.push(writeSrgb.key);
+        }
+      }
+      if (writeGamma) {
+        if (writeGamma.value !== null) {
+          const value = Math.round(100000 / writeGamma.value!);
+          const data = new Uint8Array(4);
+          new DataView(data.buffer).setUint32(0, value, false);
+          kept.push({ type: 'gAMA', data });
+        }
+        written.push(writeGamma.key);
+      }
+      if (writePhys) {
+        if (!physRequests.some((request) => request.value === null)) {
+          const values = { x: 2834, y: 2834, unit: 1 };
+          for (const request of physRequests) {
+            if (request.tag === 'physX') values.x = request.value!;
+            else if (request.tag === 'physY') values.y = request.value!;
+            else values.unit = request.value!;
+          }
+          const data = new Uint8Array(9);
+          const view = new DataView(data.buffer);
+          view.setUint32(0, values.x, false);
+          view.setUint32(4, values.y, false);
+          data[8] = values.unit;
+          kept.push({ type: 'pHYs', data });
+        }
+        written.push(...physRequests.map((request) => request.key));
+      }
+      if (time) {
+        if (time.value !== null) kept.push({ type: 'tIME', data: pngTimeChunk(time.value) });
+        written.push(time.key);
+      }
       if (Object.keys(exif).length > 0) {
-        const { bytes: tiff, written: exifWritten, skipped: exifSkipped } = buildTiff(exif);
+        let tiff: Uint8Array;
+        let exifWritten: string[];
+        let exifSkipped: string[];
+        if (existingExifTiff) {
+          const requests = resolveMergeRequests(exif);
+          const merged = mergeExifTiff(existingExifTiff, requests.exif);
+          tiff = merged.bytes;
+          exifWritten = merged.written;
+          exifSkipped = [...requests.skipped, ...merged.skipped];
+        } else {
+          const built = buildTiff(exif);
+          tiff = built.bytes;
+          exifWritten = built.written;
+          exifSkipped = built.skipped;
+        }
         kept.push({ type: 'eXIf', data: tiff });
         written.push(...exifWritten);
         skipped.push(...exifSkipped);
       }
-      if (xmp.length > 0) {
-        kept.push(pngXmpItxt(writeXmpPacket(existingXmp, xmp)));
+      if (xmp.length > 0 || xmpDeletes.length > 0) {
+        let packet = xmp.length > 0 ? writeXmpPacket(existingXmp, xmp) : existingXmp;
+        if (xmpDeletes.length > 0) {
+          if (packet !== null) {
+            packet = deleteXmpProperties(packet, xmpDeletes);
+            written.push(...xmpDeleteKeys);
+          } else {
+            skipped.push(...xmpDeleteKeys);
+          }
+        }
+        if (packet !== null) kept.push(pngXmpItxt(packet));
         written.push(...xmpKeys);
+      }
+      for (const request of text) {
+        if (request.value !== null) {
+          const keyword = request.keyword.toLowerCase();
+          const value = keyword === 'create-date' || keyword === 'modify-date'
+            ? formatPngTextDate(request.value)
+            : request.value;
+          kept.push(pngTextChunk(
+            request.keyword,
+            value,
+            request.language,
+            options?.compress,
+            request.encoding,
+          ));
+        }
+        written.push(request.key);
       }
       inserted = true;
     }
@@ -177,19 +711,29 @@ export const webpWriter: ContainerWriter = (original, tags) => {
   if (riff !== 'RIFF' || webp !== 'WEBP') {
     throw new UnsupportedFormatError('not a WebP stream');
   }
-  const { exif, xmp, xmpKeys, skipped } = splitWriteTags(tags);
+  const { exif, xmp, xmpKeys, xmpDeletes, xmpDeleteKeys, iccProfile, skipped } = splitWebpWriteTags(tags);
   const writtenOut: string[] = [];
   const dv = new DataView(original.buffer, original.byteOffset, original.byteLength);
 
   interface Chunk { id: string; data: Uint8Array }
   const chunks: Chunk[] = [];
   let existingXmp: string | null = null;
+  let existingExifTiff: Uint8Array | undefined;
   let pos = 12;
   while (pos + 8 <= original.length) {
     const id = String.fromCharCode(...original.subarray(pos, pos + 4));
     const size = dv.getUint32(pos + 4, true);
     const data = original.slice(pos + 8, pos + 8 + size);
-    if (id === 'XMP ' && xmp.length > 0) {
+    if (id === 'ICCP' && iccProfile) {
+      pos += 8 + size + (size % 2);
+      continue;
+    }
+    if (id === 'EXIF' && Object.keys(exif).length > 0) {
+      const hasExifPrefix = data.length >= 6 &&
+        data[0] === 0x45 && data[1] === 0x78 && data[2] === 0x69 &&
+        data[3] === 0x66 && data[4] === 0 && data[5] === 0;
+      existingExifTiff = hasExifPrefix ? data.slice(6) : data;
+    } else if (id === 'XMP ' && (xmp.length > 0 || xmpDeletes.length > 0)) {
       existingXmp = new TextDecoder().decode(data);
     } else {
       chunks.push({ id, data });
@@ -201,7 +745,23 @@ export const webpWriter: ContainerWriter = (original, tags) => {
   if (!vp8x) throw new UnsupportedFormatError('WebP writing requires a VP8X chunk');
   const vp8xData = Uint8Array.from(vp8x.data);
   if (Object.keys(exif).length > 0) vp8xData[0] |= 0x08; // EXIF flag
-  if (xmp.length > 0) vp8xData[0] |= 0x04; // XMP flag
+  let outputXmp: string | null = null;
+  if (xmp.length > 0 || xmpDeletes.length > 0) {
+    outputXmp = xmp.length > 0 ? writeXmpPacket(existingXmp, xmp) : existingXmp;
+    if (xmpDeletes.length > 0) {
+      if (outputXmp !== null) {
+        outputXmp = deleteXmpProperties(outputXmp, xmpDeletes);
+        writtenOut.push(...xmpDeleteKeys);
+      } else {
+        skipped.push(...xmpDeleteKeys);
+      }
+    }
+    writtenOut.push(...xmpKeys);
+    if (outputXmp !== null) vp8xData[0] |= 0x04;
+    else vp8xData[0] &= ~0x04;
+  }
+  if (iccProfile?.profile) vp8xData[0] |= 0x20; // ICC flag
+  else if (iccProfile) vp8xData[0] &= ~0x20;
 
   const out: number[] = [];
   for (const c of 'RIFF') out.push(c.charCodeAt(0));
@@ -217,17 +777,29 @@ export const webpWriter: ContainerWriter = (original, tags) => {
   };
 
   pushChunk('VP8X', vp8xData);
+  if (iccProfile?.profile) {
+    pushChunk('ICCP', iccProfile.profile);
+    writtenOut.push(iccProfile.key);
+  } else if (iccProfile) {
+    writtenOut.push(iccProfile.key);
+  }
   if (Object.keys(exif).length > 0) {
-    const { bytes: tiff, written, skipped: exifSkipped } = buildTiff(exif);
+    let tiff: Uint8Array;
+    if (existingExifTiff) {
+      const requests = resolveMergeRequests(exif);
+      const merged = mergeExifTiff(existingExifTiff, requests.exif);
+      tiff = merged.bytes;
+      skipped.push(...requests.skipped, ...merged.skipped);
+      writtenOut.push(...merged.written);
+    } else {
+      const built = buildTiff(exif);
+      tiff = built.bytes;
+      skipped.push(...built.skipped);
+      writtenOut.push(...built.written);
+    }
     pushChunk('EXIF', new Uint8Array([0x45, 0x78, 0x69, 0x66, 0x00, 0x00, ...tiff])); // 'Exif\0\0' prefix
-    skipped.push(...exifSkipped);
-    writtenOut.push(...written);
   }
-  if (xmp.length > 0) {
-    const packet = new TextEncoder().encode(writeXmpPacket(existingXmp, xmp));
-    pushChunk('XMP ', packet);
-    for (const k of xmpKeys) writtenOut.push(k);
-  }
+  if (outputXmp !== null) pushChunk('XMP ', new TextEncoder().encode(outputXmp));
   for (const c of chunks) {
     if (c.id === 'EXIF' || c.id === 'VP8X') continue;
     pushChunk(c.id, c.data);

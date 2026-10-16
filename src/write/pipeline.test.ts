@@ -7,7 +7,7 @@ import {
   writeTagsWithTmp,
 } from './pipeline.js';
 import { tempFile } from '../test/tmp.js';
-import { mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { chmod, link, mkdir, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
 
 const tool = new ExifTool();
 
@@ -45,6 +45,156 @@ test('writeTags with overwriteOriginal skips the backup', async () => {
       exists = false;
     }
     assertEquals(exists, false);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('writeTags honors write mode for existing and new tags', async () => {
+  const file = await makeTmpJpeg();
+  try {
+    const createOnly = await writeTags(
+      file,
+      { Make: 'Ignored', ImageDescription: 'Created' },
+      { overwriteOriginal: true, writeMode: 'c' },
+    );
+    assertEquals(createOnly.written.includes('EXIF:ImageDescription'), true);
+    assertEquals(createOnly.modeSkipped, ['Make']);
+    let info = await tool.read(file);
+    assertEquals(info.tags.Make, 'Canon');
+    assertEquals(info.tags.ImageDescription, 'Created');
+
+    const writeOnly = await writeTags(
+      file,
+      { Make: 'Updated', GPSMapDatum: 'WGS-84' },
+      { overwriteOriginal: true, writeMode: 'w' },
+    );
+    assertEquals(writeOnly.written.includes('EXIF:Make'), true);
+    assertEquals(writeOnly.modeSkipped, ['GPSMapDatum']);
+    info = await tool.read(file);
+    assertEquals(info.tags.Make, 'Updated');
+    assertEquals(info.tags.GPSMapDatum, undefined);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('writeTags requires g to create an XMP group but allows additions to an existing group', async () => {
+  const fresh = await tempFile('.jpg');
+  const original = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+  await writeFile(fresh, original);
+  try {
+    const createOnly = await writeTags(
+      fresh,
+      { 'XMP-dc:Subject': ['new group'] },
+      { overwriteOriginal: true, writeMode: 'c' },
+    );
+    assertEquals(createOnly.written, []);
+    assertEquals(createOnly.modeSkipped, ['XMP-dc:Subject']);
+    assertEquals(Buffer.compare(await readFile(fresh), original), 0);
+
+    const createGroup = await writeTags(
+      fresh,
+      { 'XMP-dc:Subject': ['new group'] },
+      { overwriteOriginal: true, writeMode: 'cg' },
+    );
+    assertEquals(createGroup.written.includes('XMP-dc:Subject'), true);
+    assertEquals((await tool.read(fresh)).tags.Subject, 'new group');
+  } finally {
+    await rm(fresh, { force: true });
+  }
+
+  const existingGroup = await makeTmpJpeg();
+  try {
+    const createdProperty = await writeTags(
+      existingGroup,
+      { 'XMP-dc:Subject': ['new property'] },
+      { overwriteOriginal: true, writeMode: 'c' },
+    );
+    assertEquals(createdProperty.written.includes('XMP-dc:Subject'), true);
+    assertEquals((await tool.read(existingGroup)).tags.Subject, 'new property');
+
+    const writeExistingGroup = await writeTags(
+      existingGroup,
+      { 'XMP-dc:Description': 'write into existing group' },
+      { overwriteOriginal: true, writeMode: 'w' },
+    );
+    assertEquals(writeExistingGroup.written.includes('XMP-dc:Description'), true);
+    assertEquals((await tool.read(existingGroup)).tags.Description, 'write into existing group');
+  } finally {
+    await rm(existingGroup, { force: true });
+  }
+});
+
+test('writeTags rejects invalid write modes without modifying the file', async () => {
+  const file = await makeTmpJpeg();
+  const original = await readFile(file);
+  try {
+    let error: unknown;
+    try {
+      await writeTags(file, { Make: 'Changed' }, { overwriteOriginal: true, writeMode: 'wx' });
+    } catch (caught) {
+      error = caught;
+    }
+    assertEquals(error instanceof UnsupportedFormatError, true);
+    assertEquals(Buffer.compare(await readFile(file), original), 0);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('writeTags can overwrite in place while preserving hard links', async () => {
+  const file = await makeTmpJpeg();
+  const hardlink = `${file}.hardlink`;
+  try {
+    await link(file, hardlink);
+    const originalInode = (await stat(file)).ino;
+    const result = await writeTags(file, { Software: 'in-place-write' }, {
+      overwriteOriginalInPlace: true,
+    });
+    assertEquals(result.backup, undefined);
+    assertEquals((await stat(file)).ino, originalInode);
+    assertEquals((await stat(hardlink)).ino, originalInode);
+    assertEquals((await tool.read(hardlink)).tags.Software, 'in-place-write');
+  } finally {
+    await rm(file, { force: true });
+    await rm(hardlink, { force: true });
+  }
+});
+
+test('writeTags preserves file permission bits during replacement', async () => {
+  const file = await makeTmpJpeg();
+  try {
+    await chmod(file, 0o640);
+    await writeTags(file, { Make: 'Updated' }, { overwriteOriginal: true });
+    assertEquals((await stat(file)).mode & 0o777, 0o640);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('writeTags forwards compression to the PNG writer', async () => {
+  const file = await tempFile('.png');
+  const value = 'pipeline-compressed-comment '.repeat(40);
+  try {
+    await writeFile(file, await readFile('vendor/exiftool/t/images/PNG.png'));
+    await writeTags(file, { 'PNG:Comment': value }, { overwriteOriginal: true, compress: true });
+    const bytes = await readFile(file);
+    assertEquals(bytes.includes(Buffer.from('zTXt')), true);
+    assertEquals((await tool.read(file)).tags.Comment, value);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('writeTags preserves the source modification time when requested', async () => {
+  const file = await makeTmpJpeg();
+  const originalMtime = new Date('2020-01-02T03:04:05.000Z');
+  try {
+    await utimes(file, originalMtime, originalMtime);
+    await writeTags(file, { Make: 'Zeta' }, { overwriteOriginal: true, preserveTime: true });
+    const writtenStat = await stat(file);
+    assertEquals(Math.abs(writtenStat.mtimeMs - originalMtime.getTime()) < 1, true);
   } finally {
     await rm(file, { force: true });
   }

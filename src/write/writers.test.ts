@@ -76,6 +76,19 @@ test('jpegWriter rejects non-JPEG input', () => {
   }
 });
 
+test('webpWriter removes its XMP chunk and clears the VP8X flag when deleting the last property', () => {
+  const seeded = webpWriter(buildWebp(), { 'XMP-dc:Title': 'Only property' });
+  const deleted = webpWriter(seeded.bytes, { 'XMP-dc:Title': null });
+  let foundXmp = false;
+  for (let pos = 12; pos + 8 <= deleted.bytes.length;) {
+    const id = new TextDecoder().decode(deleted.bytes.subarray(pos, pos + 4));
+    const size = new DataView(deleted.bytes.buffer, deleted.bytes.byteOffset + pos + 4, 4).getUint32(0, true);
+    if (id === 'XMP ') foundXmp = true;
+    pos += 8 + size + (size % 2);
+  }
+  assertEquals(foundXmp, false);
+  assertEquals((deleted.bytes[20]! & 0x04) === 0, true);
+});
 // --- PNG container ---
 
 function pngChunk(type: string, data: Uint8Array): number[] {
@@ -123,6 +136,103 @@ test('pngWriter adds eXIf to files without one', async () => {
   assertEquals(info.tags.Make, 'PngNew');
 });
 
+test('pngWriter creates ExifIFD and GPS directories in a new eXIf chunk', async () => {
+  const written = pngWriter(buildPng(false), {
+    DateTimeOriginal: '2024:04:05 06:07:08',
+    GPSLatitude: 43.5,
+    GPSLongitude: -71.25,
+  });
+  const local = await pngParser.parse(written.bytes, '(test)');
+  assertEquals(local.tags.DateTimeOriginal, '2024:04:05 06:07:08');
+  assertEquals(typeof local.tags.GPSLatitude, 'string');
+  assertEquals(typeof local.tags.GPSLongitude, 'string');
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, written.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-G1', '-DateTimeOriginal', '-GPSLatitude', '-GPSLongitude', '-GPSLongitudeRef', file],
+    );
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream['ExifIFD:DateTimeOriginal'], local.tags.DateTimeOriginal);
+    assertEquals(upstream['GPS:GPSLongitude'], `71 deg 15' 0.00"`);
+    assertEquals(upstream['GPS:GPSLongitudeRef'], 'West');
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
+test('pngWriter stores CreateDate and ModDate as XMP-formatted text', async () => {
+  const written = pngWriter(buildPng(false), {
+    'PNG:CreateDate': '2024:04:05 06:07:08Z',
+    'PNG:ModDate': '2024:04:05 06:07:08-05:00',
+  });
+  const local = await pngParser.parse(written.bytes, '(test)');
+  assertEquals(local.tags.CreateDate, '2024:04:05 06:07:08Z');
+  assertEquals(local.tags.ModDate, '2024:04:05 06:07:08-05:00');
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, written.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-G1', '-PNG:CreateDate', '-PNG:ModDate', file],
+    );
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream['PNG:CreateDate'], local.tags.CreateDate);
+    assertEquals(upstream['PNG:ModDate'], local.tags.ModDate);
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
+test('pngWriter preserves unrelated eXIf tags when updating one tag', async () => {
+  const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  const source = new Uint8Array([
+    ...sig,
+    ...pngChunk('IHDR', new Uint8Array(13)),
+    ...pngChunk('eXIf', buildTiff({ Make: 'OldCo', Model: 'Camera 1' }).bytes),
+    ...pngChunk('IDAT', new Uint8Array([1, 2, 3])),
+    ...pngChunk('IEND', new Uint8Array()),
+  ]);
+  const written = pngWriter(source, { Make: 'NewCo' });
+  const local = await pngParser.parse(written.bytes, '(test)');
+  assertEquals(local.tags.Make, 'NewCo');
+  assertEquals(local.tags.Model, 'Camera 1');
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, written.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-G1', '-Make', '-Model', file],
+    );
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream['IFD0:Make'], 'NewCo');
+    assertEquals(upstream['IFD0:Model'], 'Camera 1');
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
+test('pngWriter deletes one EXIF tag and preserves unrelated tags', async () => {
+  const seeded = pngWriter(buildPng(true), { Make: 'OldCo', Model: 'Camera' });
+  const deleted = pngWriter(seeded.bytes, { Make: null });
+  const info = await pngParser.parse(deleted.bytes, '(test)');
+  assertEquals(info.tags.Make, undefined);
+  assertEquals(info.tags.Model, 'Camera');
+});
+
 test('pngWriter rejects non-PNG input', () => {
   try {
     pngWriter(new Uint8Array(32), { Make: 'X' });
@@ -131,6 +241,236 @@ test('pngWriter rejects non-PNG input', () => {
     assertEquals(e instanceof UnsupportedFormatError, true);
   }
 });
+
+test('pngWriter inserts, replaces, and deletes an iCCP profile', async () => {
+  const profile = new Uint8Array(
+    (await import('node:fs')).readFileSync('vendor/exiftool/t/images/ICC_Profile.icc'),
+  );
+  const original = buildPng(false);
+  const written = pngWriter(original, {
+    ICC_Profile: profile,
+    'PNG:ProfileName': 'Adobe RGB (1998)',
+  });
+  assertEquals(written.written, ['ICC_Profile', 'PNG:ProfileName']);
+  const iccp = chunkDataForTest(written.bytes, 'iCCP')!;
+  assertEquals(new TextDecoder().decode(iccp.subarray(0, iccp.indexOf(0))), 'Adobe RGB (1998)');
+  const method = iccp[iccp.indexOf(0) + 1];
+  assertEquals(method, 0);
+  assertEquals(iccp[iccp.indexOf(0) + 2], 0x78);
+  assertEquals(Array.from(chunkDataForTest(written.bytes, 'IDAT')!), [1, 2, 3]);
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, written.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-ProfileFileSignature', '-ProfileName', file],
+    );
+    const info = JSON.parse(stdout)[0];
+    assertEquals(info.ProfileFileSignature, 'acsp');
+    assertEquals(info.ProfileName, 'Adobe RGB (1998)');
+
+    const nameOnly = pngWriter(written.bytes, { 'PNG:ProfileName': 'Name only' });
+    assertEquals(nameOnly.skipped, ['PNG:ProfileName']);
+    assertEquals(
+      Array.from(chunkDataForTest(nameOnly.bytes, 'iCCP')!),
+      Array.from(iccp),
+    );
+    await writeFile(file, written.bytes);
+    await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-overwrite_original', '-PNG:ProfileName=Name only', file],
+    );
+    const { stdout: unchangedName } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-ProfileName', file],
+    );
+    assertEquals(JSON.parse(unchangedName)[0].ProfileName, 'Adobe RGB (1998)');
+
+    const deleted = pngWriter(written.bytes, { ICC_Profile: null });
+    assertEquals(chunkDataForTest(deleted.bytes, 'iCCP'), undefined);
+    await rm(file, { force: true });
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
+test('pngWriter preserves an existing iCCP name when replacing only the profile', async () => {
+  const profile = new Uint8Array(
+    (await import('node:fs')).readFileSync('vendor/exiftool/t/images/ICC_Profile.icc'),
+  );
+  const original = pngWriter(buildPng(false), {
+    ICC_Profile: profile,
+    'PNG:ProfileName': 'Adobe RGB (1998)',
+  });
+  const replaced = pngWriter(original.bytes, { ICC_Profile: profile });
+  const local = await pngParser.parse(replaced.bytes, '(test)');
+  assertEquals(local.tags.ICC_Profile_Name, 'Adobe RGB (1998)');
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, replaced.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-PNG:ProfileName', file],
+    );
+    assertEquals(JSON.parse(stdout)[0].ProfileName, 'Adobe RGB (1998)');
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
+test('pngWriter compresses text as zTXt when it saves space', async () => {
+  const value = 'compressed PNG comment '.repeat(40);
+  const written = pngWriter(buildPng(false), { Comment: value }, { compress: true });
+  assertEquals(new TextDecoder().decode(written.bytes).includes('zTXt'), true);
+  assertEquals((await pngParser.parse(written.bytes, '(compressed test)')).tags.Comment, value);
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, written.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-G1', '-PNG:Comment', file],
+    );
+    assertEquals(JSON.parse(stdout)[0]['PNG:Comment'], value);
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
+test('pngWriter preserves existing zTXt encoding when replacing a text value', async () => {
+  const originalValue = 'original compressed comment '.repeat(40);
+  const updatedValue = 'updated compressed comment '.repeat(40);
+  const original = pngWriter(buildPng(false), { Comment: originalValue }, { compress: true });
+  const updated = pngWriter(original.bytes, { Comment: updatedValue });
+  assertEquals(chunkDataForTest(updated.bytes, 'zTXt') !== undefined, true);
+  assertEquals((await pngParser.parse(updated.bytes, '(updated compressed test)')).tags.Comment, updatedValue);
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, updated.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-G1', '-PNG:Comment', file],
+    );
+    assertEquals(JSON.parse(stdout)[0]['PNG:Comment'], updatedValue);
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
+test('pngWriter moves late text chunks before IDAT and preserves other chunks', async () => {
+  const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  const source = new Uint8Array([
+    ...sig,
+    ...pngChunk('IHDR', new Uint8Array(13)),
+    ...pngChunk('IDAT', new Uint8Array([1, 2, 3])),
+    ...pngChunk('tEXt', new TextEncoder().encode('Title\0Late title')),
+    ...pngChunk('vpAg', new Uint8Array([4, 5])),
+    ...pngChunk('IEND', new Uint8Array()),
+  ]);
+  const written = pngWriter(source, {});
+  const types: string[] = [];
+  for (let pos = 8; pos + 12 <= written.bytes.length;) {
+    const length = new DataView(written.bytes.buffer, written.bytes.byteOffset + pos, 4).getUint32(0, false);
+    types.push(new TextDecoder().decode(written.bytes.subarray(pos + 4, pos + 8)));
+    pos += length + 12;
+  }
+  assertEquals(types, ['IHDR', 'tEXt', 'IDAT', 'vpAg', 'IEND']);
+  assertEquals((await pngParser.parse(written.bytes, '(ordered test)')).tags.Title, 'Late title');
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, source);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-overwrite_original', '-Title=Late title', file],
+    );
+    const upstream = new Uint8Array(await (await import('node:fs/promises')).readFile(file));
+    const upstreamTypes: string[] = [];
+    for (let pos = 8; pos + 12 <= upstream.length;) {
+      const length = new DataView(upstream.buffer, upstream.byteOffset + pos, 4).getUint32(0, false);
+      upstreamTypes.push(new TextDecoder().decode(upstream.subarray(pos + 4, pos + 8)));
+      pos += length + 12;
+    }
+    assertEquals(upstreamTypes.indexOf('tEXt') < upstreamTypes.indexOf('IDAT'), true);
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
+test('pngWriter does not move late text chunks across a SAVE barrier', () => {
+  const sig = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]);
+  const source = new Uint8Array([
+    ...sig,
+    ...pngChunk('IHDR', new Uint8Array(13)),
+    ...pngChunk('IDAT', new Uint8Array([1, 2, 3])),
+    ...pngChunk('SAVE', new Uint8Array([1])),
+    ...pngChunk('tEXt', new TextEncoder().encode('Title\0After barrier')),
+    ...pngChunk('IEND', new Uint8Array()),
+  ]);
+  const written = pngWriter(source, {});
+  const types: string[] = [];
+  for (let pos = 8; pos + 12 <= written.bytes.length;) {
+    const length = new DataView(written.bytes.buffer, written.bytes.byteOffset + pos, 4).getUint32(0, false);
+    types.push(new TextDecoder().decode(written.bytes.subarray(pos + 4, pos + 8)));
+    pos += length + 12;
+  }
+  assertEquals(types, ['IHDR', 'IDAT', 'SAVE', 'tEXt', 'IEND']);
+});
+
+test('pngWriter compresses language-qualified text as iTXt', async () => {
+  const firstValue = 'Commentaire répété '.repeat(40);
+  const value = 'Commentaire modifié '.repeat(40);
+  const first = pngWriter(buildPng(false), { 'PNG:Comment-fr': firstValue }, { compress: true });
+  const written = pngWriter(first.bytes, { 'PNG:Comment-fr': value });
+  const itxt = chunkDataForTest(written.bytes, 'iTXt')!;
+  const keywordEnd = itxt.indexOf(0);
+  assertEquals(itxt[keywordEnd + 1], 1);
+  assertEquals((await pngParser.parse(written.bytes, '(compressed language test)')).tags['Comment-fr'], value);
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, written.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-G1', '-PNG:Comment-fr', file],
+    );
+    assertEquals(JSON.parse(stdout)[0]['PNG:Comment-fr'], value);
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
+function chunkDataForTest(bytes: Uint8Array, wanted: string): Uint8Array | undefined {
+  let offset = 8;
+  while (offset + 12 <= bytes.length) {
+    const length = new DataView(bytes.buffer, bytes.byteOffset + offset, 4).getUint32(0, false);
+    const type = new TextDecoder().decode(bytes.subarray(offset + 4, offset + 8));
+    if (type === wanted) return bytes.subarray(offset + 8, offset + 8 + length);
+    offset += length + 12;
+  }
+  return undefined;
+}
 
 // --- WebP container ---
 
@@ -159,6 +499,49 @@ test('webpWriter sets the EXIF flag and swaps the EXIF chunk', async () => {
   assertEquals(info.tags.Make, 'WebpCo');
 });
 
+test('webpWriter deletes one EXIF tag and preserves unrelated tags', async () => {
+  const seeded = webpWriter(buildWebp(), { Make: 'OldCo', Model: 'Camera' });
+  const deleted = webpWriter(seeded.bytes, { Make: null });
+  const info = await webpParser.parse(deleted.bytes, '(test)');
+  assertEquals(info.tags.Make, undefined);
+  assertEquals(info.tags.Model, 'Camera');
+});
+
+test('webpWriter preserves unrelated EXIF tags when updating one tag', async () => {
+  const body = [
+    ...riffChunk('VP8X', [0, 7, 0, 0, 5, 0, 0, 0, 0, 0]),
+    ...riffChunk('EXIF', [...chars('Exif\0\0'), ...buildTiff({ Make: 'OldCo', Model: 'Camera 1' }).bytes]),
+    ...riffChunk('VP8 ', [1, 2, 3]),
+  ];
+  const source = new Uint8Array([
+    ...chars('RIFF'),
+    ...u32le(4 + body.length),
+    ...chars('WEBP'),
+    ...body,
+  ]);
+  const written = webpWriter(source, { Make: 'NewCo' });
+  const local = await webpParser.parse(written.bytes, '(test)');
+  assertEquals(local.tags.Make, 'NewCo');
+  assertEquals(local.tags.Model, 'Camera 1');
+
+  const file = await (await import('../test/tmp.js')).tempFile('.webp');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, written.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-G1', '-Make', '-Model', file],
+    );
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream['IFD0:Make'], 'NewCo');
+    assertEquals(upstream['IFD0:Model'], 'Camera 1');
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
 test('webpWriter requires an existing VP8X chunk', () => {
   const noVp8x = new Uint8Array([
     ...chars('RIFF'),
@@ -180,6 +563,49 @@ test('webpWriter rejects non-WebP input', () => {
     throw new Error('should have thrown');
   } catch (e) {
     assertEquals(e instanceof UnsupportedFormatError, true);
+  }
+});
+test('webpWriter writes and deletes ICCP profiles with the VP8X flag', async () => {
+  const profile = new Uint8Array(
+    (await import('node:fs')).readFileSync('vendor/exiftool/t/images/ICC_Profile.icc'),
+  );
+  const source = buildWebp();
+  const written = webpWriter(source, { ICC_Profile: profile });
+  const info = await webpParser.parse(written.bytes, 'icc.webp');
+  assertEquals(written.written, ['ICC_Profile']);
+  assertEquals(info.tags.WebP_ICC, true);
+  const bytes = written.bytes;
+  let offset = 12;
+  const chunks: string[] = [];
+  let iccp: Uint8Array | undefined;
+  while (offset + 8 <= bytes.length) {
+    const id = String.fromCharCode(...bytes.subarray(offset, offset + 4));
+    const size = new DataView(bytes.buffer, bytes.byteOffset + offset + 4, 4).getUint32(0, true);
+    chunks.push(id);
+    if (id === 'ICCP') iccp = bytes.subarray(offset + 8, offset + 8 + size);
+    offset += 8 + size + (size % 2);
+  }
+  assertEquals(chunks.includes('ICCP'), true);
+  assertEquals(Array.from(iccp!), Array.from(profile));
+
+  const file = await (await import('../test/tmp.js')).tempFile('.webp');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    await writeFile(file, written.bytes);
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-ProfileFileSignature', file],
+    );
+    assertEquals(JSON.parse(stdout)[0].ProfileFileSignature, 'acsp');
+
+    const deleted = webpWriter(written.bytes, { ICC_Profile: null });
+    const deletedInfo = await webpParser.parse(deleted.bytes, 'icc.webp');
+    assertEquals(deletedInfo.tags.WebP_ICC, false);
+    await rm(file, { force: true });
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
   }
 });
 
@@ -221,7 +647,7 @@ test('avifWriter rejects non-ISOBMFF input', () => {
 });
 
 test('supportedWriteFormats lists the five containers', async () => {
-  assertEquals(await supportedWriteFormats(), ['JPEG', 'PNG', 'WebP', 'AVIF', 'TIFF']);
+  assertEquals(await supportedWriteFormats(), ['JPEG', 'GIF', 'PNG', 'PPM', 'PGM', 'PBM', 'WebP', 'AVIF', 'TIFF', 'EXIF', 'EXV', 'ICC', 'XMP']);
 });
 
 test('jpegWriter skips RST markers while rebuilding', async () => {
@@ -320,6 +746,55 @@ test('pngWriter writes an XMP iTXt chunk readable by the parser', async () => {
   assertEquals(Array.from(out2.bytes), Array.from(out.bytes));
 });
 
+test('pngWriter deletes one XMP property and preserves packet siblings', async () => {
+  const seeded = pngWriter(buildPng(false), {
+    'XMP-dc:Title': 'Remove me',
+    'XMP-dc:Description': 'Keep me',
+  });
+  const deleted = pngWriter(seeded.bytes, { 'XMP-dc:Title': null });
+  const local = await pngParser.parse(deleted.bytes, '(test)');
+  assertEquals(local.tags.Title, undefined);
+  assertEquals(local.tags.Description, 'Keep me');
+  assertEquals(deleted.written, ['XMP-dc:Title']);
+  assertEquals(deleted.skipped, []);
+
+  const missing = pngWriter(buildPng(false), { 'XMP-dc:Title': null });
+  assertEquals(missing.written, []);
+  assertEquals(missing.skipped, ['XMP-dc:Title']);
+
+  const file = await (await import('../test/tmp.js')).tempFile('.png');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, deleted.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-XMP-dc:Title', '-XMP-dc:Description', file],
+    );
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream.Title, undefined);
+    assertEquals(upstream.Description, 'Keep me');
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+});
+
+test('pngWriter removes the XMP chunk when deleting its last property', () => {
+  const seeded = pngWriter(buildPng(false), { 'XMP-dc:Title': 'Only property' });
+  const deleted = pngWriter(seeded.bytes, { 'XMP-dc:Title': null });
+  let foundXmp = false;
+  for (let pos = 8; pos + 12 <= deleted.bytes.length;) {
+    const length = new DataView(deleted.bytes.buffer, deleted.bytes.byteOffset + pos, 4).getUint32(0, false);
+    const type = new TextDecoder().decode(deleted.bytes.subarray(pos + 4, pos + 8));
+    if (type === 'iTXt' && new TextDecoder().decode(deleted.bytes.subarray(pos + 8, pos + 25)) === 'XML:com.adobe.xmp') {
+      foundXmp = true;
+    }
+    pos += length + 12;
+  }
+  assertEquals(foundXmp, false);
+});
+
 test('webpWriter writes an XMP chunk readable by the parser', async () => {
   const tags = { 'XMP-dc:Subject': ['w'], 'XMP-dc:Title': 'Webp Xmp' };
   const out = webpWriter(buildWebp(), tags);
@@ -329,6 +804,51 @@ test('webpWriter writes an XMP chunk readable by the parser', async () => {
   assertEquals(Array.isArray(infoTags.XMP) || typeof infoTags.XMP === 'string', true);
   const out2 = webpWriter(out.bytes, tags);
   assertEquals(Array.from(out2.bytes), Array.from(out.bytes));
+});
+
+test('webpWriter deletes one XMP property and preserves packet siblings', async () => {
+  const seeded = webpWriter(buildWebp(), {
+    'XMP-dc:Title': 'Remove me',
+    'XMP-dc:Description': 'Keep me',
+  });
+  const deleted = webpWriter(seeded.bytes, { 'XMP-dc:Title': null });
+  const chunk = new DataView(deleted.bytes.buffer, deleted.bytes.byteOffset, deleted.bytes.byteLength);
+  let packet: string | undefined;
+  for (let pos = 12; pos + 8 <= deleted.bytes.length;) {
+    const id = new TextDecoder().decode(deleted.bytes.subarray(pos, pos + 4));
+    const size = chunk.getUint32(pos + 4, true);
+    if (id === 'XMP ') packet = new TextDecoder().decode(deleted.bytes.subarray(pos + 8, pos + 8 + size));
+    pos += 8 + size + (size % 2);
+  }
+  const { parseXMP } = await import('../exif/xmp.js');
+  const xmpTags = parseXMP(packet ?? '');
+  const local = await webpParser.parse(deleted.bytes, '(test)');
+  assertEquals(xmpTags.Title, undefined);
+  assertEquals(xmpTags.Description, 'Keep me');
+  assertEquals(local.tags.WebP_XMP, true);
+  assertEquals(deleted.written, ['XMP-dc:Title']);
+  assertEquals(deleted.skipped, []);
+
+  const file = await (await import('../test/tmp.js')).tempFile('.webp');
+  try {
+    const { writeFile, rm } = await import('node:fs/promises');
+    await writeFile(file, deleted.bytes);
+    const { execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const { stdout } = await promisify(execFile)(
+      new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname,
+      ['-j', '-XMP-dc:Title', '-XMP-dc:Description', file],
+    );
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream.Title, undefined);
+    assertEquals(upstream.Description, 'Keep me');
+  } finally {
+    await (await import('node:fs/promises')).rm(file, { force: true });
+  }
+
+  const missing = webpWriter(buildWebp(), { 'XMP-dc:Title': null });
+  assertEquals(missing.written, []);
+  assertEquals(missing.skipped, ['XMP-dc:Title']);
 });
 
 test('pngWriter keeps existing chunks untouched when only XMP requested', async () => {

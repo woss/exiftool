@@ -1,13 +1,17 @@
 import { test } from 'vitest';
 import { assertEquals } from '../../src/test/asserts.js';
-import { main, normalizeArgs, runAction } from '../cli.js';
+import { main, normalizeArgs, parseCliArgs, runAction } from '../cli.js';
 import type { CliOptions } from '../cli.js';
 import { ExifTool } from '../../src/exiftool.js';
-import { spawn } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { execFile, spawn } from 'node:child_process';
+import { promisify } from 'node:util';
+import { link, mkdir, mkdtemp, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join, sep } from 'node:path';
 import { tempFile } from '../../src/test/tmp.js';
+
+const execFileP = promisify(execFile);
+const upstreamExifTool = new URL('../../vendor/exiftool/exiftool', import.meta.url).pathname;
 
 function captureConsole() {
   const origLog = console.log;
@@ -91,6 +95,62 @@ test('runAction --json emits parseable JSON array', async () => {
   }
 });
 
+test('runAction read mode projects selected tags without treating them as paths', async () => {
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ json: true }, '-Make', 'assets/01.jpg');
+    assertEquals(code, 0);
+    const [entry] = JSON.parse(cap.out.join('\n')) as Record<string, unknown>[];
+    assertEquals(entry?.Make, 'Canon');
+    assertEquals('Model' in (entry ?? {}), false);
+  } finally {
+    cap.restore();
+  }
+});
+
+test('runAction treats -all as selecting every read tag', async () => {
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ json: true }, '-all', 'assets/01.jpg');
+    assertEquals(code, 0);
+    const [entry] = JSON.parse(cap.out.join('\n')) as Record<string, unknown>[];
+    assertEquals(entry?.Make, 'Canon');
+    assertEquals(entry?.Model, 'Canon EOS 700D');
+  } finally {
+    cap.restore();
+  }
+});
+
+test('runAction read mode excludes selected tags while retaining the rest', async () => {
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ json: true }, '--Model', 'assets/01.jpg');
+    assertEquals(code, 0);
+    const [entry] = JSON.parse(cap.out.join('\n')) as Record<string, unknown>[];
+    assertEquals(entry?.Make, 'Canon');
+    assertEquals('Model' in (entry ?? {}), false);
+  } finally {
+    cap.restore();
+  }
+});
+
+test('runAction evaluates -if against full tags before read-mode projection', async () => {
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { json: true, if: ['$Model eq Canon EOS 700D'] },
+      '-Make',
+      'assets/01.jpg',
+    );
+    assertEquals(code, 0);
+    const [entry] = JSON.parse(cap.out.join('\n')) as Record<string, unknown>[];
+    assertEquals(entry?.Make, 'Canon');
+    assertEquals('Model' in (entry ?? {}), false);
+  } finally {
+    cap.restore();
+  }
+});
+
 test('runAction --csv emits CSV rows', async () => {
   const cap = captureConsole();
   try {
@@ -127,6 +187,29 @@ test('runAction -b dumps raw binary bytes to stdout', async () => {
     assertEquals(code, 0);
     assertEquals(collected.length, expected.length);
     assertEquals(new Uint8Array(collected), new Uint8Array(expected));
+  } finally {
+    stdout.write = origWrite;
+    cap.restore();
+  }
+});
+
+test('runAction -b emits only explicitly selected binary tags', async () => {
+  const tool = new ExifTool();
+  const info = await tool.read('assets/01.jpg');
+  const selected = info.tags.ThumbnailImage;
+  if (!(selected instanceof Uint8Array)) throw new Error('expected ThumbnailImage binary data');
+  const stdout = process.stdout as unknown as { write: (data: Uint8Array) => boolean };
+  const origWrite = stdout.write.bind(stdout);
+  const collected: number[] = [];
+  stdout.write = (data: Uint8Array): boolean => {
+    collected.push(...data);
+    return true;
+  };
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ binary: true }, '-ThumbnailImage', 'assets/01.jpg');
+    assertEquals(code, 0);
+    assertEquals(Buffer.compare(Buffer.from(collected), Buffer.from(selected!)), 0);
   } finally {
     stdout.write = origWrite;
     cap.restore();
@@ -351,6 +434,27 @@ test('runAction walks directories with recurse, extension filter, and ignore', a
   }
 });
 
+test('runAction recursively writes matching extensions only', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'exiftool-ts-write-recursive-'));
+  try {
+    await mkdir(join(root, 'nested'), { recursive: true });
+    await writeFile(join(root, 'top.jpg'), await readFile('assets/01.jpg'));
+    await writeFile(join(root, 'nested', 'inside.JPG'), await readFile('assets/03.jpg'));
+    await writeFile(join(root, 'note.txt'), 'untouched');
+    const code = await runAction(
+      { recurse: true, extension: ['jpg'], overwriteOriginal: true },
+      '-Software=recursive-write',
+      root,
+    );
+    assertEquals(code, 0);
+    assertEquals((await new ExifTool().read(join(root, 'top.jpg'))).tags.Software, 'recursive-write');
+    assertEquals((await new ExifTool().read(join(root, 'nested', 'inside.JPG'))).tags.Software, 'recursive-write');
+    assertEquals(await readFile(join(root, 'note.txt'), 'utf8'), 'untouched');
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test('runAction continues after unreadable files and reports each failure', async () => {
   const cap = captureConsole();
   try {
@@ -409,6 +513,17 @@ test('runAction -o writes formatter output to a file instead of stdout', async (
     assertEquals(written.includes('Canon EOS 700D'), true);
   } finally {
     await rm(out);
+  }
+});
+
+test('runAction read mode sends -o - output to stdout', async () => {
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ output: '-', json: true }, 'assets/01.jpg');
+    assertEquals(code, 0);
+    assertEquals(JSON.parse(cap.out.join('\n'))[0].Make, 'Canon');
+  } finally {
+    cap.restore();
   }
 });
 
@@ -527,6 +642,1049 @@ test('runAction write mode updates file and creates backup', async () => {
   }
 });
 
+test('runAction writes updated metadata to -o output without modifying input', async () => {
+  const input = await tempFile('.jpg');
+  const output = await tempFile('.jpg');
+  await rm(output, { force: true });
+  await writeFile(input, await readFile('assets/01.jpg'));
+  const original = await readFile(input);
+  try {
+    const code = await runAction(
+      { output, overwriteOriginal: true },
+      '-Software=separate-output',
+      input,
+    );
+    assertEquals(code, 0);
+    assertEquals(Buffer.compare(await readFile(input), original), 0);
+    assertEquals((await new ExifTool().read(output)).tags.Software, 'separate-output');
+  } finally {
+    await rm(input, { force: true });
+    await rm(output, { force: true });
+    await rm(`${input}_original`, { force: true });
+    await rm(`${output}_original`, { force: true });
+  }
+});
+
+test('runAction writes metadata output to stdout for -o -', async () => {
+  const input = await tempFile('.jpg');
+  await writeFile(input, await readFile('assets/01.jpg'));
+  const original = await readFile(input);
+  const originalStdoutWrite = process.stdout.write;
+  let emitted = Buffer.alloc(0);
+  process.stdout.write = ((chunk: string | Uint8Array, encoding?: BufferEncoding | ((error?: Error | null) => void), callback?: (error?: Error | null) => void) => {
+    emitted = Buffer.from(typeof chunk === 'string' ? chunk : chunk);
+    const done = typeof encoding === 'function' ? encoding : callback;
+    done?.();
+    return true;
+  }) as typeof process.stdout.write;
+  try {
+    const code = await runAction({ output: '-', overwriteOriginal: true }, '-Software=stdout-output', input);
+    assertEquals(code, 0);
+    assertEquals(Buffer.compare(await readFile(input), original), 0);
+    const output = await tempFile('.jpg');
+    try {
+      await writeFile(output, emitted);
+      assertEquals((await new ExifTool().read(output)).tags.Software, 'stdout-output');
+    } finally {
+      await rm(output, { force: true });
+    }
+  } finally {
+    process.stdout.write = originalStdoutWrite;
+    await rm(input, { force: true });
+  }
+});
+
+test('runAction streams every batch output for -o -', async () => {
+  const first = await tempFile('.jpg');
+  const second = await tempFile('.jpg');
+  await writeFile(first, await readFile('assets/01.jpg'));
+  await writeFile(second, await readFile('assets/03.jpg'));
+  const firstOriginal = await readFile(first);
+  const secondOriginal = await readFile(second);
+  const originalStdoutWrite = process.stdout.write;
+  const emitted: Buffer[] = [];
+  process.stdout.write = ((chunk: string | Uint8Array, encoding?: BufferEncoding | ((error?: Error | null) => void), callback?: (error?: Error | null) => void) => {
+    emitted.push(Buffer.from(typeof chunk === 'string' ? chunk : chunk));
+    const done = typeof encoding === 'function' ? encoding : callback;
+    done?.();
+    return true;
+  }) as typeof process.stdout.write;
+  try {
+    const code = await runAction(
+      { output: '-', overwriteOriginal: true },
+      '-Software=batch-stdout',
+      first,
+      second,
+    );
+    assertEquals(code, 0);
+    assertEquals(emitted.length, 2);
+    for (const bytes of emitted) {
+      const output = await tempFile('.jpg');
+      try {
+        await writeFile(output, bytes);
+        assertEquals((await new ExifTool().read(output)).tags.Software, 'batch-stdout');
+      } finally {
+        await rm(output, { force: true });
+      }
+    }
+    assertEquals(Buffer.compare(await readFile(first), firstOriginal), 0);
+    assertEquals(Buffer.compare(await readFile(second), secondOriginal), 0);
+  } finally {
+    process.stdout.write = originalStdoutWrite;
+    await rm(first, { force: true });
+    await rm(second, { force: true });
+  }
+});
+
+test('runAction rejects multiple write inputs for a single -o destination', async () => {
+  const first = await tempFile('.jpg');
+  const second = await tempFile('.jpg');
+  const output = await tempFile('.jpg');
+  await writeFile(first, await readFile('assets/01.jpg'));
+  await writeFile(second, await readFile('assets/03.jpg'));
+  const firstOriginal = await readFile(first);
+  const secondOriginal = await readFile(second);
+  const outputOriginal = await readFile(output);
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { output, overwriteOriginal: true },
+      '-Software=separate-output',
+      first,
+      second,
+    );
+    assertEquals(code, 1);
+    assertEquals(Buffer.compare(await readFile(first), firstOriginal), 0);
+    assertEquals(Buffer.compare(await readFile(second), secondOriginal), 0);
+    assertEquals(Buffer.compare(await readFile(output), outputOriginal), 0);
+    assertEquals(cap.err[0]?.includes('-o currently supports one input file'), true);
+  } finally {
+    cap.restore();
+    await rm(first, { force: true });
+    await rm(second, { force: true });
+    await rm(output, { force: true });
+  }
+});
+
+test('runAction does not overwrite an existing -o destination', async () => {
+  const input = await tempFile('.jpg');
+  const output = await tempFile('.jpg');
+  await writeFile(input, await readFile('assets/01.jpg'));
+  await writeFile(output, await readFile('assets/03.jpg'));
+  const inputOriginal = await readFile(input);
+  const outputOriginal = await readFile(output);
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { output, overwriteOriginal: true },
+      '-Software=separate-output',
+      input,
+    );
+    assertEquals(code, 1);
+    assertEquals(Buffer.compare(await readFile(input), inputOriginal), 0);
+    assertEquals(Buffer.compare(await readFile(output), outputOriginal), 0);
+    assertEquals(cap.err.some((line) => line.includes('already exists')), true);
+  } finally {
+    cap.restore();
+    await rm(input, { force: true });
+    await rm(output, { force: true });
+  }
+});
+
+test('runAction rejects -o destinations with a different known format extension', async () => {
+  const input = await tempFile('.jpg');
+  const output = await tempFile('.png');
+  await rm(output, { force: true });
+  await writeFile(input, await readFile('assets/01.jpg'));
+  const inputOriginal = await readFile(input);
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { output, overwriteOriginal: true },
+      '-Software=wrong-extension',
+      input,
+    );
+    assertEquals(code, 1);
+    assertEquals(Buffer.compare(await readFile(input), inputOriginal), 0);
+    assertEquals(await stat(output).then(() => true, () => false), false);
+    assertEquals(cap.err.some((line) => line.includes('cannot convert')), true);
+  } finally {
+    cap.restore();
+    await rm(input, { force: true });
+    await rm(output, { force: true });
+  }
+});
+
+test('runAction rejects output extensions from standalone metadata formats', async () => {
+  const input = await tempFile('.jpg');
+  const output = await tempFile('.exv');
+  await rm(output, { force: true });
+  await writeFile(input, await readFile('assets/01.jpg'));
+  const original = await readFile(input);
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { output, overwriteOriginal: true },
+      '-Software=misleading-extension',
+      input,
+    );
+    assertEquals(code, 1);
+    assertEquals(Buffer.compare(await readFile(input), original), 0);
+    assertEquals(await stat(output).then(() => true, () => false), false);
+    assertEquals(cap.err.some((line) => line.includes('cannot convert')), true);
+  } finally {
+    cap.restore();
+    await rm(input, { force: true });
+    await rm(output, { force: true });
+  }
+});
+
+test('runAction writes XMP assignments to an -o .xmp sidecar', async () => {
+  const input = await tempFile('.jpg');
+  const output = await tempFile('.xmp');
+  await rm(output, { force: true });
+  await writeFile(input, await readFile('assets/01.jpg'));
+  const original = await readFile(input);
+  try {
+    const code = await runAction(
+      { output, overwriteOriginal: true },
+      '-XMP-dc:Title=Sidecar title',
+      input,
+    );
+    assertEquals(code, 0);
+    assertEquals(Buffer.compare(await readFile(input), original), 0);
+    assertEquals((await new ExifTool().read(output)).tags.Title, 'Sidecar title');
+  } finally {
+    await rm(input, { force: true });
+    await rm(output, { force: true });
+  }
+});
+
+test('runAction creates per-input sidecars from an -o XMP template', async () => {
+  const first = await tempFile('.jpg');
+  const second = await tempFile('.jpg');
+  const outputDir = await mkdtemp(join(tmpdir(), 'exiftool-cli-xmp-batch-'));
+  await writeFile(first, await readFile('assets/01.jpg'));
+  await writeFile(second, await readFile('assets/03.jpg'));
+  const firstOriginal = await readFile(first);
+  const secondOriginal = await readFile(second);
+  try {
+    const code = await runAction(
+      { output: join(outputDir, '%f.xmp'), overwriteOriginal: true },
+      '-XMP-dc:Title=batch sidecar',
+      first,
+      second,
+    );
+    assertEquals(code, 0);
+    for (const input of [first, second]) {
+      const sidecar = join(outputDir, `${basename(input, '.jpg')}.xmp`);
+      assertEquals((await new ExifTool().read(sidecar)).tags.Title, 'batch sidecar');
+    }
+    assertEquals(Buffer.compare(await readFile(first), firstOriginal), 0);
+    assertEquals(Buffer.compare(await readFile(second), secondOriginal), 0);
+  } finally {
+    await rm(first, { force: true });
+    await rm(second, { force: true });
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('runAction writes a batch to an existing -o directory', async () => {
+  const first = await tempFile('.jpg');
+  const second = await tempFile('.jpg');
+  const outputDir = await mkdtemp(join(tmpdir(), 'exiftool-cli-output-'));
+  await writeFile(first, await readFile('assets/01.jpg'));
+  await writeFile(second, await readFile('assets/03.jpg'));
+  const firstOriginal = await readFile(first);
+  const secondOriginal = await readFile(second);
+  try {
+    const code = await runAction(
+      { output: outputDir, overwriteOriginal: true },
+      '-Software=batch-output',
+      first,
+      second,
+    );
+    assertEquals(code, 0);
+    for (const input of [first, second]) {
+      const destination = join(outputDir, basename(input));
+      assertEquals((await new ExifTool().read(destination)).tags.Software, 'batch-output');
+    }
+    assertEquals(Buffer.compare(await readFile(first), firstOriginal), 0);
+    assertEquals(Buffer.compare(await readFile(second), secondOriginal), 0);
+  } finally {
+    await rm(first, { force: true });
+    await rm(second, { force: true });
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('runAction creates a missing -o directory when the path ends in a separator', async () => {
+  const input = await tempFile('.jpg');
+  const root = await mkdtemp(join(tmpdir(), 'exiftool-cli-output-root-'));
+  const outputDir = join(root, 'new-output');
+  await writeFile(input, await readFile('assets/01.jpg'));
+  try {
+    const code = await runAction(
+      { output: `${outputDir}${sep}`, overwriteOriginal: true },
+      '-Software=created-directory',
+      input,
+    );
+    assertEquals(code, 0);
+    assertEquals(
+      (await new ExifTool().read(join(outputDir, basename(input)))).tags.Software,
+      'created-directory',
+    );
+  } finally {
+    await rm(input, { force: true });
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('runAction expands common filename tokens in batch -o paths', async () => {
+  const first = await tempFile('.jpg');
+  const second = await tempFile('.jpg');
+  const outputDir = await mkdtemp(join(tmpdir(), 'exiftool-cli-template-'));
+  await writeFile(first, await readFile('assets/01.jpg'));
+  await writeFile(second, await readFile('assets/03.jpg'));
+  try {
+    const code = await runAction(
+      { output: join(outputDir, 'copy-%f.%e'), overwriteOriginal: true },
+      '-Software=template-output',
+      first,
+      second,
+    );
+    assertEquals(code, 0);
+    for (const input of [first, second]) {
+      const filename = basename(input, '.jpg');
+      const destination = join(outputDir, `copy-${filename}.jpg`);
+      assertEquals((await new ExifTool().read(destination)).tags.Software, 'template-output');
+    }
+  } finally {
+    await rm(first, { force: true });
+    await rm(second, { force: true });
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('runAction creates parent directories generated by -o templates', async () => {
+  const input = await tempFile('.jpg');
+  const root = await mkdtemp(join(tmpdir(), 'exiftool-cli-template-dir-'));
+  await writeFile(input, await readFile('assets/01.jpg'));
+  try {
+    const code = await runAction(
+      { output: join(root, 'nested', '%F'), overwriteOriginal: true },
+      '-Software=template-directory',
+      input,
+    );
+    assertEquals(code, 0);
+    assertEquals(
+      (await new ExifTool().read(join(root, 'nested', basename(input)))).tags.Software,
+      'template-directory',
+    );
+  } finally {
+    await rm(input, { force: true });
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('runAction uses %c to avoid output filename collisions', async () => {
+  const first = await tempFile('.jpg');
+  const second = await tempFile('.jpg');
+  const outputDir = await mkdtemp(join(tmpdir(), 'exiftool-cli-counter-'));
+  const existing = join(outputDir, 'copy.jpg');
+  await writeFile(first, await readFile('assets/01.jpg'));
+  await writeFile(second, await readFile('assets/03.jpg'));
+  await writeFile(existing, await readFile('assets/01.jpg'));
+  const existingBytes = await readFile(existing);
+  try {
+    const code = await runAction(
+      { output: join(outputDir, 'copy%c.%e'), overwriteOriginal: true },
+      '-Software=counter-output',
+      first,
+      second,
+    );
+    assertEquals(code, 0);
+    assertEquals((await new ExifTool().read(join(outputDir, 'copy1.jpg'))).tags.Software, 'counter-output');
+    assertEquals((await new ExifTool().read(join(outputDir, 'copy2.jpg'))).tags.Software, 'counter-output');
+    assertEquals(Buffer.compare(await readFile(existing), existingBytes), 0);
+  } finally {
+    await rm(first, { force: true });
+    await rm(second, { force: true });
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('runAction formats %c collision suffixes with separator and width', async () => {
+  const first = await tempFile('.jpg');
+  const second = await tempFile('.jpg');
+  const outputDir = await mkdtemp(join(tmpdir(), 'exiftool-cli-counter-width-'));
+  await writeFile(first, await readFile('assets/01.jpg'));
+  await writeFile(second, await readFile('assets/03.jpg'));
+  await writeFile(join(outputDir, 'copy.jpg'), await readFile('assets/01.jpg'));
+  try {
+    const code = await runAction(
+      { output: join(outputDir, 'copy%+2c.jpg'), overwriteOriginal: true },
+      '-Software=formatted-counter',
+      first,
+      second,
+    );
+    assertEquals(code, 0);
+    for (const filename of ['copy_01.jpg', 'copy_02.jpg']) {
+      assertEquals((await new ExifTool().read(join(outputDir, filename))).tags.Software, 'formatted-counter');
+    }
+  } finally {
+    await rm(first, { force: true });
+    await rm(second, { force: true });
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('runAction numbers uppercase %C output tokens from zero', async () => {
+  const first = await tempFile('.jpg');
+  const second = await tempFile('.jpg');
+  const outputDir = await mkdtemp(join(tmpdir(), 'exiftool-cli-counter-upper-'));
+  await writeFile(first, await readFile('assets/01.jpg'));
+  await writeFile(second, await readFile('assets/03.jpg'));
+  await writeFile(join(outputDir, 'copy.jpg'), await readFile('assets/01.jpg'));
+  try {
+    const code = await runAction(
+      { output: join(outputDir, 'copy%C.jpg'), overwriteOriginal: true },
+      '-Software=upper-counter',
+      first,
+      second,
+    );
+    assertEquals(code, 0);
+    for (const filename of ['copy0.jpg', 'copy1.jpg']) {
+      assertEquals((await new ExifTool().read(join(outputDir, filename))).tags.Software, 'upper-counter');
+    }
+  } finally {
+    await rm(first, { force: true });
+    await rm(second, { force: true });
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('runAction applies -if conditions to write targets', async () => {
+  const matching = await tempFile('.jpg');
+  const nonmatching = await tempFile('.jpg');
+  await writeFile(matching, await readFile('assets/01.jpg'));
+  await writeFile(nonmatching, await readFile('assets/03.jpg'));
+  const original = await readFile(nonmatching);
+  const originalSoftware = (await new ExifTool().read(nonmatching)).tags.Software;
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { overwriteOriginal: true, if: ['($Make =~ /canon/i and $Make !~ /Sony/)'] },
+      '-Software=conditional',
+      matching,
+      nonmatching,
+    );
+    assertEquals(code, 0);
+    assertEquals((await new ExifTool().read(matching)).tags.Software, 'conditional');
+    assertEquals((await new ExifTool().read(nonmatching)).tags.Software, originalSoftware);
+    assertEquals(Buffer.compare(await readFile(nonmatching), original), 0);
+    assertEquals(cap.err.includes('1 files failed condition'), true);
+  } finally {
+    cap.restore();
+    await rm(matching, { force: true });
+    await rm(nonmatching, { force: true });
+  }
+});
+
+test('runAction appends XMP Subject values to each target', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/03.jpg'));
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { overwriteOriginal: true },
+      '-Keywords+=first',
+      '-XMP-dc:Subject+=second',
+      tmp,
+    );
+    assertEquals(code, 0, cap.err.join('\n'));
+    const info = await new ExifTool().read(tmp);
+    assertEquals(info.tags.Subject, ['windsurfing', 'first', 'second']);
+  } finally {
+    cap.restore();
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction preserves duplicate XMP values when appending', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/03.jpg'));
+  try {
+    const code = await runAction(
+      { overwriteOriginal: true },
+      '-XMP-dc:Subject=duplicate',
+      '-XMP-dc:Subject+=duplicate',
+      tmp,
+    );
+    assertEquals(code, 0);
+    assertEquals((await new ExifTool().read(tmp)).tags.Subject, ['duplicate', 'duplicate']);
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction appends XMP Creator in sequence order', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/03.jpg'));
+  try {
+    const before = (await new ExifTool().read(tmp)).tags.Creator;
+    const existing = typeof before === 'string' ? [before] : Array.isArray(before) ? before : [];
+    const code = await runAction(
+      { overwriteOriginal: true },
+      '-XMP-dc:Creator+=Appended creator',
+      tmp,
+    );
+    assertEquals(code, 0);
+    const after = (await new ExifTool().read(tmp)).tags.Creator;
+    assertEquals(after, [...existing, 'Appended creator']);
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction appends XMP Contributor and Publisher values to RDF Bags', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    const tool = new ExifTool();
+    await tool.write(tmp, {
+      'XMP-dc:Contributor': ['first contributor'],
+      'XMP-dc:Publisher': ['first publisher'],
+    }, { overwriteOriginal: true });
+    const code = await runAction(
+      { overwriteOriginal: true },
+      '-XMP-dc:Contributor+=second contributor',
+      '-XMP-dc:Publisher+=second publisher',
+      tmp,
+    );
+    assertEquals(code, 0);
+    assertEquals((await tool.read(tmp)).tags.Contributor, [
+      'first contributor',
+      'second contributor',
+    ]);
+    assertEquals((await tool.read(tmp)).tags.Publisher, ['first publisher', 'second publisher']);
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction appends additional XMP Dublin Core Bag and Seq properties', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  const properties = ['Language', 'Relation', 'Type', 'Identifier', 'Date'];
+  try {
+    const tool = new ExifTool();
+    const initial = Object.fromEntries(properties.map((property) => [`XMP-dc:${property}`, [`first ${property}`]]));
+    await tool.write(tmp, initial, { overwriteOriginal: true });
+    const code = await runAction({ overwriteOriginal: true }, ...[
+      ...properties.map((property) => `-XMP-dc:${property}+=second ${property}`),
+      tmp,
+    ]);
+    assertEquals(code, 0);
+    const tags = (await tool.read(tmp)).tags;
+    for (const property of properties) {
+      assertEquals(tags[property], [`first ${property}`, `second ${property}`]);
+    }
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction removes one matching XMP list item with -=', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    const tool = new ExifTool();
+    await tool.write(tmp, { 'XMP-dc:Subject': ['a', 'b', 'a'] }, { overwriteOriginal: true });
+    const code = await runAction({ overwriteOriginal: true }, '-XMP-dc:Subject-=a', tmp);
+    assertEquals(code, 0);
+    assertEquals((await tool.read(tmp)).tags.Subject, ['b', 'a']);
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction deletes an XMP list property when -= removes its last item', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    const tool = new ExifTool();
+    await tool.write(tmp, { 'XMP-dc:Subject': ['only'] }, { overwriteOriginal: true });
+    const code = await runAction({ overwriteOriginal: true }, '-XMP-dc:Subject-=only', tmp);
+    assertEquals(code, 0);
+    assertEquals((await tool.read(tmp)).tags.Subject, undefined);
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction does not rewrite or back up a list when -= finds no match', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  const tool = new ExifTool();
+  await tool.write(tmp, { 'XMP-dc:Subject': ['present'] }, { overwriteOriginal: true });
+  const original = await readFile(tmp);
+  try {
+    const code = await runAction({}, '-XMP-dc:Subject-=absent', tmp);
+    assertEquals(code, 0);
+    assertEquals(Buffer.compare(await readFile(tmp), original), 0);
+    assertEquals(await stat(`${tmp}_original`).then(() => true, () => false), false);
+  } finally {
+    await rm(tmp, { force: true });
+    await rm(`${tmp}_original`, { force: true });
+  }
+});
+
+test('runAction appends IPTC Keywords without mixing XMP Subject', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    await new ExifTool().write(tmp, { 'IPTC:Keywords': ['existing-ipTC'] }, { overwriteOriginal: true });
+    const code = await runAction({ overwriteOriginal: true }, '-IPTC:Keywords+=appended-ipTC', tmp);
+    assertEquals(code, 0);
+
+    const { stdout } = await execFileP(upstreamExifTool, [
+      '-j', '-G1', '-IPTC:Keywords', tmp,
+    ]);
+    assertEquals(JSON.parse(stdout)[0]['IPTC:Keywords'], ['existing-ipTC', 'appended-ipTC']);
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction leaves IPTC Keywords unchanged for -=', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    const tool = new ExifTool();
+    await tool.write(tmp, {
+      'IPTC:Keywords': ['only'],
+      'XMP-dc:Subject': ['keep'],
+    }, { overwriteOriginal: true });
+    const original = await readFile(tmp);
+    const code = await runAction({ overwriteOriginal: true }, '-IPTC:Keywords-=only', tmp);
+    assertEquals(code, 0);
+    assertEquals(Buffer.compare(await readFile(tmp), original), 0);
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction deletes IPTC Keywords without deleting XMP Subject', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    await new ExifTool().write(tmp, {
+      'IPTC:Keywords': ['IPTC keyword'],
+      'XMP-dc:Subject': ['XMP subject'],
+    }, { overwriteOriginal: true });
+    const code = await runAction({ overwriteOriginal: true }, '-IPTC:Keywords=', tmp);
+    assertEquals(code, 0);
+
+    const { stdout } = await execFileP(upstreamExifTool, [
+      '-j', '-G1', '-IPTC:Keywords', '-XMP-dc:Subject', tmp,
+    ]);
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream['IPTC:Keywords'], undefined);
+    assertEquals(upstream['XMP-dc:Subject'], 'XMP subject');
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction rejects list operators for unsupported scalar tags without modifying target', async () => {
+  const tmp = await tempFile('.jpg');
+  const original = await readFile('assets/03.jpg');
+  await writeFile(tmp, original);
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ overwriteOriginal: true }, '-Make+=Acme', tmp);
+    assertEquals(code, 1);
+    assertEquals(Buffer.compare(await readFile(tmp), original), 0);
+    assertEquals(cap.err.some((line) => line.includes('+= is currently supported only')), true);
+    cap.err.length = 0;
+    const removeCode = await runAction({ overwriteOriginal: true }, '-Make-=Acme', tmp);
+    assertEquals(removeCode, 1);
+    assertEquals(Buffer.compare(await readFile(tmp), original), 0);
+    assertEquals(cap.err.some((line) => line.includes('-= is currently supported only')), true);
+  } finally {
+    cap.restore();
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction copies tags from a source file and explicit assignments override them', async () => {
+  const source = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(source, await readFile('assets/01.jpg'));
+  await writeFile(target, await readFile('assets/03.jpg'));
+  try {
+    const tool = new ExifTool();
+    const sourceTags = (await tool.read(source)).tags;
+    const code = await runAction(
+      { tagsFromFile: source, overwriteOriginal: true },
+      '-Software=copied',
+      target,
+    );
+    assertEquals(code, 0);
+    const targetTags = (await tool.read(target)).tags;
+    assertEquals(targetTags.Make, sourceTags.Make);
+    assertEquals(targetTags.Model, sourceTags.Model);
+    assertEquals(targetTags.Software, 'copied');
+  } finally {
+    await rm(source, { force: true });
+    await rm(target, { force: true });
+  }
+});
+
+test('runAction merges repeated tagsFromFile sources in order', async () => {
+  const firstSource = await tempFile('.jpg');
+  const secondSource = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(firstSource, await readFile('assets/01.jpg'));
+  await writeFile(secondSource, await readFile('assets/03.jpg'));
+  await writeFile(target, await readFile('assets/01.jpg'));
+  try {
+    const parsed = parseCliArgs(normalizeArgs([
+      '-tagsFromFile', firstSource, '-Make',
+      '-tagsFromFile', secondSource, '-Model',
+      '-Software=explicit', target,
+    ]));
+    const code = await runAction({ ...parsed.options, overwriteOriginal: true }, ...parsed.files);
+    assertEquals(code, 0);
+    const tags = (await new ExifTool().read(target)).tags;
+    assertEquals(tags.Make, 'Canon');
+    assertEquals(tags.Model, 'ILCE-7RM4');
+    assertEquals(tags.Software, 'explicit');
+  } finally {
+    await rm(firstSource, { force: true });
+    await rm(secondSource, { force: true });
+    await rm(target, { force: true });
+  }
+});
+
+test('runAction lets later tagsFromFile sources override unselected values', async () => {
+  const firstSource = await tempFile('.jpg');
+  const secondSource = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(firstSource, await readFile('assets/01.jpg'));
+  await writeFile(secondSource, await readFile('assets/03.jpg'));
+  await writeFile(target, await readFile('assets/01.jpg'));
+  try {
+    const code = await runAction(
+      { tagsFromFile: [firstSource, secondSource], overwriteOriginal: true },
+      target,
+    );
+    assertEquals(code, 0);
+    const tags = (await new ExifTool().read(target)).tags;
+    assertEquals(tags.Make, 'SONY');
+    assertEquals(tags.Model, 'ILCE-7RM4');
+  } finally {
+    await rm(firstSource, { force: true });
+    await rm(secondSource, { force: true });
+    await rm(target, { force: true });
+  }
+});
+
+test('runAction copies only explicitly selected tagsFromFile values', async () => {
+  const source = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(source, await readFile('assets/01.jpg'));
+  await writeFile(target, await readFile('assets/03.jpg'));
+  try {
+    const code = await runAction(
+      { tagsFromFile: source, overwriteOriginal: true },
+      '-Make',
+      target,
+    );
+    assertEquals(code, 0);
+    const tags = (await new ExifTool().read(target)).tags;
+    assertEquals(tags.Make, 'Canon');
+    assertEquals(tags.Model, 'ILCE-7RM4');
+  } finally {
+    await rm(source, { force: true });
+    await rm(target, { force: true });
+  }
+});
+
+test('runAction treats -all as selecting every source tag', async () => {
+  const source = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(source, await readFile('assets/01.jpg'));
+  await writeFile(target, await readFile('assets/03.jpg'));
+  try {
+    const parsed = parseCliArgs(normalizeArgs(['-tagsFromFile', source, '-all', target]));
+    const code = await runAction({ ...parsed.options, overwriteOriginal: true }, ...parsed.files);
+    assertEquals(code, 0);
+    const tags = (await new ExifTool().read(target)).tags;
+    assertEquals(tags.Make, 'Canon');
+    assertEquals(tags.Model, 'Canon EOS 700D');
+  } finally {
+    await rm(source, { force: true });
+    await rm(target, { force: true });
+  }
+});
+
+test('runAction copies tags matching a tagsFromFile wildcard selector', async () => {
+  const source = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(source, await readFile('assets/01.jpg'));
+  await writeFile(target, await readFile('assets/03.jpg'));
+  const originalSoftware = (await new ExifTool().read(target)).tags.Software;
+  try {
+    const parsed = parseCliArgs(normalizeArgs([
+      '-tagsFromFile', source, '-M*', target,
+    ]));
+    const code = await runAction({ ...parsed.options, overwriteOriginal: true }, ...parsed.files);
+    assertEquals(code, 0);
+    const tags = (await new ExifTool().read(target)).tags;
+    assertEquals(tags.Make, 'Canon');
+    assertEquals(tags.Model, 'Canon EOS 700D');
+    assertEquals(tags.Software, originalSoftware);
+  } finally {
+    await rm(source, { force: true });
+    await rm(target, { force: true });
+  }
+});
+
+test('runAction uses ? for one character in tagsFromFile selectors', async () => {
+  const source = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(source, await readFile('assets/01.jpg'));
+  await writeFile(target, await readFile('assets/03.jpg'));
+  try {
+    const parsed = parseCliArgs(normalizeArgs([
+      '-tagsFromFile', source, '-M?ke', target,
+    ]));
+    const code = await runAction({ ...parsed.options, overwriteOriginal: true }, ...parsed.files);
+    assertEquals(code, 0);
+    const tags = (await new ExifTool().read(target)).tags;
+    assertEquals(tags.Make, 'Canon');
+    assertEquals(tags.Model, 'ILCE-7RM4');
+  } finally {
+    await rm(source, { force: true });
+    await rm(target, { force: true });
+  }
+});
+
+test('runAction maps a tagsFromFile source tag to a different destination name', async () => {
+  const source = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(source, await readFile('assets/01.jpg'));
+  await writeFile(target, await readFile('assets/03.jpg'));
+  try {
+    const parsed = parseCliArgs(normalizeArgs([
+      '-tagsFromFile', source, '-Model<Make', target,
+    ]));
+    const code = await runAction({ ...parsed.options, overwriteOriginal: true }, ...parsed.files);
+    assertEquals(code, 0);
+    const tags = (await new ExifTool().read(target)).tags;
+    assertEquals(tags.Make, 'SONY');
+    assertEquals(tags.Model, 'Canon');
+  } finally {
+    await rm(source, { force: true });
+    await rm(target, { force: true });
+  }
+});
+
+test('runAction uses @ as the current target for tagsFromFile', async () => {
+  const target = await tempFile('.jpg');
+  await writeFile(target, await readFile('assets/03.jpg'));
+  try {
+    const parsed = parseCliArgs(normalizeArgs([
+      '-tagsFromFile', '@', '-Model<Make', target,
+    ]));
+    const code = await runAction({ ...parsed.options, overwriteOriginal: true }, ...parsed.files);
+    assertEquals(code, 0);
+    const tags = (await new ExifTool().read(target)).tags;
+    assertEquals(tags.Make, 'SONY');
+    assertEquals(tags.Model, 'SONY');
+  } finally {
+    await rm(target, { force: true });
+  }
+});
+
+test('runAction writes to the first existing -srcfile candidate', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'exiftool-cli-srcfile-'));
+  const original = join(root, 'photo.nef');
+  const alternate = join(root, 'photo.jpg');
+  await writeFile(original, await readFile('assets/03.jpg'));
+  await writeFile(alternate, await readFile('assets/01.jpg'));
+  const originalBytes = await readFile(original);
+  try {
+    const parsed = parseCliArgs(normalizeArgs([
+      '-tagsFromFile', '@', '-Make', '-srcfile', '%d%f.missing', '-srcfile', '%d%f.jpg',
+      '-Software=srcfile-target', original,
+    ]));
+    const code = await runAction({ ...parsed.options, overwriteOriginal: true }, ...parsed.files);
+    assertEquals(code, 0);
+    const tool = new ExifTool();
+    const updated = (await tool.read(alternate)).tags;
+    assertEquals(updated.Make, 'SONY');
+    assertEquals(updated.Software, 'srcfile-target');
+    assertEquals(Buffer.compare(await readFile(original), originalBytes), 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('runAction uses the original file as @ source and srcfile as write target', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'exiftool-cli-srcfile-source-'));
+  const original = join(root, 'photo.nef');
+  const alternate = join(root, 'photo.jpg');
+  await writeFile(original, await readFile('assets/03.jpg'));
+  await writeFile(alternate, await readFile('assets/01.jpg'));
+  const originalBytes = await readFile(original);
+  try {
+    const parsed = parseCliArgs(normalizeArgs([
+      '-tagsFromFile', '@', '-Make', '-srcfile', '%d%f.jpg',
+      '-Software=srcfile-target', original,
+    ]));
+    const code = await runAction({ ...parsed.options, overwriteOriginal: true }, ...parsed.files);
+    assertEquals(code, 0);
+    const tool = new ExifTool();
+    const updated = (await tool.read(alternate)).tags;
+    assertEquals(updated.Make, 'SONY');
+    assertEquals(updated.Software, 'srcfile-target');
+    assertEquals(Buffer.compare(await readFile(original), originalBytes), 0);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('runAction preserves @ position among repeated tagsFromFile sources', async () => {
+  const source = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(source, await readFile('assets/03.jpg'));
+  await writeFile(target, await readFile('assets/01.jpg'));
+  try {
+    const parsed = parseCliArgs(normalizeArgs([
+      '-tagsFromFile', source, '-Model<Make',
+      '-tagsFromFile', '@', '-Model<Make',
+      '-tagsFromFile', source, '-Model<Make',
+      target,
+    ]));
+    const code = await runAction({ ...parsed.options, overwriteOriginal: true }, ...parsed.files);
+    assertEquals(code, 0);
+    assertEquals((await new ExifTool().read(target)).tags.Model, 'SONY');
+  } finally {
+    await rm(source, { force: true });
+    await rm(target, { force: true });
+  }
+});
+
+test('runAction excludes --TAG values from tagsFromFile without excluding other tags', async () => {
+  const source = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(source, await readFile('assets/01.jpg'));
+  await writeFile(target, await readFile('assets/03.jpg'));
+  try {
+    const code = await runAction(
+      { tagsFromFile: source, overwriteOriginal: true },
+      '--Make',
+      target,
+    );
+    assertEquals(code, 0);
+    const tags = (await new ExifTool().read(target)).tags;
+    assertEquals(tags.Make, 'SONY');
+    assertEquals(tags.Model, 'Canon EOS 700D');
+  } finally {
+    await rm(source, { force: true });
+    await rm(target, { force: true });
+  }
+});
+
+test('runAction tagsFromFile reports missing source without modifying targets', async () => {
+  const target = await tempFile('.jpg');
+  const original = await readFile('assets/03.jpg');
+  await writeFile(target, original);
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ tagsFromFile: `${target}.missing` }, target);
+    assertEquals(code, 1);
+    assertEquals(cap.err.some((line) => line.includes('Error reading tags from')), true);
+    assertEquals(Buffer.compare(await readFile(target), original), 0);
+  } finally {
+    cap.restore();
+    await rm(target, { force: true });
+  }
+});
+
+test('runAction write mode deletes an EXIF tag with an empty assignment', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    const code = await runAction({ overwriteOriginal: true }, '-DateTimeOriginal=', tmp);
+    assertEquals(code, 0);
+    const info = await new ExifTool().read(tmp);
+    assertEquals(info.tags.DateTimeOriginal, undefined);
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction preserves hard links when overwriteOriginalInPlace is enabled', async () => {
+  const tmp = await tempFile('.jpg');
+  const hardlink = `${tmp}.hardlink`;
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    await link(tmp, hardlink);
+    const inodeBefore = (await stat(tmp)).ino;
+    const code = await runAction({ overwriteOriginalInPlace: true }, '-Software=CLI in place', tmp);
+    assertEquals(code, 0);
+    assertEquals((await stat(tmp)).ino, inodeBefore);
+    assertEquals((await stat(hardlink)).ino, inodeBefore);
+    assertEquals((await new ExifTool().read(hardlink)).tags.Software, 'CLI in place');
+    let backupExists = true;
+    try {
+      await stat(`${tmp}_original`);
+    } catch {
+      backupExists = false;
+    }
+    assertEquals(backupExists, false);
+  } finally {
+    await rm(tmp, { force: true });
+    await rm(hardlink, { force: true });
+    await rm(`${tmp}_original`, { force: true });
+  }
+});
+
+test('runAction deletes one embedded XMP property without removing its siblings', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    const opts = { overwriteOriginal: true };
+    assertEquals(await runAction(opts, '-XMP-dc:Title=Temporary', '-XMP-dc:Description=Keep', tmp), 0);
+    assertEquals(await runAction(opts, '-XMP-dc:Title=', tmp), 0);
+    const tags = (await new ExifTool().read(tmp)).tags;
+    assertEquals(tags.Title, undefined);
+    assertEquals(tags.Description, 'Keep');
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction removes an empty XMP packet after deleting its last property', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  try {
+    await execFileP(upstreamExifTool, ['-XMP:All=', '-overwrite_original', tmp]);
+    const tool = new ExifTool();
+    await tool.write(tmp, { 'XMP-dc:Title': 'only property' }, { overwriteOriginal: true });
+    const code = await runAction({ overwriteOriginal: true }, '-XMP-dc:Title=', tmp);
+    assertEquals(code, 0);
+    const { stdout } = await execFileP(upstreamExifTool, ['-XMP:All', tmp]);
+    assertEquals(stdout.trim(), '');
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
 test('runAction write mode with overwriteOriginal skips backup', async () => {
   const tmp = await tempFile('.jpg');
   await writeFile(tmp, await readFile('assets/01.jpg'));
@@ -550,6 +1708,119 @@ test('runAction write mode with overwriteOriginal skips backup', async () => {
   }
 });
 
+test('runAction honors create-only write mode', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { overwriteOriginal: true, writeMode: 'c' },
+      '-Make=Ignored',
+      '-ImageDescription=Created',
+      tmp,
+    );
+    assertEquals(code, 0);
+    const tags = (await new ExifTool().read(tmp)).tags;
+    assertEquals(tags.Make, 'Canon');
+    assertEquals(tags.ImageDescription, 'Created');
+  } finally {
+    cap.restore();
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction create-only no-op does not report the file as updated', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { overwriteOriginal: true, writeMode: 'c' },
+      '-Make=Ignored',
+      tmp,
+    );
+    assertEquals(code, 0);
+    assertEquals(cap.out.some((line) => line.includes('image files updated')), false);
+  } finally {
+    cap.restore();
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction write mode preserves mtime when requested', async () => {
+  const tmp = await tempFile('.jpg');
+  await writeFile(tmp, await readFile('assets/01.jpg'));
+  const originalMtime = new Date('2020-01-02T03:04:05.000Z');
+  try {
+    await utimes(tmp, originalMtime, originalMtime);
+    const code = await runAction(
+      { overwriteOriginal: true, preserveTime: true },
+      '-Make=Acme',
+      tmp,
+    );
+    assertEquals(code, 0);
+    const writtenStat = await stat(tmp);
+    assertEquals(Math.abs(writtenStat.mtimeMs - originalMtime.getTime()) < 1, true);
+  } finally {
+    await rm(tmp, { force: true });
+  }
+});
+
+test('runAction writes FileModifyDate to the filesystem mtime', async () => {
+  const tmp = await tempFile('.jpg');
+  const original = await readFile('assets/01.jpg');
+  await writeFile(tmp, original);
+  try {
+    const code = await runAction({}, '-FileModifyDate=2020:01:02 03:04:05', tmp);
+    assertEquals(code, 0);
+    const localDate = new Date(2020, 0, 2, 3, 4, 5);
+    assertEquals(Math.abs((await stat(tmp)).mtimeMs - localDate.getTime()) < 1000, true);
+    assertEquals(Buffer.compare(await readFile(tmp), original), 0);
+    let backupExists = true;
+    try {
+      await stat(`${tmp}_original`);
+    } catch {
+      backupExists = false;
+    }
+    assertEquals(backupExists, false);
+
+    const mixedCode = await runAction(
+      { overwriteOriginal: true, preserveTime: true },
+      '-Make=Acme',
+      '-FileModifyDate=2020:01:02 03:04:05+0000',
+      tmp,
+    );
+    assertEquals(mixedCode, 0);
+    assertEquals(Math.abs((await stat(tmp)).mtimeMs - Date.UTC(2020, 0, 2, 3, 4, 5)) < 1000, true);
+    assertEquals((await new ExifTool().read(tmp)).tags.Make, 'Acme');
+  } finally {
+    await rm(tmp, { force: true });
+    await rm(`${tmp}_original`, { force: true });
+  }
+});
+
+test('runAction -o with -P preserves source mtime on the output', async () => {
+  const input = await tempFile('.jpg');
+  const output = await tempFile('.jpg');
+  await rm(output, { force: true });
+  await writeFile(input, await readFile('assets/01.jpg'));
+  const originalMtime = new Date('2020-01-02T03:04:05.000Z');
+  try {
+    await utimes(input, originalMtime, originalMtime);
+    const code = await runAction(
+      { output, overwriteOriginal: true, preserveTime: true },
+      '-Make=Acme',
+      input,
+    );
+    assertEquals(code, 0);
+    assertEquals(Math.abs((await stat(input)).mtimeMs - originalMtime.getTime()) < 1, true);
+    assertEquals(Math.abs((await stat(output)).mtimeMs - originalMtime.getTime()) < 1, true);
+  } finally {
+    await rm(input, { force: true });
+    await rm(output, { force: true });
+  }
+});
+
 test('runAction write mode reports unsupported files and returns 1', async () => {
   const txt = await tempFile('.txt');
   await writeFile(txt, 'plain');
@@ -566,6 +1837,66 @@ test('runAction write mode reports unsupported files and returns 1', async () =>
   } finally {
     cap.restore();
     await rm(txt);
+  }
+});
+
+test('runAction quiet suppresses write failures but preserves exit status', async () => {
+  const input = await tempFile('.txt');
+  await writeFile(input, 'not an image');
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ quiet: [true] }, '-Make=value', input);
+    assertEquals(code, 1);
+    assertEquals(cap.err.length, 0);
+  } finally {
+    cap.restore();
+    await rm(input, { force: true });
+  }
+});
+
+test('runAction -o directory continues after an unsupported batch input', async () => {
+  const unsupported = await tempFile('.txt');
+  const supported = await tempFile('.jpg');
+  const outputDir = await mkdtemp(join(tmpdir(), 'exiftool-cli-partial-'));
+  await writeFile(unsupported, 'plain text');
+  await writeFile(supported, await readFile('assets/01.jpg'));
+  const supportedOriginal = await readFile(supported);
+  const cap = captureConsole();
+  try {
+    const code = await runAction(
+      { output: outputDir, overwriteOriginal: true },
+      '-Software=partial-output',
+      unsupported,
+      supported,
+    );
+    assertEquals(code, 1);
+    assertEquals(cap.err.some((line) => line.includes(unsupported)), true);
+    assertEquals(
+      (await new ExifTool().read(join(outputDir, basename(supported)))).tags.Software,
+      'partial-output',
+    );
+    assertEquals(Buffer.compare(await readFile(supported), supportedOriginal), 0);
+  } finally {
+    cap.restore();
+    await rm(unsupported, { force: true });
+    await rm(supported, { force: true });
+    await rm(outputDir, { recursive: true, force: true });
+  }
+});
+
+test('runAction rejects an unsupported tag without modifying the target', async () => {
+  const tmp = await tempFile('.jpg');
+  const original = await readFile('assets/03.jpg');
+  await writeFile(tmp, original);
+  const cap = captureConsole();
+  try {
+    const code = await runAction({ overwriteOriginal: true }, '-NotARealTag=value', tmp);
+    assertEquals(code, 1);
+    assertEquals(Buffer.compare(await readFile(tmp), original), 0);
+    assertEquals(cap.err.some((line) => line.includes('NotARealTag')), true);
+  } finally {
+    cap.restore();
+    await rm(tmp, { force: true });
   }
 });
 
@@ -601,6 +1932,31 @@ test('main runs the -stay_open daemon over an injected stream', async () => {
   } finally {
     cap.restore();
     await rm(tmp);
+  }
+});
+
+test('main parses write options separately for each stay-open batch', async () => {
+  const source = await tempFile('.jpg');
+  const target = await tempFile('.jpg');
+  await writeFile(source, await readFile('assets/01.jpg'));
+  await writeFile(target, await readFile('assets/03.jpg'));
+  const enc = new TextEncoder();
+  const input = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(enc.encode(`-tagsFromFile\n${source}\n-Make\n${target}\n-execute\n-stay_open\nFalse\n`));
+      controller.close();
+    },
+  });
+  const cap = captureConsole();
+  try {
+    const code = await main({ overwriteOriginal: true, stayOpen: 'True' }, [], input);
+    assertEquals(code, 0);
+    assertEquals((await new ExifTool().read(target)).tags.Make, 'Canon');
+    assertEquals(cap.out.includes('{ready}'), true);
+  } finally {
+    cap.restore();
+    await rm(source, { force: true });
+    await rm(target, { force: true });
   }
 });
 

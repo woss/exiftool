@@ -3,10 +3,23 @@ import { pngWriter } from '../write/writers.js';
 import type { FileInfo, TagValue } from '../types.js';
 import type { TagDb } from '../tag-db.js';
 import { parseTiff } from '../exif/tiff.js';
+import { parseICCProfile } from '../exif/icc.js';
 import { parseXMP } from '../exif/xmp.js';
 import { computeCompositeTags } from '../exif/composite.js';
 import { parseJUMBFFromSegment } from './jumbf.js';
 const PNG_HEADER = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const PNG_TEXT_TAG_NAMES: Record<string, string> = {
+  'creation time': 'CreationTime',
+  creationtime: 'CreationTime',
+  warning: 'PNGWarning',
+  'aesthetic score': 'AestheticScore',
+  aesthetic_score: 'AestheticScore',
+  'create-date': 'CreateDate',
+  createdate: 'CreateDate',
+  'modify-date': 'ModDate',
+  moddate: 'ModDate',
+  url: 'URL',
+};
 
 /** zTXt payloads are zlib streams (RFC 1950); DecompressionStream('deflate')
  * is the platform-free decoder (Node ≥18 global, all browsers). */
@@ -21,6 +34,41 @@ async function inflateZtxt(data: Uint8Array): Promise<Uint8Array | null> {
     return null;
   }
 }
+
+function convertPngCreationTime(value: string): string {
+  const match = /(?:^|\s)(\d{1,2})\s*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s*(\d{2,4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(\S*)/i.exec(value);
+  if (!match) return value;
+  const months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+  const month = months.indexOf(match[2]!.toLowerCase()) + 1;
+  const day = Number(match[1]);
+  let year = Number(match[3]);
+  if (year < 100) year += year > 70 ? 1900 : 2000;
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = Number(match[6] ?? 0);
+  if (day < 1 || day > 31 || hour > 23 || minute > 59 || second > 60) return value;
+
+  const zone = match[7]!.toUpperCase();
+  const zones: Record<string, string> = {
+    UT: '+00:00', GMT: '+00:00', UTC: '+00:00',
+    EST: '-05:00', EDT: '-04:00', CST: '-06:00', CDT: '-05:00',
+    MST: '-07:00', MDT: '-06:00', PST: '-08:00', PDT: '-07:00',
+    A: '-01:00', B: '-02:00', C: '-03:00', D: '-04:00', E: '-05:00', F: '-06:00',
+    G: '-07:00', H: '-08:00', I: '-09:00', K: '-10:00', L: '-11:00', M: '-12:00',
+    N: '+01:00', O: '+02:00', P: '+03:00', Q: '+04:00', R: '+05:00', S: '+06:00',
+    T: '+07:00', U: '+08:00', V: '+09:00', W: '+10:00', X: '+11:00', Y: '+12:00', Z: '+00:00',
+  };
+  const offset = zones[zone] ?? (/^([+-]\d{2}):?(\d{2})$/.exec(zone)?.slice(1).join(':'));
+  if (zone && !offset) return value;
+  return `${String(year).padStart(4, '0')}:${String(month).padStart(2, '0')}:${String(day).padStart(2, '0')} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:${String(second).padStart(2, '0')}${offset ?? ''}`;
+}
+
+function convertPngXmpDate(value: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(\.\d+)?(Z|[+-]\d{2}:\d{2})?$/.exec(value);
+  if (!match) return value;
+  return `${match[1]}:${match[2]}:${match[3]} ${match[4]}:${match[5]}:${match[6]}${match[7] ?? ''}${match[8] ?? ''}`;
+}
+
 
 function readChunk(
   bytes: Uint8Array,
@@ -56,7 +104,13 @@ function readChunk(
     // PNG text-chunk tags (tEXt/iTXt/zTXt) have the lowest precedence:
     // EXIF/eXIf-derived and XMP-derived keys always win, text chunks yield.
     const textTags: Record<string, TagValue> = {};
-    const ztxtEntries: Array<[string, Uint8Array]> = [];
+    const compressedTextEntries: Array<{
+      key: string;
+      compressed: Uint8Array;
+      xmp?: boolean;
+      fallback?: string;
+    }> = [];
+    const compressedIccProfiles: Uint8Array[] = [];
     let offset = 8;
 
     while (offset < bytes.length) {
@@ -98,6 +152,9 @@ function readChunk(
         const nullIdx = chunk.data.indexOf(0);
         if (nullIdx > 0) {
           result['ICC_Profile_Name'] = new TextDecoder().decode(chunk.data.slice(0, nullIdx));
+          if (chunk.data[nullIdx + 1] === 0) {
+            compressedIccProfiles.push(chunk.data.slice(nullIdx + 2));
+          }
         }
       }
 
@@ -117,7 +174,7 @@ function readChunk(
         const nullIdx = chunk.data.indexOf(0);
         if (nullIdx > 0 && chunk.data[nullIdx + 1] === 0) {
           const key = new TextDecoder().decode(chunk.data.slice(0, nullIdx));
-          ztxtEntries.push([key, chunk.data.slice(nullIdx + 2)]);
+          compressedTextEntries.push({ key, compressed: chunk.data.slice(nullIdx + 2) });
         }
       }
 
@@ -142,9 +199,17 @@ function readChunk(
         if (null3 < 0) continue;
         const translated = new TextDecoder().decode(data.slice(pos, null3));
         pos = null3 + 1;
-        const text = compression === 0
-          ? new TextDecoder().decode(data.slice(pos))
-          : `[compressed:${compression}]`;
+        const key = language && language.toLowerCase() !== 'en' ? `${keyword}-${language}` : keyword;
+        if (compression === 1 && method === 0) {
+          compressedTextEntries.push({
+            key,
+            compressed: data.slice(pos),
+            xmp: keyword === 'XML:com.adobe.xmp',
+            fallback: `[compressed:${compression}]`,
+          });
+          continue;
+        }
+        const text = compression === 0 ? new TextDecoder().decode(data.slice(pos)) : `[compressed:${compression}]`;
         if (keyword === 'XML:com.adobe.xmp') {
           // Adobe writes the XMP document here; surface its parsed tags
           // instead of storing the raw blob (exiftool behavior).
@@ -154,7 +219,7 @@ function readChunk(
           }
           continue;
         }
-        textTags[keyword] = text;
+        textTags[key] = text;
       }
       if (chunk.type === 'sRGB') {
         const intents: Record<number, string> = {
@@ -167,14 +232,19 @@ function readChunk(
       }
       if (chunk.type === 'gAMA') {
         const view = new DataView(chunk.data.buffer, chunk.data.byteOffset, chunk.data.byteLength);
-        result['Gamma'] = view.getUint32(0, false) / 100000;
+        const storedGamma = view.getUint32(0, false);
+        result['Gamma'] = storedGamma ? Math.round(1e9 / storedGamma) / 10000 : storedGamma;
       }
 
       if (chunk.type === 'pHYs') {
         const view = new DataView(chunk.data.buffer, chunk.data.byteOffset, chunk.data.byteLength);
-        result['XPixelsPerUnit'] = view.getUint32(0, false);
-        result['YPixelsPerUnit'] = view.getUint32(4, false);
-        result['UnitSpecifier'] = view.getUint8(8);
+        result['PixelsPerUnitX'] = view.getUint32(0, false);
+        result['PixelsPerUnitY'] = view.getUint32(4, false);
+        result['PixelUnits'] = view.getUint8(8) === 1 ? 'meters' : 'Unknown';
+      }
+      if (chunk.type === 'tIME' && chunk.data.length === 7) {
+        const view = new DataView(chunk.data.buffer, chunk.data.byteOffset, chunk.data.byteLength);
+        result['ModifyDate'] = `${view.getUint16(0, false)}:${String(chunk.data[2]).padStart(2, '0')}:${String(chunk.data[3]).padStart(2, '0')} ${String(chunk.data[4]).padStart(2, '0')}:${String(chunk.data[5]).padStart(2, '0')}:${String(chunk.data[6]).padStart(2, '0')}`;
       }
       if (chunk.type === 'caBX') {
         const jumbfTags = parseJUMBFFromSegment(chunk.data);
@@ -186,17 +256,41 @@ function readChunk(
       if (chunk.type === 'IEND') break;
     }
 
-    for (const [key, compressed] of ztxtEntries) {
+    for (const compressed of compressedIccProfiles) {
+      const profile = await inflateZtxt(compressed);
+      if (profile) Object.assign(result, parseICCProfile(profile));
+    }
+
+    for (const { key, compressed, xmp, fallback } of compressedTextEntries) {
       const inflated = await inflateZtxt(compressed);
-      if (inflated) textTags[key] = new TextDecoder().decode(inflated);
+      if (!inflated) {
+        if (fallback && !xmp) textTags[key] = fallback;
+        continue;
+      }
+      const text = new TextDecoder().decode(inflated);
+      if (xmp) {
+        const xmpTags = parseXMP(text);
+        for (const [name, value] of Object.entries(xmpTags)) {
+          if (!(name in result)) result[name] = value;
+        }
+      } else {
+        textTags[key] = text;
+      }
     }
 
     // PNG text-chunk keywords surface capitalized (exiftool behavior:
     // tEXt keyword "parameters" reads as Parameters). EXIF/eXIf- and
     // XMP-derived keys always win, text chunks yield.
     for (const [k, v] of Object.entries(textTags)) {
-      const name = k.charAt(0).toUpperCase() + k.slice(1);
-      if (!(name in result)) result[name] = v;
+      const name = PNG_TEXT_TAG_NAMES[k.toLowerCase()] ?? k.charAt(0).toUpperCase() + k.slice(1);
+      const value = typeof v === 'string'
+        ? name === 'CreationTime'
+          ? convertPngCreationTime(v)
+          : name === 'CreateDate' || name === 'ModDate'
+            ? convertPngXmpDate(v)
+            : v
+        : v;
+      if (!(name in result)) result[name] = value;
     }
 
     computeCompositeTags(result);

@@ -12,6 +12,8 @@ export interface CliOptions {
   csv?: boolean;
   xml?: boolean;
   binary?: boolean;
+  compress?: boolean;
+  writeMode?: string;
   dateFormat?: string;
   groupHeadings?: string | boolean;
   groupPrefix?: string | boolean;
@@ -23,8 +25,17 @@ export interface CliOptions {
   extension?: string[];
   ignore?: string[];
   output?: string;
+  tagsFromFile?: string | string[];
+  tagsFromFileRequests?: {
+    source: string;
+    selectors: string[];
+    mappings: { destination: string; source: string }[];
+  }[];
+  srcFile?: string[];
   extractEmbedded?: boolean;
   overwriteOriginal?: boolean;
+  overwriteOriginalInPlace?: boolean;
+  preserveTime?: boolean;
   stayOpen?: string | boolean;
   help?: boolean;
   version?: boolean;
@@ -40,6 +51,8 @@ const SPECS: Record<string, OptionSpec> = {
   json: { arity: 'flag' },
   csv: { arity: 'flag' },
   binary: { arity: 'flag' },
+  compress: { arity: 'flag' },
+  'write-mode': { arity: 'value' },
   'date-format': { arity: 'value' },
   'group-headings': { arity: 'value' },
   'group-prefix': { arity: 'value' },
@@ -49,11 +62,15 @@ const SPECS: Record<string, OptionSpec> = {
   quiet: { arity: 'flag', collect: true },
   xml: { arity: 'flag' },
   output: { arity: 'value' },
+  'tags-from-file': { arity: 'value', collect: true },
+  'src-file': { arity: 'value', collect: true },
   recurse: { arity: 'flag' },
   extension: { arity: 'value', collect: true },
   ignore: { arity: 'value', collect: true },
   'extract-embedded': { arity: 'flag' },
   'overwrite-original': { arity: 'flag' },
+  'overwrite-original-in-place': { arity: 'flag' },
+  'preserve-time': { arity: 'flag' },
   'stay-open': { arity: 'optional' },
   version: { arity: 'flag' },
   help: { arity: 'flag' },
@@ -62,6 +79,7 @@ const SPECS: Record<string, OptionSpec> = {
 /** Single-character short flags (multi-char shorts are pre-normalized). */
 const SHORTS: Record<string, string> = {
   b: 'binary',
+  z: 'compress',
   d: 'date-format',
   g: 'group-headings',
   G: 'group-prefix',
@@ -72,6 +90,7 @@ const SHORTS: Record<string, string> = {
   q: 'quiet',
   X: 'xml',
   o: 'output',
+  P: 'preserve-time',
   r: 'recurse',
   i: 'ignore',
 };
@@ -83,8 +102,22 @@ function camelize(name: string): string {
 export function parseCliArgs(argv: string[]): { options: CliOptions; files: string[] } {
   const options: CliOptions = {};
   const files: string[] = [];
+  let activeTagSource: {
+    source: string;
+    selectors: string[];
+    mappings: { destination: string; source: string }[];
+  } | undefined;
   const set = (name: string, value: unknown) => {
     const key = camelize(name);
+    if (name === 'tags-from-file') {
+      const current = options.tagsFromFile;
+      (options as Record<string, unknown>)[key] = current === undefined
+        ? value
+        : [...(Array.isArray(current) ? current : [current]), value];
+      activeTagSource = { source: String(value), selectors: [], mappings: [] };
+      options.tagsFromFileRequests = [...(options.tagsFromFileRequests ?? []), activeTagSource];
+      return;
+    }
     if (SPECS[name]!.collect) {
       const bucket = (options as Record<string, unknown[]>)[key] ?? [];
       bucket.push(value);
@@ -105,12 +138,28 @@ export function parseCliArgs(argv: string[]): { options: CliOptions; files: stri
       files.push(...argv.slice(i + 1));
       break;
     }
+    const singleDashLong = !arg.startsWith('--') && arg.startsWith('-') && arg.length > 2 &&
+      !arg.includes('=') && !arg.includes('<');
     const name = !arg.startsWith('-')
       ? undefined // plain operands (file paths, TAG=VALUE) are never options
       : arg.startsWith('--')
         ? long(arg)
-        : SHORTS[arg.slice(1, 2)];
+        : arg.length === 2
+          ? SHORTS[arg.slice(1, 2)]
+          : singleDashLong && arg.slice(1).toLowerCase().replace(/_/g, '-') in SPECS
+            ? arg.slice(1).toLowerCase().replace(/_/g, '-')
+            : undefined;
     if (!name) {
+      const mapping = arg.match(/^-([A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)<([A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?)$/);
+      if (mapping && activeTagSource) {
+        activeTagSource.mappings.push({ destination: mapping[1]!, source: mapping[2]! });
+        continue;
+      }
+      const selector = arg.match(/^(-{1,2}[A-Za-z][A-Za-z0-9_*-]*(?:\?[A-Za-z0-9_*-]*)?(?::[A-Za-z][A-Za-z0-9_*-]*(?:\?[A-Za-z0-9_*-]*)?)?)$/);
+      if (selector && activeTagSource) {
+        activeTagSource.selectors.push(selector[1]!);
+        continue;
+      }
       // Unknown dash-token: operand (e.g. -TAG=VALUE write assignments).
       files.push(arg);
       continue;
@@ -136,6 +185,9 @@ export function parseCliArgs(argv: string[]): { options: CliOptions; files: stri
         value = undefined;
       }
     }
+    if (name === 'write-mode' && value !== undefined && !/^[wcg]*$/i.test(value)) {
+      throw new Error(`Invalid argument for --${name}`);
+    }
     set(name, spec.arity === 'optional' && value === undefined ? true : value);
   }
   return { options, files };
@@ -143,10 +195,23 @@ export function parseCliArgs(argv: string[]): { options: CliOptions; files: stri
 
 export function normalizeArgs(args: string[]): string[] {
   return args.flatMap((a) => {
-    // TAG=VALUE write assignments pass through as operands
-    if (/^-?[A-Za-z][A-Za-z0-9_]*=/.test(a)) return [a];
-    if (a === '-overwrite_original' || a === '--overwrite_original') {
+    // TAG=VALUE, TAG+=VALUE, and TAG-=VALUE write assignments pass through as operands.
+    if (/^-?[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?[+-]?=/.test(a)) return [a];
+    if (/^-[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?<[A-Za-z][A-Za-z0-9_-]*(?::[A-Za-z][A-Za-z0-9_-]*)?$/.test(a)) return [a];
+      if (a === '-overwrite_original' || a === '--overwrite_original') {
       return ['--overwrite-original'];
+    }
+    if (a === '-overwrite_original_in_place' || a === '--overwrite_original_in_place') {
+      return ['--overwrite-original-in-place'];
+    }
+    if (a === '-tagsFromFile' || a === '--tagsFromFile') {
+      return ['--tags-from-file'];
+    }
+    if (a === '-srcfile' || a === '--srcfile' || a === '-srcFile' || a === '--srcFile') {
+      return ['--src-file'];
+    }
+    if (a === '-wm' || a === '--wm' || a === '-writeMode' || a === '--writeMode') {
+      return ['--write-mode'];
     }
     if (a === '--ee') return ['--extract-embedded'];
     if (a.startsWith('-') && !a.startsWith('--') && a.length > 2) {
@@ -157,6 +222,10 @@ export function normalizeArgs(args: string[]): string[] {
       // -ee maps to the long-only --extract-embedded option
       if (a === '-ee') return ['--extract-embedded'];
       if (/^-[gG]\d$/.test(a)) return [a.slice(0, 2), a.slice(2)];
+      const optionName = a.slice(1).toLowerCase().replace(/_/g, '-');
+      if (!(optionName in SPECS) && /^-[A-Za-z][A-Za-z0-9_*-]*(?:\?[A-Za-z0-9_*-]*)?(?::[A-Za-z][A-Za-z0-9_*-]*(?:\?[A-Za-z0-9_*-]*)?)?$/.test(a)) {
+        return [a];
+      }
       return ['--' + a.slice(1)];
     }
     if (a === '-g') return ['--group-headings', '0'];

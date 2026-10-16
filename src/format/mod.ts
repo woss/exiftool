@@ -1,4 +1,4 @@
-import type { ContainerWriter, FileInfo, TagValue, WriteOutcome } from '../types.js';
+import type { ContainerWriter, FileInfo, TagValue, WriteOptions, WriteOutcome } from '../types.js';
 import type { TagDb } from '../tag-db.js';
 
 /** Optional per-read hints threaded from the CLI down into parsers. */
@@ -24,14 +24,30 @@ export interface FormatParser {
     hints?: ParseHints,
   ): Promise<FileInfo>;
   /** Produces updated container bytes; present only for writable formats. */
-  writeBytes?(original: Uint8Array, tags: Record<string, TagValue>): WriteOutcome;
+  writeBytes?(
+    original: Uint8Array,
+    tags: Record<string, TagValue>,
+    options?: Pick<WriteOptions, 'compress'>,
+  ): WriteOutcome;
 }
 
 /** First parser whose `canParse` accepts the buffer, else undefined. */
 export function detectParser(
   bytes: Uint8Array,
   parsers: Iterable<FormatParser>,
+  filePath?: string,
 ): FormatParser | undefined {
+  if (filePath) {
+    const fileName = filePath.split(/[\\/]/).pop() ?? filePath;
+    const extension = fileName.toLowerCase().match(/\.[^.]+$/)?.[0];
+    if (extension) {
+      for (const parser of parsers) {
+        if (parser.extensions.some((candidate) => candidate.toLowerCase() === extension) && parser.canParse(bytes)) {
+          return parser;
+        }
+      }
+    }
+  }
   for (const parser of parsers) {
     if (parser.canParse(bytes)) return parser;
   }
@@ -41,7 +57,7 @@ export function detectParser(
 let builtinPromise: Promise<FormatParser[]> | undefined;
 
 /**
- * The built-in plugin set (JPEG, PNG, WebP, AVIF, TIFF-family RAW), loaded
+ * The built-in plugin set (JPEG, GIF, PNG, WebP, AVIF, TIFF-family RAW), loaded
  * lazily so that importing the library never pulls a format module by
  * default. Dynamic import is deliberate: plugin loading from a
  * runtime-optional module, keeping the static import graph parser-free.

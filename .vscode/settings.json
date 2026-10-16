@@ -1,0 +1,8 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        "git switch": true,
+        "git add": true,
+        "node": true,
+        "vendor/exiftool/exiftool": true
+    }
+}

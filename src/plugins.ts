@@ -1,9 +1,17 @@
 import type { FormatParser } from './format/mod.js';
 import { avifParser } from './format/avif.js';
+import { exifParser } from './format/exif.js';
+import { exvParser } from './format/exv.js';
+import { pbmParser } from './format/pbm.js';
+import { iccParser } from './format/icc.js';
 import { jpegParser } from './format/jpeg.js';
+import { gifParser } from './format/gif.js';
 import { pngParser } from './format/png.js';
+import { pgmParser } from './format/pgm.js';
+import { ppmParser } from './format/ppm.js';
 import { webpParser } from './format/webp.js';
 import { tiffRawParser } from './format/tiff-raw.js';
+import { xmpParser } from './format/xmp.js';
 
 /**
  * Built-in format parser plugins.
@@ -12,7 +20,7 @@ import { tiffRawParser } from './format/tiff-raw.js';
  */
 
 /**
- * Modern web image format parsers (JPEG, PNG, WebP, AVIF/HEIF).
+ * Modern web image format parsers (JPEG, GIF, PNG, WebP, AVIF/HEIF).
  * Recommended default for web applications.
  *
  * @example
@@ -24,10 +32,18 @@ import { tiffRawParser } from './format/tiff-raw.js';
  */
 export const MODERN_PLUGINS: FormatParser[] = [
   jpegParser,
+  gifParser,
   pngParser,
+  ppmParser,
+  pgmParser,
+  pbmParser,
   webpParser,
   avifParser,
   tiffRawParser,
+  exifParser,
+  exvParser,
+  iccParser,
+  xmpParser,
 ];
 
 /**
@@ -42,8 +58,20 @@ export { avifParser };
 /** JPEG format parser. Supports EXIF, XMP, IPTC, ICC, JFIF, MPF, C2PA/JUMBF. */
 export { jpegParser };
 
+/** GIF format parser. Supports comments, XMP, and ICC application extensions. */
+export { gifParser };
+
 /** PNG format parser. Supports iTXt/tEXt/zTXt, eXIf, caBX (C2PA), ICC, sRGB. */
 export { pngParser };
+
+/** PPM format parser. Supports P3/P6 headers and Comment metadata writes. */
+export { ppmParser };
+
+/** PGM format parser. Supports P2/P5 headers and Comment metadata writes. */
+export { pgmParser };
+
+/** PBM format parser. Supports P1/P4 headers and Comment metadata writes. */
+export { pbmParser };
 
 /** WebP format parser. Supports VP8/VP8L, EXIF, XMP, ICC in VP8X chunks. */
 export { webpParser };
@@ -54,3 +82,15 @@ export { webpParser };
  * reported as `FileInfo.format`. MakerNotes are not decoded.
  */
 export { tiffRawParser };
+
+/** Standalone TIFF-encoded EXIF file parser and writer. */
+export { exifParser };
+
+/** EXV parser for Exiv2-wrapped JPEG metadata. */
+export { exvParser };
+
+/** Standalone ICC profile parser and whole-profile writer. */
+export { iccParser };
+
+/** Standalone XMP packet parser and writer. */
+export { xmpParser };

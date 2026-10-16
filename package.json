@@ -73,5 +73,8 @@
     "overrides": {
       "uuid@<9": "^9.0.1"
     }
+  },
+  "dependencies": {
+    "fflate": "^0.8.3"
   }
 }

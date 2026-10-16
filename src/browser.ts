@@ -10,8 +10,15 @@ export {
   avifParser,
   jpegParser,
   pngParser,
+  ppmParser,
+  pgmParser,
+  pbmParser,
   webpParser,
   tiffRawParser,
+  exifParser,
+  exvParser,
+  iccParser,
+  xmpParser,
 } from './plugins.js';
 export type { FormatParser, ParseHints } from './format/mod.js';
 export type { FileInfo, TagValue, WriteOptions, WriteResult } from './types.js';

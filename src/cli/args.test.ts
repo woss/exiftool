@@ -1,6 +1,6 @@
 import { test } from 'vitest';
 import { assertEquals } from '../test/asserts.js';
-import { parseCliArgs } from './args.js';
+import { normalizeArgs, parseCliArgs } from './args.js';
 
 test('parseCliArgs — boolean long and short flags', () => {
   assertEquals(parseCliArgs(['--json', '-b', 'a.jpg']), {
@@ -9,11 +9,139 @@ test('parseCliArgs — boolean long and short flags', () => {
   });
 });
 
+test('parseCliArgs — ExifTool -z enables write compression', () => {
+  assertEquals(parseCliArgs(normalizeArgs(['-z'])), {
+    options: { compress: true },
+    files: [],
+  });
+});
+
+test('parseCliArgs — -wm accepts a mode value', () => {
+  assertEquals(parseCliArgs(normalizeArgs(['-wm', 'cg'])).options.writeMode, 'cg');
+});
+
+test('parseCliArgs — -wm rejects unsupported mode letters', () => {
+  let message = '';
+  try {
+    parseCliArgs(normalizeArgs(['-wm', 'wx']));
+  } catch (error) {
+    message = (error as Error).message;
+  }
+  assertEquals(message.includes('Invalid argument for --write-mode'), true);
+});
+
+test('parseCliArgs — preserve-time accepts ExifTool -P and long form', () => {
+  assertEquals(parseCliArgs(['-P']).options.preserveTime, true);
+  assertEquals(parseCliArgs(['--preserve-time']).options.preserveTime, true);
+});
+
+test('parseCliArgs — overwrite-original-in-place is accepted', () => {
+  assertEquals(parseCliArgs(['--overwrite-original-in-place']).options.overwriteOriginalInPlace, true);
+  assertEquals(parseCliArgs(['-overwrite_original_in_place']).options.overwriteOriginalInPlace, true);
+  assertEquals(normalizeArgs(['-overwrite_original_in_place']), ['--overwrite-original-in-place']);
+});
+
 test('parseCliArgs — values via space and inline equals', () => {
   assertEquals(parseCliArgs(['-d', '%Y', '--coord-format=%+.6f', 'x.jpg']), {
     options: { dateFormat: '%Y', coordFormat: '%+.6f' },
     files: ['x.jpg'],
   });
+});
+
+test('parseCliArgs — tagsFromFile uses ExifTool spelling', () => {
+  assertEquals(normalizeArgs(['-tagsFromFile', 'source.jpg']), ['--tags-from-file', 'source.jpg']);
+  assertEquals(parseCliArgs(['--tags-from-file', 'source.jpg']), {
+    options: {
+      tagsFromFile: 'source.jpg',
+      tagsFromFileRequests: [{ source: 'source.jpg', selectors: [], mappings: [] }],
+    },
+    files: [],
+  });
+});
+
+test('parseCliArgs — repeated tagsFromFile options retain source order', () => {
+  assertEquals(
+    parseCliArgs(normalizeArgs(['-tagsFromFile', 'first.jpg', '-tagsFromFile', 'second.jpg'])),
+    {
+      options: {
+        tagsFromFile: ['first.jpg', 'second.jpg'],
+        tagsFromFileRequests: [
+          { source: 'first.jpg', selectors: [], mappings: [] },
+          { source: 'second.jpg', selectors: [], mappings: [] },
+        ],
+      },
+      files: [],
+    },
+  );
+});
+
+test('parseCliArgs — srcfile candidates retain source order', () => {
+  assertEquals(
+    parseCliArgs(normalizeArgs([
+      '-srcfile', '%d%f.jpg', '-srcfile', '%d%f.xmp', 'target.nef',
+    ])),
+    {
+      options: { srcFile: ['%d%f.jpg', '%d%f.xmp'] },
+      files: ['target.nef'],
+    },
+  );
+});
+
+test('parseCliArgs — source tag selectors stay attached to their source occurrence', () => {
+  assertEquals(
+    parseCliArgs(normalizeArgs([
+      '-tagsFromFile', 'first.jpg', '-Make',
+      '-tagsFromFile', 'second.jpg', '-Model', 'target.jpg',
+    ])),
+    {
+      options: {
+        tagsFromFile: ['first.jpg', 'second.jpg'],
+        tagsFromFileRequests: [
+          { source: 'first.jpg', selectors: ['-Make'], mappings: [] },
+          { source: 'second.jpg', selectors: ['-Model'], mappings: [] },
+        ],
+      },
+      files: ['target.jpg'],
+    },
+  );
+});
+
+test('parseCliArgs preserves XMP-qualified tag selectors beginning with -X', () => {
+  assertEquals(
+    parseCliArgs(normalizeArgs([
+      '-tagsFromFile', 'source.jpg', '-XMP-dc:Subject', 'target.jpg',
+    ])),
+    {
+      options: {
+        tagsFromFile: 'source.jpg',
+        tagsFromFileRequests: [{
+          source: 'source.jpg',
+          selectors: ['-XMP-dc:Subject'],
+          mappings: [],
+        }],
+      },
+      files: ['target.jpg'],
+    },
+  );
+});
+
+test('parseCliArgs — tag redirects attach to the active tagsFromFile source', () => {
+  assertEquals(
+    parseCliArgs(normalizeArgs([
+      '-tagsFromFile', 'source.jpg', '-Model<Make', 'target.jpg',
+    ])),
+    {
+      options: {
+        tagsFromFile: 'source.jpg',
+        tagsFromFileRequests: [{
+          source: 'source.jpg',
+          selectors: [],
+          mappings: [{ destination: 'Model', source: 'Make' }],
+        }],
+      },
+      files: ['target.jpg'],
+    },
+  );
 });
 
 test('parseCliArgs — collect options repeat into arrays', () => {
@@ -54,6 +182,14 @@ test('parseCliArgs — unknown dash-tokens become operands (write assignments)',
     options: {},
     files: ['-Artist=me', 'p.jpg'],
   });
+});
+
+test('normalizeArgs — bare and grouped list assignments remain operands', () => {
+  assertEquals(normalizeArgs(['-Keywords+=bird', '-XMP-dc:Subject+=lake', '-XMP-dc:Subject-=lake']), [
+    '-Keywords+=bird',
+    '-XMP-dc:Subject+=lake',
+    '-XMP-dc:Subject-=lake',
+  ]);
 });
 
 test('parseCliArgs — value option missing its operand throws', () => {

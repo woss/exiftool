@@ -1,0 +1,1587 @@
+{
+  "exiftoolVersion": "13.55",
+  "exiftoolSourceTreeSha1": "7f371b2466963e45b0d640d559d0b1eed63608dd",
+  "catalogSha256": "96032c42d28222815fba5dc9bfaf33d4830cbf8b2b56e8cf664ed76e0a4b9e69",
+  "xmpNamespaceCount": 96,
+  "xmpNamespacesSha256": "3ff2648962820f93035dc7ca55defb099752260268eee32b1f83cc6aeac05940",
+  "xmpShapeCount": 178,
+  "xmpShapesSha256": "e8feea7b8db4aeda981fb21c92706ace36a75d8b85ee42f67274ded03343183c",
+  "xmpStructCount": 108,
+  "xmpStructsSha256": "6822e7b10b6cd15f1ac68e641ff944ca39de09fa315a333710a44228eb82f98d",
+  "coreWriteMetadataSha256": "858b3ede6b796e543b2de0faee01a2b4e52266f7f36f36118a2204fb5dcdd320",
+  "coreWriteMetadataRecords": 2294,
+  "unavailableCoreWriteMetadataTables": [],
+  "coreWriteMetadataWritableRecords": 1975,
+  "coreWriteGroupsSpecified": 343,
+  "coreProtectedRecords": 179,
+  "coreConditionalRecords": 134,
+  "corePrintConvRecords": 298,
+  "corePrintConvInvRecords": 116,
+  "coreValueConvInvRecords": 90,
+  "tableCount": 1224,
+  "tagCount": 31942,
+  "writableTagCount": 14310,
+  "writableTagsWithEnums": 4312,
+  "writableTagsWithoutFamily1ReadGroup": [],
+  "writeGroupAndProtectionMetadata": "not present in -listx; inspect pinned Perl tables",
+  "writableUnknownTypes": [
+    {
+      "table": "Apple::Main",
+      "id": "23",
+      "name": "LivePhotoVideoIndex",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonRaw::Main",
+      "id": "6155",
+      "name": "UnknownNumber",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "65538",
+      "name": "Rotation",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "65539",
+      "name": "AngleAdj",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "65569",
+      "name": "CustomPictureStyle",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "65792",
+      "name": "Rating",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "65793",
+      "name": "CheckMark",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "66048",
+      "name": "WorkColorSpace",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131073",
+      "name": "RawBrightnessAdj",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131329",
+      "name": "WhiteBalanceAdj",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131330",
+      "name": "WBAdjColorTemp",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131333",
+      "name": "WBAdjMagentaGreen",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131334",
+      "name": "WBAdjBlueAmber",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131365",
+      "name": "WBAdjRGGBLevels",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131584",
+      "name": "GammaLinear",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131841",
+      "name": "PictureStyle",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131843",
+      "name": "ContrastAdj",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131844",
+      "name": "ColorToneAdj",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131845",
+      "name": "ColorSaturationAdj",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131846",
+      "name": "MonochromeToningEffect",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131847",
+      "name": "MonochromeFilterEffect",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131848",
+      "name": "UnsharpMaskStrength",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131849",
+      "name": "UnsharpMaskFineness",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131850",
+      "name": "UnsharpMaskThreshold",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131851",
+      "name": "ShadowAdj",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131852",
+      "name": "HighlightAdj",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131856",
+      "name": "SharpnessAdj",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "131857",
+      "name": "SharpnessStrength",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "132112",
+      "name": "ToneCurveBrightness",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "132113",
+      "name": "ToneCurveContrast",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "132352",
+      "name": "AutoLightingOptimizer",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "132608",
+      "name": "LuminanceNoiseReduction",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "132609",
+      "name": "ChrominanceNoiseReduction",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "132720",
+      "name": "ColorMoireReduction",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "132865",
+      "name": "ShootingDistance",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "132866",
+      "name": "PeripheralIllumination",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "132867",
+      "name": "ChromaticAberration",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "132868",
+      "name": "ColorBlurOn",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "132869",
+      "name": "DistortionCorrection",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "132870",
+      "name": "DLOSetting",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "132871",
+      "name": "ChromaticAberrationRed",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "132872",
+      "name": "ChromaticAberrationBlue",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "132873",
+      "name": "DistortionEffect",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "132875",
+      "name": "DiffractionCorrectionOn",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "133376",
+      "name": "ColorHue",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "133377",
+      "name": "SaturationAdj",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "133392",
+      "name": "RedHSL",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "133393",
+      "name": "OrangeHSL",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "133394",
+      "name": "YellowHSL",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "133395",
+      "name": "GreenHSL",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "133396",
+      "name": "AquaHSL",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "133397",
+      "name": "BlueHSL",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "133398",
+      "name": "PurpleHSL",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "133399",
+      "name": "MagentaHSL",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "133904",
+      "name": "DPRAWMicroadjustBackFront",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "133906",
+      "name": "DPRAWMicroadjustStrength",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "133920",
+      "name": "DPRAWBokehShift",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "133921",
+      "name": "DPRAWBokehShiftArea",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "133936",
+      "name": "DPRAWGhostingReductionArea",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "196865",
+      "name": "CropAspectRatio",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "196866",
+      "name": "CropAspectRatioCustom",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "984320",
+      "name": "CustomPictureStyleData",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "984338",
+      "name": "LensFocalLength",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "0x20310.0",
+      "name": "SharpnessAdjOn",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "0x20400.1",
+      "name": "ToneCurveOriginal",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "0x20500.0",
+      "name": "AutoLightingOptimizerOn",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "0x20670.0",
+      "name": "ColorMoireReductionOn",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "0x20702.0",
+      "name": "PeripheralIlluminationOn",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "0x20703.0",
+      "name": "ChromaticAberrationOn",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "0x20705.0",
+      "name": "DistortionCorrectionOn",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "CanonVRD::DR4",
+      "id": "0x20706.0",
+      "name": "DLOOn",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Casio::Type2",
+      "id": "8329",
+      "name": "FaceInfoUnknown",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Composite",
+      "id": "Canon-FileNumber",
+      "name": "FileNumber",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Composite",
+      "id": "Canon-OriginalDecisionData",
+      "name": "OriginalDecisionData",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Composite",
+      "id": "Exif-GPSPosition",
+      "name": "GPSPosition",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Composite",
+      "id": "Exif-JpgFromRaw",
+      "name": "JpgFromRaw",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Composite",
+      "id": "Exif-OtherImage",
+      "name": "OtherImage",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Composite",
+      "id": "Exif-PreviewImage",
+      "name": "PreviewImage",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Composite",
+      "id": "Exif-SubSecCreateDate",
+      "name": "SubSecCreateDate",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Composite",
+      "id": "Exif-SubSecDateTimeOriginal",
+      "name": "SubSecDateTimeOriginal",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Composite",
+      "id": "Exif-SubSecModifyDate",
+      "name": "SubSecModifyDate",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Composite",
+      "id": "Exif-ThumbnailImage",
+      "name": "ThumbnailImage",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Composite",
+      "id": "GPS-GPSLatitude",
+      "name": "GPSLatitude",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Composite",
+      "id": "GPS-GPSLongitude",
+      "name": "GPSLongitude",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Composite",
+      "id": "QuickTime-Rotation",
+      "name": "Rotation",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Composite",
+      "id": "XMP-Flash",
+      "name": "Flash",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "Adobe",
+      "name": "Adobe",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "CanonDR4",
+      "name": "CanonDR4",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "CanonVRD",
+      "name": "CanonVRD",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "Comment",
+      "name": "Comment",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "Directory",
+      "name": "Directory",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "EXIF",
+      "name": "EXIF",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "ExifByteOrder",
+      "name": "ExifByteOrder",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "ExifUnicodeByteOrder",
+      "name": "ExifUnicodeByteOrder",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "FileCreateDate",
+      "name": "FileCreateDate",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "FileGroupID",
+      "name": "FileGroupID",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "FileModifyDate",
+      "name": "FileModifyDate",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "FileName",
+      "name": "FileName",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "FilePermissions",
+      "name": "FilePermissions",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "FileUserID",
+      "name": "FileUserID",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "ForceWrite",
+      "name": "ForceWrite",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "Geolocate",
+      "name": "Geolocate",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "Geosync",
+      "name": "Geosync",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "Geotag",
+      "name": "Geotag",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "Geotime",
+      "name": "Geotime",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "HardLink",
+      "name": "HardLink",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "ICC_Profile",
+      "name": "ICC_Profile",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "IPTC",
+      "name": "IPTC",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "PreviewImage",
+      "name": "PreviewImage",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "SphericalVideoXML",
+      "name": "SphericalVideoXML",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "SymLink",
+      "name": "SymLink",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "TestName",
+      "name": "TestName",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "Trailer",
+      "name": "Trailer",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "XMP",
+      "name": "XMP",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Extra",
+      "id": "ZoneIdentifier",
+      "name": "ZoneIdentifier",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "FotoStation::Main",
+      "id": "3",
+      "name": "ThumbnailImage",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "FotoStation::Main",
+      "id": "4",
+      "name": "PreviewImage",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "MacOS::MDItem",
+      "id": "MDItemFSCreationDate",
+      "name": "MDItemFSCreationDate",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "MacOS::MDItem",
+      "id": "MDItemFSLabel",
+      "name": "MDItemFSLabel",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "MacOS::MDItem",
+      "id": "MDItemFinderComment",
+      "name": "MDItemFinderComment",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "MacOS::MDItem",
+      "id": "MDItemUserTags",
+      "name": "MDItemUserTags",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "MacOS::XAttr",
+      "id": "com.apple.metadata:kMDItemWhereFroms",
+      "name": "XAttrMDItemWhereFroms",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "MacOS::XAttr",
+      "id": "com.apple.quarantine",
+      "name": "XAttrQuarantine",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::Main",
+      "id": "62",
+      "name": "ImageSizeRAW",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::Main",
+      "id": "68",
+      "name": "JPGCompression",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::Main",
+      "id": "191",
+      "name": "SilentPhotography",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD300S",
+      "id": "613",
+      "name": "ISO2",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD300a",
+      "id": "604",
+      "name": "ISO2",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD300b",
+      "id": "613",
+      "name": "ISO2",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD3S",
+      "id": "16",
+      "name": "ImageArea",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD3S",
+      "id": "545",
+      "name": "ISO2",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD3S",
+      "id": "671.1",
+      "name": "JPGCompression",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD3X",
+      "id": "605",
+      "name": "ISO2",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD3a",
+      "id": "598",
+      "name": "ISO2",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD3a",
+      "id": "723.1",
+      "name": "NikonImageSize",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD3a",
+      "id": "723.2",
+      "name": "ImageQuality",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD3b",
+      "id": "16",
+      "name": "ImageArea",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD3b",
+      "id": "605",
+      "name": "ISO2",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD3b",
+      "id": "650",
+      "name": "PreFlashReturnStrength",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD3b",
+      "id": "732.1",
+      "name": "NikonImageSize",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD3b",
+      "id": "732.2",
+      "name": "ImageQuality",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD40",
+      "id": "586.1",
+      "name": "VibrationReduction",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD4S",
+      "id": "464",
+      "name": "SecondarySlotFunction",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD4S",
+      "id": "5964",
+      "name": "AEBracketingSteps",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD4S",
+      "id": "5965",
+      "name": "WBBracketingSteps",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD4S",
+      "id": "6221",
+      "name": "ReleaseMode",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD4S",
+      "id": "6338",
+      "name": "MultiSelectorLiveViewMode",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD4S",
+      "id": "6378",
+      "name": "ISOAutoShutterTime",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD4S",
+      "id": "6379",
+      "name": "ISOAutoHiLimit",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD4S",
+      "id": "13971",
+      "name": "Rotation",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD5000",
+      "id": "693",
+      "name": "ISO2",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD700",
+      "id": "613",
+      "name": "ISO2",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD80",
+      "id": "590.1",
+      "name": "Rotation",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD80",
+      "id": "590.2",
+      "name": "VibrationReduction",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD80",
+      "id": "590.3",
+      "name": "FlashFired",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD80",
+      "id": "708",
+      "name": "NikonImageSize",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD80",
+      "id": "708.1",
+      "name": "ImageQuality",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD800",
+      "id": "1216",
+      "name": "RepeatingFlashOutputExternal",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD800",
+      "id": "1218",
+      "name": "RepeatingFlashRateExternal",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD800",
+      "id": "1219",
+      "name": "RepeatingFlashCountExternal",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD800",
+      "id": "1242",
+      "name": "RepeatingFlashRateBuilt-in",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD800",
+      "id": "1243",
+      "name": "RepeatingFlashCountBuilt-in",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD800",
+      "id": "1308",
+      "name": "SequenceNumber",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::ShotInfoD90",
+      "id": "693",
+      "name": "ISO2",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::Type2",
+      "id": "3",
+      "name": "Quality",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::Type2",
+      "id": "4",
+      "name": "ColorMode",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::Type2",
+      "id": "5",
+      "name": "ImageAdjustment",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::Type2",
+      "id": "6",
+      "name": "CCDSensitivity",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::Type2",
+      "id": "7",
+      "name": "WhiteBalance",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::Type2",
+      "id": "8",
+      "name": "Focus",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::Type2",
+      "id": "10",
+      "name": "DigitalZoom",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Nikon::Type2",
+      "id": "11",
+      "name": "Converter",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Olympus::CameraSettings",
+      "id": "516",
+      "name": "NDFilter",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Olympus::CameraSettings",
+      "id": "1326",
+      "name": "ToneLevel",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Olympus::FocusInfo",
+      "id": "8448",
+      "name": "AntiShockWaitingTime",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "PNG::Main",
+      "id": "gAMA",
+      "name": "Gamma",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "PNG::Main",
+      "id": "iCCP-name",
+      "name": "ProfileName",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "PNG::Main",
+      "id": "sRGB",
+      "name": "SRGBRendering",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "PNG::Main",
+      "id": "tIME",
+      "name": "ModifyDate",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Panasonic::Main",
+      "id": "167",
+      "name": "OutputLUT",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Pentax::Main",
+      "id": "128",
+      "name": "AspectRatio",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::AudioKeys",
+      "id": "player.movie.audio.balance",
+      "name": "Balance",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::AudioKeys",
+      "id": "player.movie.audio.bass",
+      "name": "Bass",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::AudioKeys",
+      "id": "player.movie.audio.gain",
+      "name": "AudioGain",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::AudioKeys",
+      "id": "player.movie.audio.pitchshift",
+      "name": "PitchShift",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::AudioKeys",
+      "id": "player.movie.audio.treble",
+      "name": "Treble",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "Encoded_With",
+      "name": "EncodedWith",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "album",
+      "name": "Album",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "artist",
+      "name": "Artist",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "artwork",
+      "name": "Artwork",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "author",
+      "name": "Author",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "collection.user",
+      "name": "UserCollection",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "com.android.manufacturer",
+      "name": "AndroidMake",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "com.android.model",
+      "name": "AndroidModel",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "com.android.version",
+      "name": "AndroidVersion",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "comment",
+      "name": "Comment",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "compatible_brands",
+      "name": "CompatibleBrands",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "content.identifier",
+      "name": "ContentIdentifier",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "copyright",
+      "name": "Copyright",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "creation_time",
+      "name": "CreationTime",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "creationdate",
+      "name": "CreationDate",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "description",
+      "name": "Description",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "direction.facing",
+      "name": "CameraDirection",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "direction.motion",
+      "name": "CameraMotion",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "director",
+      "name": "Director",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "displayname",
+      "name": "DisplayName",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "encoder",
+      "name": "Encoder",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "full-frame-rate-playback-intent",
+      "name": "FullFrameRatePlaybackIntent",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "genre",
+      "name": "Genre",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "information",
+      "name": "Information",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "keywords",
+      "name": "Keywords",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "location.ISO6709",
+      "name": "GPSCoordinates",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "location.accuracy.horizontal",
+      "name": "LocationAccuracyHorizontal",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "location.body",
+      "name": "LocationBody",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "location.date",
+      "name": "LocationDate",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "location.name",
+      "name": "LocationName",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "location.note",
+      "name": "LocationNote",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "location.role",
+      "name": "LocationRole",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "major_brand",
+      "name": "MajorBrand",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "make",
+      "name": "Make",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "minor_version",
+      "name": "MinorVersion",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "model",
+      "name": "Model",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "player.movie.audio.balance",
+      "name": "Balance",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "player.movie.audio.bass",
+      "name": "Bass",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "player.movie.audio.gain",
+      "name": "AudioGain",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "player.movie.audio.pitchshift",
+      "name": "PitchShift",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "player.movie.audio.treble",
+      "name": "Treble",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "player.movie.visual.brightness",
+      "name": "Brightness",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "player.movie.visual.color",
+      "name": "Color",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "player.movie.visual.contrast",
+      "name": "Contrast",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "player.movie.visual.tint",
+      "name": "Tint",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "player.version",
+      "name": "PlayerVersion",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "producer",
+      "name": "Producer",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "publisher",
+      "name": "Publisher",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "rating.user",
+      "name": "UserRating",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "samsung.android.utc_offset",
+      "name": "AndroidTimeZone",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "software",
+      "name": "Software",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "title",
+      "name": "Title",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "version",
+      "name": "Version",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "xiaomi.exifInfo.videoinfo",
+      "name": "XiaomiExifInfo",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::Keys",
+      "id": "year",
+      "name": "Year",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::MetaData",
+      "id": "3",
+      "name": "ProductionDate",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::MetaData",
+      "id": "11",
+      "name": "TimeZone",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::MetaData",
+      "id": "12",
+      "name": "ModifyDate",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::VideoKeys",
+      "id": "camera.focal_length.35mm_equivalent",
+      "name": "FocalLengthIn35mmFormat",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::VideoKeys",
+      "id": "camera.framereadouttimeinmicroseconds",
+      "name": "FrameReadoutTime",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::VideoKeys",
+      "id": "camera.identifier",
+      "name": "CameraIdentifier",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::VideoKeys",
+      "id": "camera.lens_model",
+      "name": "LensModel",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "QuickTime::VideoKeys",
+      "id": "com.apple.photos.captureMode",
+      "name": "CaptureMode",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Samsung::Type2",
+      "id": "64",
+      "name": "RawDataByteOrder",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Samsung::Type2",
+      "id": "80",
+      "name": "RawDataCFAPattern",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Sanyo::Main",
+      "id": "519",
+      "name": "SoftwareVersion",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Sanyo::Main",
+      "id": "520",
+      "name": "PictInfo",
+      "status": "needs-manual-encoder-review"
+    },
+    {
+      "table": "Sanyo::Main",
+      "id": "521",
+      "name": "CameraID",
+      "status": "needs-manual-encoder-review"
+    }
+  ],
+  "writableTypeCounts": {
+    "int32u": 820,
+    "string": 2561,
+    "int32s": 520,
+    "rational64s": 154,
+    "?": 254,
+    "undef": 453,
+    "int8u": 3122,
+    "int16uRev": 132,
+    "int16u": 1961,
+    "int8s": 169,
+    "int16s": 1444,
+    "rational32u": 3,
+    "float": 65,
+    "resize": 2,
+    "double": 39,
+    "rational64u": 141,
+    "real": 1194,
+    "struct": 265,
+    "integer": 532,
+    "date": 74,
+    "lang-alt": 86,
+    "boolean": 204,
+    "digits": 15,
+    "Unicode": 24,
+    "GUID": 2,
+    "int64u": 1,
+    "vt_filetime": 1,
+    "fixed32u": 3,
+    "int64s": 2,
+    "fixed32s": 1,
+    "unicode": 3,
+    "rational": 63
+  }
+}

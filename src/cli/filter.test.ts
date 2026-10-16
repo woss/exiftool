@@ -83,3 +83,28 @@ test('array tag values compare as comma-joined string', () => {
   assertEquals(evalCondition('$Keywords eq nature, sun', withArray), true);
   assertEquals(evalCondition('$Keywords eq nature sun', withArray), false);
 });
+
+test('boolean conditions compose comparisons and preserve quoted logical words', () => {
+  const withGenre: Record<string, TagValue> = { ...tags, Genre: 'Rock and Roll' };
+  assertEquals(evalCondition("$Genre eq 'Rock and Roll' and $ISO >= 200", withGenre), true);
+  assertEquals(evalCondition('$Make eq Google || $ISO > 100 && $Model eq iPhone', withGenre), true);
+  assertEquals(evalCondition('$Make eq Apple or $ISO < 100 and $Model eq Missing', withGenre), true);
+  assertEquals(evalCondition('$Make eq Google or $ISO < 100', withGenre), false);
+});
+
+test('boolean conditions respect parenthesized groups', () => {
+  assertEquals(evalCondition('($Make eq Apple or $ISO < 100) and $Model eq iPhone', tags), true);
+  assertEquals(evalCondition('($Make eq Google or $ISO >= 200) and $Model eq Missing', tags), false);
+  assertEquals(evalCondition('(($Make eq Apple) and ($Model eq iPhone))', tags), true);
+  assertEquals(evalCondition("($Title eq 'My Photo')", tags), true);
+  assertEquals(evalCondition('($Make eq Apple and $Model eq iPhone', tags), false);
+});
+
+test('regex conditions support =~ and !~ with literal slash-delimited patterns', () => {
+  assertEquals(evalCondition('$Make =~ /pp/', tags), true);
+  assertEquals(evalCondition('$Make =~ /APPLE/i', tags), true);
+  assertEquals(evalCondition('$Make !~ /Google/', tags), true);
+  assertEquals(evalCondition('$Make !~ /Apple/', tags), false);
+  assertEquals(evalCondition('$Make =~ /[/', tags), false);
+  assertEquals(evalCondition('$Make =~ /Apple/g', tags), false);
+});
