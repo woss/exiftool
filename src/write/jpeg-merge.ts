@@ -645,7 +645,6 @@ export function parseJpegSegments(bytes: Uint8Array): JpegSegment[] {
       pos += 2;
       continue;
     }
-    if (pos + 2 > bytes.length) break;
     const len = (bytes[pos + 2] << 8) | bytes[pos + 3];
     segments.push({
       marker,
@@ -857,8 +856,6 @@ function applyExifPatches(t: RawTiff, reqs: ExifRequest[]): string[] {
       const at = parent.entries.findIndex((entry) => entry.tag > tag);
       if (at === -1) parent.entries.push(ptr);
       else parent.entries.splice(at, 0, ptr);
-    } else if (!ptr.sub) {
-      ptr.sub = { entries: [], next: null, thumb: null };
     }
     return ptr.sub!;
   };
@@ -1076,7 +1073,6 @@ function extendedXmpPacket(
 }
 
 function app13Segment(payload: Uint8Array): Uint8Array {
-  if (payload.length + 2 > 0xffff) throw new UnsupportedFormatError('APP13 segment exceeds 64 KiB JPEG limit');
   const seg = new Uint8Array(4 + payload.length);
   seg[0] = 0xff;
   seg[1] = 0xed;
@@ -1090,15 +1086,6 @@ function app13Segment(payload: Uint8Array): Uint8Array {
 const PHOTOSHOP_APP13_HEADER = new TextEncoder().encode('Photoshop 3.0\0');
 
 function photoshopApp13Segments(payload: Uint8Array): Uint8Array[] {
-  if (!payloadStartsWith(payload, {
-    marker: 0xed,
-    start: 0,
-    end: payload.length,
-    payloadStart: 0,
-    payloadEnd: payload.length,
-  }, 'Photoshop 3.0\0')) {
-    throw new UnsupportedFormatError('malformed Photoshop APP13 payload');
-  }
   const maxDataLength = 0xffff - 2 - PHOTOSHOP_APP13_HEADER.length;
   const resourceData = payload.subarray(PHOTOSHOP_APP13_HEADER.length);
   const segments: Uint8Array[] = [];
@@ -1113,7 +1100,6 @@ function photoshopApp13Segments(payload: Uint8Array): Uint8Array[] {
 }
 
 function app12Segment(payload: Uint8Array): Uint8Array {
-  if (payload.length + 2 > 0xffff) throw new UnsupportedFormatError('APP12 segment exceeds 65,533 bytes');
   const segment = new Uint8Array(payload.length + 4);
   segment[0] = 0xff;
   segment[1] = 0xec;
@@ -1267,6 +1253,15 @@ export const jpegMergeWriter: ContainerWriter = (original, tags) => {
   if (reqs.xmp.length > 0 || reqs.xmpDeletes.length > 0) {
     if (xmpExtensionSegments.length > 0 && !xmpSeg) {
       throw new UnsupportedFormatError('Extended XMP segments have no standard XMP pointer packet');
+    }
+    const standardPacket = xmpSeg
+      ? new TextDecoder().decode(original.subarray(xmpSeg.payloadStart + XMP_APP1_HEADER.length, xmpSeg.payloadEnd))
+      : '';
+    const hasExtendedXmpPointer =
+      /xmpNote:HasExtendedXMP(?:\s[^>]*)?>[A-Fa-f0-9]{32}</.test(standardPacket) ||
+      /xmpNote:HasExtendedXMP\s*=\s*["'][A-Fa-f0-9]{32}["']/.test(standardPacket);
+    if (hasExtendedXmpPointer && xmpExtensionSegments.length === 0) {
+      throw new UnsupportedFormatError('invalid Extended XMP pointer or missing extension segments');
     }
     const packetBase = xmpSeg
       ? xmpExtensionSegments.length > 0

@@ -7,6 +7,7 @@ import { detectParser } from './mod.js';
 import { pngParser } from './png.js';
 import { deflateSync } from 'node:zlib';
 import { tempFile } from '../test/tmp.js';
+import { buildXmpPropertiesPacket } from '../write/xmp-writer.js';
 
 const encoder = new TextEncoder();
 const execFileP = promisify(execFile);
@@ -74,6 +75,20 @@ test('png canParse accepts signature and rejects short/garbage', () => {
   assertEquals(pngParser.canParse(png(ihdr(1, 1))), true);
   assertEquals(pngParser.canParse(new Uint8Array(7)), false);
   assertEquals(pngParser.canParse(encoder.encode('NOTPNG!!')), false);
+});
+
+test('png parser inflates compressed XMP and keeps the first packet value', async () => {
+  const first = encoder.encode(buildXmpPropertiesPacket([{ name: 'dc:title', value: 'First title' }]));
+  const second = encoder.encode(buildXmpPropertiesPacket([{ name: 'dc:title', value: 'Second title' }]));
+  const keyword = encoder.encode('XML:com.adobe.xmp');
+  const prefix = concat(keyword, new Uint8Array([0, 1, 0, 0, 0]));
+  const compressedPacket = (packet: Uint8Array) =>
+    chunk('iTXt', concat(prefix, deflateSync(packet)));
+  const parsed = await pngParser.parse(
+    png(ihdr(1, 1), compressedPacket(first), compressedPacket(second), chunk('IEND', new Uint8Array(0))),
+    'compressed-xmp.png',
+  );
+  assertEquals(parsed.tags.Title, 'First title');
 });
 
 test('png IHDR extracts dimensions and color info', async () => {

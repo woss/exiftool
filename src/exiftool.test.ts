@@ -232,6 +232,9 @@ test('writeSidecar with no XMP keys is a no-op', async () => {
   try {
     const tool = new ExifTool();
     const media = join(dir, 'IMG_0002.ARW');
+    const noXmp = await tool.writeSidecar(media, { 'EXIF:Make': 'Nikon' });
+    assertEquals(noXmp.written, []);
+    assertEquals(await readdir(dir), []);
     const result = await tool.writeSidecar(media, {
       'EXIF:Make': 'Nikon',
       'XMP-dc:Title': null,

@@ -96,6 +96,7 @@ test('boolean conditions respect parenthesized groups', () => {
   assertEquals(evalCondition('($Make eq Apple or $ISO < 100) and $Model eq iPhone', tags), true);
   assertEquals(evalCondition('($Make eq Google or $ISO >= 200) and $Model eq Missing', tags), false);
   assertEquals(evalCondition('(($Make eq Apple) and ($Model eq iPhone))', tags), true);
+  assertEquals(evalCondition("($Title eq 'My Photo')", tags), true);
   assertEquals(evalCondition('($Make eq Apple and $Model eq iPhone', tags), false);
 });
 

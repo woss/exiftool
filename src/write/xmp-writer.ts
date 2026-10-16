@@ -437,13 +437,9 @@ function serializeXmpStructFields(name: string, value: TagStructValue): string {
       const itemStruct = XMP_STRUCT_FIELD_LIST_ITEMS[name]?.[fieldName];
       const items = fieldValue.map((item) => {
         if (itemStruct) {
-          if (!isXmpStructValue(item) || !isValidXmpStruct(itemStruct, item)) {
-            throw new UnsupportedFormatError(`invalid nested XMP list item for ${fieldName}`);
-          }
-          return `<rdf:li rdf:parseType="Resource">${serializeXmpStructFields(itemStruct, item)}</rdf:li>`;
+          return `<rdf:li rdf:parseType="Resource">${serializeXmpStructFields(itemStruct, item as TagStructValue)}</rdf:li>`;
         }
-        if (isXmpStructValue(item)) throw new UnsupportedFormatError(`invalid XMP struct item for ${fieldName}`);
-        return `<rdf:li>${xmlEscape(xmpScalar(item))}</rdf:li>`;
+        return `<rdf:li>${xmlEscape(xmpScalar(item as string | number | boolean))}</rdf:li>`;
       }).join('');
       fields.push(`<${field.prefix}:${field.localName}><rdf:${kind}>${items}</rdf:${kind}></${field.prefix}:${field.localName}>`);
     } else if (isXmpStructValue(fieldValue)) {
@@ -451,17 +447,11 @@ function serializeXmpStructFields(name: string, value: TagStructValue): string {
         fields.push(serializeXmpAlt(fieldName, fieldValue));
         continue;
       }
-      const nestedStruct = XMP_STRUCT_FIELD_STRUCTS[name]?.[fieldName];
-      if (!nestedStruct || !isValidXmpStruct(nestedStruct, fieldValue)) {
-        throw new UnsupportedFormatError(`invalid nested XMP struct field ${fieldName} for ${name}`);
-      }
+      const nestedStruct = XMP_STRUCT_FIELD_STRUCTS[name]?.[fieldName]!;
       fields.push(
         `<${field.prefix}:${field.localName} rdf:parseType="Resource">${serializeXmpStructFields(nestedStruct, fieldValue)}</${field.prefix}:${field.localName}>`,
       );
     } else if (fieldValue instanceof Uint8Array) {
-      if ((name !== 'xmp:Thumbnails' && name !== 'xmp:PageInfo') || fieldName !== 'xmpGImg:image') {
-        throw new UnsupportedFormatError(`invalid binary XMP struct field ${fieldName} for ${name}`);
-      }
       fields.push(`<${field.prefix}:${field.localName}>${encodeBase64(fieldValue)}</${field.prefix}:${field.localName}>`);
     } else {
       fields.push(`<${field.prefix}:${field.localName}>${xmlEscape(xmpScalar(fieldValue))}</${field.prefix}:${field.localName}>`);
@@ -660,11 +650,6 @@ function topLevelDescriptionSpans(xml: string): DescriptionSpan[] {
     }
   }
   return spans;
-}
-
-function topLevelDescriptionSpan(xml: string): [number, number] | undefined {
-  const first = topLevelDescriptionSpans(xml)[0];
-  return first && !first.selfClosing ? [first.openEnd, first.closeStart] : undefined;
 }
 
 function upsertXmpProperty(xml: string, name: string, element: string): string {

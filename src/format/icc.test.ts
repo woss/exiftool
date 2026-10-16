@@ -44,3 +44,24 @@ test('vendored ExifTool reads a standalone ICC profile replacement', async () =>
     await rm(file, { force: true });
   }
 });
+
+test('iccParser rejects malformed profiles and skips non-binary write requests', () => {
+  const profile = new Uint8Array(readFileSync(fixturePath));
+  const malformed = profile.slice();
+  malformed.set(new TextEncoder().encode('bad!'), 12);
+  assertEquals(iccParser.canParse(new Uint8Array(127)), false);
+  assertEquals(iccParser.canParse(malformed), false);
+
+  const skipped = iccParser.writeBytes!(profile, { Title: 'ignored', ICC_Profile: 'not bytes' });
+  assertEquals(skipped.bytes, profile);
+  assertEquals(skipped.written, []);
+  assertEquals(skipped.skipped, ['Title', 'ICC_Profile']);
+
+  let error: unknown;
+  try {
+    iccParser.writeBytes!(profile, { ICC_Profile: malformed });
+  } catch (caught) {
+    error = caught;
+  }
+  assertEquals(error instanceof Error, true);
+});

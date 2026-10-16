@@ -16,7 +16,7 @@ import {
 import { parseXMP } from '../exif/xmp.js';
 import { extractExifFromTiff } from '../exif/tiff.js';
 import { jpegParser } from '../format/jpeg.js';
-import { mergeDucky } from '../exif/ducky.js';
+import { mergeDucky, parseDucky } from '../exif/ducky.js';
 
 const execFileP = promisify(execFile);
 
@@ -182,6 +182,20 @@ test('jpegMergeWriter replaces and deletes COM comment segments', async () => {
   assertEquals(parseJpegSegments(deleted.bytes).filter((segment) => segment.marker === 0xfe).length, 0);
 });
 
+test('jpegMergeWriter replaces multiple COM segments with a segmented empty-safe comment', () => {
+  const original = new Uint8Array([
+    0xff, 0xd8,
+    0xff, 0xfe, 0, 5, 0x6f, 0x6c, 0x64,
+    0xff, 0xfe, 0, 5, 0x61, 0x67, 0x65,
+    0xff, 0xd9,
+  ]);
+  const result = jpegMergeWriter(original, { Comment: 'x'.repeat(65_534) });
+  const comments = parseJpegSegments(result.bytes).filter((segment) => segment.marker === 0xfe);
+  assertEquals(comments.length, 2);
+  assertEquals(comments[0]!.payloadEnd - comments[0]!.payloadStart, 65_533);
+  assertEquals(comments[1]!.payloadEnd - comments[1]!.payloadStart, 1);
+});
+
 test('jpegMergeWriter matches ExifTool when deleting the last GPS data tag', async () => {
   const original = new Uint8Array(readFileSync('assets/01.jpg'));
   const oursFile = await tempFile('.jpg');
@@ -274,6 +288,23 @@ test('jpegMergeWriter stores oversized XMP using Adobe Extended XMP APP1 segment
   }
 });
 
+test('jpegMergeWriter inserts oversized XMP after an existing EXIF segment', () => {
+  const original = new Uint8Array(readFileSync('assets/01.jpg'));
+  const segments = parseJpegSegments(original);
+  const xmp = segments.find((segment) => segment.marker === 0xe1 && !payloadIsExif(original, segment))!;
+  const stripped = new Uint8Array(original.length - (xmp.end - xmp.start));
+  stripped.set(original.subarray(0, xmp.start));
+  stripped.set(original.subarray(xmp.end), xmp.start);
+  const result = jpegMergeWriter(stripped, { 'XMP-dc:Description': 'x'.repeat(70_000) });
+  const outputSegments = parseJpegSegments(result.bytes);
+  const exifIndex = outputSegments.findIndex((segment) => segment.marker === 0xe1 && payloadIsExif(result.bytes, segment));
+  const xmpIndexes = outputSegments.flatMap((segment, index) =>
+    segment.marker === 0xe1 && !payloadIsExif(result.bytes, segment) ? [index] : []
+  );
+  assertEquals(xmpIndexes[0], exifIndex + 1);
+  assertEquals(xmpIndexes.length > 1, true);
+});
+
 test('jpegMergeWriter rejects EXIF payloads that exceed the APP1 segment limit', () => {
   const original = new Uint8Array(readFileSync('assets/01.jpg'));
   let message: string | undefined;
@@ -338,6 +369,121 @@ test('jpegMergeWriter rejects corrupted Extended XMP chunks', () => {
     message = (error as Error).message;
   }
   assertEquals(message, 'Extended XMP packet does not match its MD5 GUID');
+});
+
+test('jpegMergeWriter rejects malformed Extended XMP pointers and chunks', () => {
+  const original = new Uint8Array(readFileSync('assets/01.jpg'));
+  const extended = jpegMergeWriter(original, { 'XMP-dc:Description': 'x'.repeat(70_000) });
+  const segments = parseJpegSegments(extended.bytes);
+  const standard = segments.find((segment) => segment.marker === 0xe1 && !payloadIsExif(extended.bytes, segment))!;
+  const extensionHeader = new TextEncoder().encode('http://ns.adobe.com/xmp/extension/\0');
+  const extensions = segments.filter((segment) => segment.marker === 0xe1 &&
+    extensionHeader.every((byte, index) => extended.bytes[segment.payloadStart + index] === byte));
+  const standardPayload = extended.bytes.slice(standard.payloadStart, standard.payloadEnd);
+  const extensionPayloads = extensions.map((segment) =>
+    extended.bytes.slice(segment.payloadStart, segment.payloadEnd)
+  );
+  const assemble = (includeStandard: boolean, payloads: Uint8Array[]) => {
+    const parts: Uint8Array[] = [new Uint8Array([0xff, 0xd8])];
+    const append = (payload: Uint8Array) => {
+      const length = payload.length + 2;
+      parts.push(new Uint8Array([0xff, 0xe1, length >> 8, length & 0xff]), payload);
+    };
+    if (includeStandard) append(standardPayload);
+    for (const payload of payloads) append(payload);
+    parts.push(new Uint8Array([0xff, 0xd9]));
+    return new Uint8Array(Buffer.concat(parts));
+  };
+  const rejectsUpdate = (bytes: Uint8Array) => {
+    let error: unknown;
+    try {
+      jpegMergeWriter(bytes, { 'XMP-dc:Title': 'replacement' });
+    } catch (caught) {
+      error = caught;
+    }
+    assertEquals(error instanceof UnsupportedFormatError, true);
+  };
+
+  rejectsUpdate(assemble(false, extensionPayloads));
+  rejectsUpdate(assemble(true, []));
+
+  const missingPointer = standardPayload.slice();
+  const pointerText = new TextEncoder().encode('xmpNote:HasExtendedXMP');
+  const pointerOffset = missingPointer.findIndex((byte, index) =>
+    pointerText.every((value, position) => missingPointer[index + position] === value)
+  );
+  if (pointerOffset < 0) throw new Error('expected the Extended XMP pointer');
+  missingPointer[pointerOffset] = 0x7a;
+  const pointerBytes = assemble(true, extensionPayloads);
+  const standardSegment = parseJpegSegments(pointerBytes).find((segment) =>
+    segment.marker === 0xe1 && !payloadIsExif(pointerBytes, segment)
+  )!;
+  pointerBytes.set(missingPointer, standardSegment.payloadStart);
+  rejectsUpdate(pointerBytes);
+
+  const wrongGuid = extensionPayloads.map((payload) => payload.slice());
+  wrongGuid[0]![extensionHeader.length] ^= 1;
+  rejectsUpdate(assemble(true, wrongGuid));
+
+  const inconsistentLengths = extensionPayloads.map((payload) => payload.slice());
+  inconsistentLengths[0]![extensionHeader.length + 32] ^= 1;
+  rejectsUpdate(assemble(true, inconsistentLengths));
+
+  const overlapping = extensionPayloads.map((payload) => payload.slice());
+  overlapping[0]![extensionHeader.length + 39] = 1;
+  rejectsUpdate(assemble(true, overlapping));
+
+  const truncated = extensionPayloads[0]!.subarray(0, extensionHeader.length + 32 + 7);
+  rejectsUpdate(assemble(true, [truncated]));
+});
+
+test('jpegMergeWriter handles invalid resource requests and empty comments', () => {
+  const bare = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+  const result = jpegMergeWriter(bare, {
+    'JPEG:Comment': 42,
+    'JFIF:XResolution': 0x1_0000,
+    ICC_Profile: 'not bytes',
+    'Photoshop:NotAResource': 'value',
+    'Ducky:Comment': 42,
+  });
+  assertEquals(result.bytes, bare);
+  assertEquals(result.written, []);
+  assertEquals(result.skipped, [
+    'JPEG:Comment', 'JFIF:XResolution', 'ICC_Profile', 'Photoshop:NotAResource', 'Ducky:Comment',
+  ]);
+
+  const emptyComment = jpegMergeWriter(bare, { Comment: '' });
+  const segment = parseJpegSegments(emptyComment.bytes).find((item) => item.marker === 0xfe)!;
+  assertEquals(segment.payloadEnd - segment.payloadStart, 0);
+});
+
+test('jpegMergeWriter writes enum-backed EXIF fields and unqualified Interop tags', () => {
+  const bare = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+  const result = jpegMergeWriter(bare, {
+    'ExifIFD:FileSource': '3',
+    'ExifIFD:SceneType': 3,
+    InteropIndex: 'R98',
+  });
+  assertEquals(result.skipped, []);
+  assertEquals(result.written.includes('EXIF:InteropIndex'), true);
+  assertEquals(resolveMergeRequests({ InteropIndex: 'R98' }).exif[0]?.home, 0xa005);
+  const exif = parseJpegSegments(result.bytes).find((segment) => segment.marker === 0xe1)!;
+  const raw = parseRawTiff(result.bytes.subarray(exif.payloadStart + 6, exif.payloadEnd))!;
+  const exifIfd = raw.ifd0.entries.find((entry) => entry.tag === 0x8769)!.sub!;
+  assertEquals(exifIfd.entries.some((entry) => entry.tag === 0xA300), true);
+  assertEquals(exifIfd.entries.some((entry) => entry.tag === 0xA301), true);
+});
+
+test('jpegMergeWriter rejects Ducky APP12 blocks over the segment limit', () => {
+  let message = '';
+  try {
+    jpegMergeWriter(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
+      'Ducky:Comment': 'x'.repeat(32_764),
+    });
+  } catch (error) {
+    message = (error as Error).message;
+  }
+  assertEquals(message, 'Ducky APP12 segment exceeds 65,533 bytes');
 });
 
 test('vendored ExifTool reads JPEG comments written by the merger', async () => {
@@ -779,6 +925,14 @@ test('jpegMergeWriter maps nonpositive aperture values to APEX zero', async () =
   } finally {
     await rm(file, { force: true });
   }
+});
+
+test('jpegMergeWriter accepts zero aperture as a finite APEX value', () => {
+  const result = jpegMergeWriter(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), {
+    'ExifIFD:ApertureValue': 0,
+  });
+  assertEquals(result.written, ['EXIF:ApertureValue']);
+  assertEquals(result.skipped, []);
 });
 
 test('jpegMergeWriter writes signed-rational BrightnessValue', async () => {
@@ -1602,6 +1756,18 @@ test('jpegMergeWriter creates JFIF APP0 with default fields when absent', async 
   assertEquals(local.tags.ResolutionUnit, 'inches');
 });
 
+test('jpegMergeWriter skips JFIF writes for Adobe JPEGs without a JFIF segment', () => {
+  const original = new Uint8Array([
+    0xff, 0xd8,
+    0xff, 0xee, 0, 8, 0x41, 0x64, 0x6f, 0x62, 0x65, 0,
+    0xff, 0xd9,
+  ]);
+  const result = jpegMergeWriter(original, { 'JFIF:XResolution': 144 });
+  assertEquals(result.written, []);
+  assertEquals(result.skipped, ['JFIF:XResolution']);
+  assertEquals(result.bytes, original);
+});
+
 test('jpegMergeWriter inserts, reads, and deletes JPEG ICC APP2 profile segments', async () => {
   const profile = new Uint8Array(readFileSync('vendor/exiftool/t/images/ICC_Profile.icc'));
   const result = jpegMergeWriter(new Uint8Array(readFileSync('assets/01.jpg')), { ICC_Profile: profile });
@@ -1631,6 +1797,15 @@ test('jpegMergeWriter inserts, reads, and deletes JPEG ICC APP2 profile segments
       String.fromCharCode(...deleted.bytes.subarray(segment.payloadStart, segment.payloadStart + 12)) === 'ICC_PROFILE\0'),
     false,
   );
+});
+
+test('jpegMergeWriter inserts an ICC profile before EOI when no scan exists', () => {
+  const profile = new Uint8Array(readFileSync('vendor/exiftool/t/images/ICC_Profile.icc'));
+  const result = jpegMergeWriter(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), { ICC_Profile: profile });
+  const segments = parseJpegSegments(result.bytes).filter((segment) => segment.marker === 0xe2);
+  assertEquals(segments.length, 1);
+  assertEquals(segments[0]!.end, result.bytes.length - 2);
+  assertEquals(result.written, ['ICC_Profile']);
 });
 
 test('jpegParser reassembles multi-segment JPEG ICC profiles', async () => {
@@ -1813,6 +1988,35 @@ test('Ducky merge preserves unknown blocks byte-for-byte', () => {
   assertEquals(Array.from(merged.subarray(5, 12)), [0x00, 0x63, 0x00, 0x03, 0xaa, 0xbb, 0xcc]);
 });
 
+test('Ducky parser and writer reject malformed blocks and values', () => {
+  assertEquals(parseDucky(new Uint8Array()), {});
+  assertEquals(parseDucky(new TextEncoder().encode('Ducky')), {});
+  assertEquals(parseDucky(new Uint8Array([...new TextEncoder().encode('Ducky'), 0, 1, 0, 4, 0])), {});
+
+  const invalidRequests = [
+    { key: 'Ducky:Quality', id: 1, value: 'not a number' },
+    { key: 'Ducky:Comment', id: 2, value: 42 },
+    { key: 'Ducky:Comment', id: 2, value: 'x'.repeat(32_766) },
+  ];
+  for (const request of invalidRequests) {
+    let threw = false;
+    try {
+      mergeDucky(null, [request]);
+    } catch {
+      threw = true;
+    }
+    assertEquals(threw, true);
+  }
+
+  let malformedMergeThrew = false;
+  try {
+    mergeDucky(new Uint8Array([...new TextEncoder().encode('Ducky'), 0, 1, 0, 4, 0]), []);
+  } catch {
+    malformedMergeThrew = true;
+  }
+  assertEquals(malformedMergeThrew, true);
+});
+
 test('parseRawTiff rejects short, bad-endian, and bad-magic buffers', async () => {
   const { parseRawTiff } = await import('./jpeg-merge.js');
   assertEquals(parseRawTiff(new Uint8Array(4)), undefined);
@@ -1834,6 +2038,8 @@ test('parseJpegSegments handles standalone markers and EOI/SOS termination', () 
   const bytes = new Uint8Array([0xff, 0xd8, 0xff, 0x01, 0xff, 0xd0, 0xff, 0xd9, 0x00, 0x00]);
   const segs = parseJpegSegments(bytes);
   assertEquals(segs.map((s) => s.marker), [0x01, 0xd0, 0xd9]);
+  assertEquals(parseJpegSegments(new Uint8Array([0xff, 0xd8, 0x00])).length, 0);
+  assertEquals(parseJpegSegments(new Uint8Array([0xff, 0xd8, 0xff, 0xe1, 0, 2])).length, 1);
 });
 
 test('jpegMergeWriter rejects non-JPEG input', () => {
@@ -1844,6 +2050,43 @@ test('jpegMergeWriter rejects non-JPEG input', () => {
     error = e;
   }
   assertEquals(error instanceof UnsupportedFormatError, true);
+});
+
+test('resolveMergeRequests converts EXIF byte values and explicit GPS references', () => {
+  const resolved = resolveMergeRequests({
+    'ExifIFD:FileSource': '3',
+    'ExifIFD:SceneType': '2',
+    'ExifIFD:ApertureValue': '2',
+    'ExifIFD:ShutterSpeedValue': '1/2',
+    'GPS:GPSLatitude': -47.6,
+    'GPS:GPSLatitudeRef': 'N',
+  });
+  assertEquals(resolved.skipped, []);
+  assertEquals(resolved.exif.some((request) => request.spec.name === 'GPSLatitudeRef' && request.value === 'N'), true);
+  assertEquals(resolved.exif.some((request) => request.spec.name === 'FileSource' && request.value instanceof Uint8Array), true);
+  assertEquals(resolved.exif.some((request) => request.spec.name === 'SceneType' && request.value instanceof Uint8Array), true);
+  const numericFileSource = resolveMergeRequests({ 'ExifIFD:FileSource': 3 });
+  assertEquals(numericFileSource.exif[0]?.value, new Uint8Array([3]));
+  const synthesizedReference = resolveMergeRequests({ 'GPS:GPSLatitude': -47.6 });
+  assertEquals(synthesizedReference.exif.some((request) => request.spec.name === 'GPSLatitudeRef'), true);
+});
+
+test('parseRawTiff handles truncated IFD tables and invalid pointer offsets', () => {
+  const truncated = new Uint8Array([0x49, 0x49, 42, 0, 8, 0, 0, 0, 1, 0]);
+  assertEquals(parseRawTiff(truncated)?.ifd0.entries, []);
+
+  const pointer = new Uint8Array(26);
+  const view = new DataView(pointer.buffer);
+  pointer.set([0x49, 0x49]);
+  view.setUint16(2, 42, true);
+  view.setUint32(4, 8, true);
+  view.setUint16(8, 1, true);
+  view.setUint16(10, 0x8769, true);
+  view.setUint16(12, 4, true);
+  view.setUint32(14, 1, true);
+  view.setUint32(18, 0xffff, true);
+  view.setUint32(22, 0, true);
+  assertEquals(parseRawTiff(pointer)?.ifd0.entries[0]?.sub?.entries, []);
 });
 
 test('jpegMergeWriter creates EXIF and XMP from scratch on a bare JPEG', () => {
@@ -1864,6 +2107,24 @@ test('jpegMergeWriter creates EXIF and XMP from scratch on a bare JPEG', () => {
   const parsed = parseXMP(packet);
   assertEquals(parsed.Rights, 'Fresh rights');
   assertEquals(parsed.WebStatement, 'https://example.com/fresh');
+});
+
+test('jpegMergeWriter skips deleting an absent XMP property on a bare JPEG', () => {
+  const original = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+  const result = jpegMergeWriter(original, { 'XMP-dc:Title': null });
+  assertEquals(result.bytes, original);
+  assertEquals(result.written, []);
+  assertEquals(result.skipped, ['XMP-dc:Title']);
+});
+
+test('jpegMergeWriter creates and removes an oversized XMP packet on a bare JPEG', () => {
+  const original = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+  const created = jpegMergeWriter(original, { 'XMP-dc:Description': 'x'.repeat(70_000) });
+  assertEquals(created.written, ['XMP-dc:Description']);
+  const extensions = parseJpegSegments(created.bytes).filter((segment) => segment.marker === 0xe1);
+  assertEquals(extensions.length > 1, true);
+  const deleted = jpegMergeWriter(created.bytes, { 'XMP-dc:Description': null });
+  assertEquals(parseJpegSegments(deleted.bytes).filter((segment) => segment.marker === 0xe1).length, 0);
 });
 
 test('jpegMergeWriter inserts XMP after EXIF when only EXIF exists', () => {
@@ -1887,6 +2148,32 @@ test('jpegMergeWriter inserts XMP after EXIF when only EXIF exists', () => {
   assertEquals(parseXMP(packet).Rights, 'Inserted rights');
 });
 
+test('jpegMergeWriter rejects ICC profiles requiring more than 255 APP2 segments', () => {
+  const profile = new Uint8Array(255 * (0xffff - 2 - 14) + 1);
+  let message = '';
+  try {
+    jpegMergeWriter(new Uint8Array([0xff, 0xd8, 0xff, 0xd9]), { ICC_Profile: profile });
+  } catch (error) {
+    message = (error as Error).message;
+  }
+  assertEquals(message, 'ICC profile requires more than 255 JPEG APP2 segments');
+});
+
+test('jpegMergeWriter rejects malformed JFIF APP0 fields', () => {
+  const original = new Uint8Array([
+    0xff, 0xd8, 0xff, 0xe0, 0, 7,
+    0x4a, 0x46, 0x49, 0x46, 0,
+    0xff, 0xd9,
+  ]);
+  let error: unknown;
+  try {
+    jpegMergeWriter(original, { 'JFIF:XResolution': 100 });
+  } catch (caught) {
+    error = caught;
+  }
+  assertEquals(error instanceof UnsupportedFormatError, true);
+});
+
 function payloadIsExif(bytes: Uint8Array, s: { payloadStart: number }): boolean {
   return (
     bytes[s.payloadStart] === 0x45 && bytes[s.payloadStart + 1] === 0x78 &&
@@ -1907,6 +2194,15 @@ test('jpegMergeWriter fresh EXIF creation reports unencodable tags as skipped', 
   const tags = extractExifFromTiff(out.bytes.subarray(exifSeg.payloadStart + 6, exifSeg.payloadEnd));
   assertEquals(tags.Copyright, 'Fresh copyright');
   assertEquals(tags.GPSLatitude, undefined);
+});
+
+test('jpegMergeWriter removes the XMP APP1 segment when deleting its final property', () => {
+  const original = new Uint8Array([0xff, 0xd8, 0xff, 0xd9]);
+  const seeded = jpegMergeWriter(original, { 'XMP-dc:Title': 'Only property' });
+  const deleted = jpegMergeWriter(seeded.bytes, { 'XMP-dc:Title': null });
+  assertEquals(parseJpegSegments(deleted.bytes).some((segment) =>
+    segment.marker === 0xe1 && !payloadIsExif(deleted.bytes, segment)
+  ), false);
 });
 
 test('jpegMergeWriter leaves the XMP APP1 byte-identical when no XMP keys requested', () => {

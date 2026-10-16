@@ -1422,3 +1422,41 @@ test('mergeXmpProperties rejects unknown namespace prefixes', () => {
   }
   assertEquals(threw, true);
 });
+
+test('mergeXmpProperties removes duplicate properties across top-level descriptions', () => {
+  const original = '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description rdf:about="first" dc:title="Old title"><dc:description>Keep first</dc:description></rdf:Description><rdf:Description rdf:about="second"><dc:title>Duplicate title</dc:title><dc:description>Keep second</dc:description></rdf:Description></rdf:RDF>';
+  const merged = mergeXmpProperties(original, [{ name: 'dc:title', value: 'New title' }]);
+  assertEquals((merged.match(/(?:dc:title=|<dc:title(?:\s|>))/g) ?? []).length, 1);
+  assertEquals(merged.includes('New title'), true);
+  assertEquals(merged.includes('Keep first'), true);
+  assertEquals(merged.includes('Keep second'), true);
+
+  const duplicateElements = '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description rdf:about=""><dc:title>First</dc:title><dc:title>Second</dc:title><dc:description>Keep</dc:description></rdf:Description></rdf:RDF>';
+  const deduplicated = mergeXmpProperties(duplicateElements, [{ name: 'dc:title', value: 'Updated' }]);
+  assertEquals((deduplicated.match(/<dc:title(?:\s|>)/g) ?? []).length, 1);
+  assertEquals(deduplicated.includes('Updated'), true);
+  assertEquals(deduplicated.includes('Keep'), true);
+});
+
+test('serializeXmpProperty rejects incompatible value shapes', () => {
+  const invalidValues = [
+    () => serializeXmpProperty('xmp:CreateDate', 123),
+    () => serializeXmpProperty('xmpMM:DerivedFrom', 'not a struct'),
+    () => serializeXmpProperty('xmp:Thumbnails', 'not a struct list'),
+    () => serializeXmpProperty('dc:subject', [{ field: 'value' }]),
+    () => serializeXmpProperty('xmp:MetadataDate', ['first', 'second']),
+    () => serializeXmpProperty('tiff:Orientation', ['not an enum']),
+    () => serializeXmpProperty('tiff:Orientation', 99),
+    () => serializeXmpProperty('tiff:Orientation', '6', true),
+  ];
+
+  for (const serialize of invalidValues) {
+    let threw = false;
+    try {
+      serialize();
+    } catch (error) {
+      threw = error instanceof UnsupportedFormatError;
+    }
+    assertEquals(threw, true);
+  }
+});

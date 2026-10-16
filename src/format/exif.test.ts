@@ -3,6 +3,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { assertEquals } from '../../src/test/asserts.js';
 import { buildTiff } from '../exif/tiff-builder.js';
+import { UnsupportedFormatError } from '../write/writers.js';
 import { exifParser } from './exif.js';
 
 const execFileP = promisify(execFile);
@@ -30,6 +31,43 @@ test('exifParser adds EXIF/GPS data to an existing EXIF file', async () => {
   assertEquals(info.tags.Model, 'Body');
   assertEquals(info.tags.GPSLatitude !== undefined, true);
   assertEquals(info.tags.GPSLongitude !== undefined, true);
+});
+
+test('exifParser rejects invalid signatures and malformed TIFF structures', async () => {
+  const short = new Uint8Array(7);
+  assertEquals(exifParser.canParse(short), false);
+  let parseError: unknown;
+  try {
+    await exifParser.parse(short, 'invalid.exif');
+  } catch (error) {
+    parseError = error;
+  }
+  assertEquals(parseError instanceof UnsupportedFormatError, true);
+
+});
+
+test('exifParser returns unchanged bytes when no writable requests remain', () => {
+  const original = buildTiff({ Make: 'TestCo' }).bytes;
+  const result = exifParser.writeBytes!(original, { 'IPTC:Keywords': ['ignored'] });
+  assertEquals(result.bytes, original);
+  assertEquals(result.written, []);
+  assertEquals(result.skipped, ['IPTC:Keywords']);
+});
+
+test('exifParser writes XMP properties into the standalone TIFF stream', () => {
+  const original = buildTiff({ Make: 'TestCo' }).bytes;
+  const result = exifParser.writeBytes!(original, { 'XMP-dc:Title': 'Standalone title' });
+  assertEquals(result.written, ['XMP-dc:Title']);
+  assertEquals(result.skipped, []);
+  assertEquals(Buffer.compare(Buffer.from(result.bytes), Buffer.from(original)) !== 0, true);
+});
+
+test('exifParser reports an unencodable EXIF request as skipped', () => {
+  const result = exifParser.writeBytes!(buildTiff({ Make: 'TestCo' }).bytes, {
+    'EXIF:Orientation': 'not an orientation',
+  });
+  assertEquals(result.written, []);
+  assertEquals(result.skipped, ['EXIF:Orientation']);
 });
 
 test('vendored ExifTool reads standalone EXIF writes', async () => {

@@ -4,6 +4,8 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { rm, writeFile } from 'node:fs/promises';
 import { tempFile } from '../test/tmp.js';
+import { buildXmpPropertiesPacket } from './xmp-writer.js';
+import { UnsupportedFormatError } from './writers.js';
 import { gifWriter, parseGifMetadata } from './gif.js';
 
 const execFileP = promisify(execFile);
@@ -55,6 +57,80 @@ test('GIF writer adds XMP properties and ICC profiles', () => {
   assertEquals(tags.Title, 'GIF title');
   assertEquals(tags.ProfileSize, profile.length);
   assertEquals(written.written, ['Title', 'ICC_Profile']);
+});
+
+test('GIF writer accepts raw XMP strings, bytes, updates, and deletion', () => {
+  const source = minimalGif();
+  const packet = buildXmpPropertiesPacket([{ name: 'dc:title', value: 'Raw title' }]);
+  const stringPacket = gifWriter(source, { XMP: packet });
+  const bytePacket = gifWriter(source, { XMP: new TextEncoder().encode(packet) });
+  const updated = gifWriter(source, { XMP: packet, Title: 'Updated title' });
+  assertEquals(parseGifMetadata(stringPacket.bytes).Title, 'Raw title');
+  assertEquals(parseGifMetadata(bytePacket.bytes).Title, 'Raw title');
+  assertEquals(parseGifMetadata(updated.bytes).Title, 'Updated title');
+  const deleted = gifWriter(stringPacket.bytes, { XMP: null });
+  assertEquals('Title' in parseGifMetadata(deleted.bytes), false);
+});
+
+test('GIF writer preserves a global color table when inserting metadata', () => {
+  const source = minimalGif();
+  const header = source.slice(0, 13);
+  header[10] = 0x80;
+  const colorTable = new Uint8Array([1, 2, 3, 4, 5, 6]);
+  const withColorTable = new Uint8Array([...header, ...colorTable, ...source.subarray(13)]);
+  const written = gifWriter(withColorTable, { Comment: 'Color table' });
+  assertEquals(
+    Array.from(written.bytes.subarray(13, 19)),
+    Array.from(colorTable),
+  );
+  assertEquals(parseGifMetadata(written.bytes).Comment, 'Color table');
+});
+
+test('GIF parser reports animation frame count and duration', () => {
+  const source = minimalGif();
+  const image = source.subarray(13, source.length - 1);
+  const header = source.subarray(0, 13);
+  const trailer = new Uint8Array([0x3b]);
+  const graphicControl = new Uint8Array([0x21, 0xf9, 4, 0, 25, 0, 0, 0]);
+  const animated = new Uint8Array([...header, ...graphicControl, ...image, ...image, ...trailer]);
+  const tags = parseGifMetadata(animated);
+  assertEquals(tags.FrameCount, 2);
+  assertEquals(tags.Duration, '0.25 s');
+});
+
+test('GIF writer skips unsupported values and rejects malformed structures', () => {
+  const source = minimalGif();
+  const skipped = gifWriter(source, { Comment: 42, ICC_Profile: 'invalid', XMP: 42, Unknown: 'value' });
+  assertEquals(skipped.bytes, source);
+  assertEquals(skipped.written, []);
+  assertEquals(skipped.skipped, ['Comment', 'ICC_Profile', 'XMP', 'Unknown']);
+
+  const header = source.subarray(0, 13);
+  const xmpHeader = new TextEncoder().encode('XMP DataXMP');
+  const xmpPacket = new TextEncoder().encode('<?xpacket end="w"?>');
+  const malformedGifs = [
+    new Uint8Array(12),
+    new Uint8Array([...header, 0x21]),
+    new Uint8Array([...header, 0x21, 0xfe, 2, 0x41]),
+    new Uint8Array([...header, 0x21, 0xff, 10]),
+    new Uint8Array([...header, 0x21, 0xff, 11, ...xmpHeader, ...new TextEncoder().encode('no terminator'), 0]),
+    new Uint8Array([...header, 0x21, 0xff, 11, ...xmpHeader, ...xmpPacket, 0]),
+    new Uint8Array([...header, 0x2c]),
+    new Uint8Array([...header, 0x00]),
+  ];
+  const globalColorTableHeader = header.slice();
+  globalColorTableHeader[10] = 0x80;
+  malformedGifs.push(globalColorTableHeader);
+
+  for (const malformed of malformedGifs) {
+    let error: unknown;
+    try {
+      gifWriter(malformed, { Comment: 'test' });
+    } catch (caught) {
+      error = caught;
+    }
+    assertEquals(error instanceof UnsupportedFormatError, true);
+  }
 });
 
 test('vendored ExifTool reads comments written to GIF', async () => {

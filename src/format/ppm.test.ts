@@ -3,6 +3,9 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { readFileSync } from 'node:fs';
 import { assertEquals } from '../../src/test/asserts.js';
+import { UnsupportedFormatError } from '../write/writers.js';
+import { pbmParser } from './pbm.js';
+import { pgmParser } from './pgm.js';
 import { ppmParser } from './ppm.js';
 
 const execFileP = promisify(execFile);
@@ -51,4 +54,34 @@ test('vendored ExifTool reads PPM comments written by the adapter', async () => 
   } finally {
     await rm(file, { force: true });
   }
+});
+
+test('Netpbm parsers reject malformed headers and unsupported writes', async () => {
+  const malformed = [
+    [ppmParser, 'P6 2 1 0\n'],
+    [pgmParser, 'P5 2 -1 255\n'],
+    [pbmParser, 'P4 0 1\n'],
+  ] as const;
+  for (const [parser, input] of malformed) {
+    const bytes = new TextEncoder().encode(input);
+    assertEquals(parser.canParse(bytes), false);
+    let error: unknown;
+    try {
+      await parser.parse(bytes, 'invalid.pnm');
+    } catch (caught) {
+      error = caught;
+    }
+    assertEquals(error instanceof UnsupportedFormatError, true);
+  }
+
+  const source = new Uint8Array(readFileSync(fixturePath));
+  const ignored = ppmParser.writeBytes!(source, { Title: 'unsupported' });
+  assertEquals(ignored.bytes, source);
+  assertEquals(ignored.written, []);
+  assertEquals(ignored.skipped, ['Title']);
+
+  const invalidComment = ppmParser.writeBytes!(source, { Comment: 42 });
+  assertEquals(invalidComment.bytes, source);
+  assertEquals(invalidComment.written, []);
+  assertEquals(invalidComment.skipped, ['Comment']);
 });

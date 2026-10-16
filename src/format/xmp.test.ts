@@ -20,6 +20,32 @@ test('xmpParser recognizes and parses standalone XMP packets', async () => {
   assertEquals(info.tags.FileType, 'XMP');
 });
 
+test('xmpParser rejects short and non-XMP inputs', () => {
+  assertEquals(xmpParser.canParse(new Uint8Array(7)), false);
+  assertEquals(xmpParser.canParse(new TextEncoder().encode('not an XMP packet')), false);
+});
+
+test('xmpParser replaces raw packets and reports unsupported values', () => {
+  const original = new TextEncoder().encode(buildXmpPropertiesPacket([{ name: 'dc:title', value: 'Original' }]));
+  const raw = new TextEncoder().encode(buildXmpPropertiesPacket([{ name: 'dc:title', value: 'Replacement' }]));
+  const replaced = xmpParser.writeBytes!(original, { XMP: raw });
+  assertEquals(new TextDecoder().decode(replaced.bytes), new TextDecoder().decode(raw));
+  assertEquals(replaced.written, ['XMP']);
+
+  const cleared = xmpParser.writeBytes!(original, { XMP: null });
+  assertEquals(cleared.bytes.length, 0);
+  assertEquals(cleared.written, ['XMP']);
+
+  const skipped = xmpParser.writeBytes!(original, {
+    XMP: 42,
+    'XMP-dc:Title': Number.NaN,
+    'unknown:value': 'ignored',
+  });
+  assertEquals(skipped.bytes, original);
+  assertEquals(skipped.written, []);
+  assertEquals(skipped.skipped, ['XMP', 'XMP-dc:Title', 'unknown:value']);
+});
+
 test('xmpParser updates and deletes properties while preserving other packet content', async () => {
   const packet = buildXmpPropertiesPacket([
     { name: 'dc:title', value: 'Old title' },
@@ -33,6 +59,17 @@ test('xmpParser updates and deletes properties while preserving other packet con
   assertEquals(outcome.written, ['XMP-dc:Title', 'XMP-dc:Subject']);
   assertEquals(info.tags.Title, 'Updated title');
   assertEquals('Subject' in info.tags, false);
+});
+
+test('xmpParser rejects deleting the final property from a standalone packet', () => {
+  const packet = buildXmpPropertiesPacket([{ name: 'dc:title', value: 'Only property' }]);
+  let message = '';
+  try {
+    xmpParser.writeBytes!(new TextEncoder().encode(packet), { 'XMP-dc:Title': null });
+  } catch (error) {
+    message = (error as Error).message;
+  }
+  assertEquals(message, 'XMP write would leave an empty metadata file');
 });
 
 test('vendored ExifTool reads standalone XMP writes', async () => {

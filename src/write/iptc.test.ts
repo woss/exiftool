@@ -5,7 +5,12 @@ import { promisify } from 'node:util';
 import { readFile, rm, writeFile } from 'node:fs/promises';
 import { tempFile } from '../test/tmp.js';
 import { jpegMergeWriter, parseJpegSegments } from './jpeg-merge.js';
-import { mergePhotoshopIrb, resolveIptcWriteRequest } from './iptc.js';
+import {
+  mergePhotoshopIrb,
+  resolveIptcWriteRequest,
+  resolvePhotoshopResourceWriteRequest,
+} from './iptc.js';
+import { UnsupportedFormatError } from './writers.js';
 import { parseAPP13 } from '../exif/app13.js';
 import { jpegParser } from '../format/jpeg.js';
 import tagData from '../tags/generated/tags.json' with { type: 'json' };
@@ -75,6 +80,47 @@ test('fresh APP13 with UTF-8 keywords and CodedCharacterSet', async () => {
   } finally {
     await rm(file, { force: true });
   }
+});
+
+test('IPTC request validation rejects invalid shapes, dates, and thumbnails', () => {
+  assertEquals(resolveIptcWriteRequest('IPTC:ObjectName', { value: 'invalid struct' }), undefined);
+  assertEquals(resolveIptcWriteRequest('IPTC:ObjectName', [{ value: 'invalid item' }]), undefined);
+  assertEquals(resolveIptcWriteRequest('IPTC:DateCreated', '2024:02:30'), undefined);
+  assertEquals(resolveIptcWriteRequest('IPTC:Keywords', [new Uint8Array([1])]), undefined);
+  assertEquals(resolvePhotoshopResourceWriteRequest(
+    'Photoshop:PhotoshopThumbnail',
+    new Uint8Array([0xff, 0xd8, 0xff, 0xd9]),
+  ), undefined);
+
+  let threw = false;
+  try {
+    mergePhotoshopIrb(null, [{
+      key: 'IPTC:UnknownType', record: 2, dataset: 250, type: 'future', value: 'x',
+    }]);
+  } catch (error) {
+    threw = error instanceof UnsupportedFormatError;
+  }
+  assertEquals(threw, true);
+});
+
+test('IPTC parser resynchronizes past non-dataset bytes', () => {
+  const header = new TextEncoder().encode('Photoshop 3.0\0');
+  const iim = new Uint8Array([0x7f, 0x1c, 2, 5, 0, 3, 0x61, 0x62, 0x63]);
+  const payload = new Uint8Array(header.length + 12 + iim.length + (iim.length % 2));
+  payload.set(header);
+  const resourceOffset = header.length;
+  payload.set(new TextEncoder().encode('8BIM'), resourceOffset);
+  const view = new DataView(payload.buffer);
+  view.setUint16(resourceOffset + 4, 0x0404, false);
+  view.setUint32(resourceOffset + 8, iim.length, false);
+  payload.set(iim, resourceOffset + 12);
+
+  const merged = mergePhotoshopIrb(payload, [{
+    key: 'IPTC:City', record: 2, dataset: 90, type: 'string', value: 'Seattle',
+  }]);
+  assertEquals(merged !== null, true);
+  assertEquals(parseAPP13(merged!.subarray(header.length)).ObjectName, 'abc');
+  assertEquals(parseAPP13(merged!.subarray(header.length)).City, 'Seattle');
 });
 
 test('legacy non-ASCII IPTC survives adding a UTF-8 keyword like ExifTool', async () => {
@@ -605,6 +651,12 @@ test('reconciles IPTCDigest only when it matches the old IPTC block', async () =
   const updatedTags = parseAPP13(resources(updated));
   assertEquals(updatedTags.IPTCDigest, updatedTags.CurrentIPTCDigest);
 
+  const deleted = mergePhotoshopIrb(payloadWithDigest, [
+    { key: 'IPTC:Keywords', record: 2, dataset: 25, type: 'string', value: null },
+    { key: 'IPTC:CodedCharacterSet', record: 1, dataset: 90, type: 'string', value: null },
+  ]);
+  assertEquals(deleted, null);
+
   const jpeg = new Uint8Array(2 + 4 + payloadWithDigest.length + 2);
   jpeg.set([0xff, 0xd8, 0xff, 0xed, (payloadWithDigest.length + 2) >> 8, (payloadWithDigest.length + 2) & 0xff]);
   jpeg.set(payloadWithDigest, 6);
@@ -631,6 +683,30 @@ test('reconciles IPTCDigest only when it matches the old IPTC block', async () =
   const staleTags = parseAPP13(resources(stale));
   assertEquals(staleTags.IPTCDigest, 'ff'.repeat(16));
   assertEquals(staleTags.CurrentIPTCDigest === staleTags.IPTCDigest, false);
+});
+
+test('Photoshop resource updates extend an existing resource when needed', () => {
+  const header = new TextEncoder().encode('Photoshop 3.0\0');
+  const payload = new Uint8Array(header.length + 14);
+  payload.set(header);
+  const blockOffset = header.length;
+  payload.set(new TextEncoder().encode('8BIM'), blockOffset);
+  const view = new DataView(payload.buffer);
+  view.setUint16(blockOffset + 4, 0x03ed, false);
+  view.setUint32(blockOffset + 8, 1, false);
+  payload[blockOffset + 12] = 0xaa;
+
+  const updated = mergePhotoshopIrb(payload, [], [{
+    key: 'Photoshop:XResolution',
+    id: 0x03ed,
+    offset: 4,
+    data: new Uint8Array([1, 2, 3, 4]),
+  }]);
+  assertEquals(updated !== null, true);
+  assertEquals(new DataView(updated!.buffer).getUint32(blockOffset + 8, false), 8);
+  assertEquals(Array.from(updated!.subarray(blockOffset + 12, blockOffset + 20)), [
+    0xaa, 0, 0, 0, 1, 2, 3, 4,
+  ]);
 });
 
 test('IPTC write is idempotent and splices into an existing APP13 segment', () => {

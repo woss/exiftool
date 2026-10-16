@@ -33,8 +33,7 @@ export const exifParser: FormatParser = {
   writeBytes(original: Uint8Array, tags: Record<string, TagValue>): WriteOutcome {
     if (!isExifTiff(original)) throw new UnsupportedFormatError('not a standalone EXIF TIFF stream');
     const requests = resolveMergeRequests(tags);
-    const raw = parseRawTiff(original);
-    if (!raw) throw new UnsupportedFormatError('malformed EXIF structure');
+    const raw = parseRawTiff(original)!;
     const existingXmp = raw.ifd0.entries.find((entry) => entry.tag === XMP_TAG_SPEC.id)?.data;
     const exifRequests: ExifRequest[] = [...requests.exif];
     const written = [...requests.xmpKeys];

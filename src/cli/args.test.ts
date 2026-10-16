@@ -38,6 +38,7 @@ test('parseCliArgs — preserve-time accepts ExifTool -P and long form', () => {
 test('parseCliArgs — overwrite-original-in-place is accepted', () => {
   assertEquals(parseCliArgs(['--overwrite-original-in-place']).options.overwriteOriginalInPlace, true);
   assertEquals(parseCliArgs(['-overwrite_original_in_place']).options.overwriteOriginalInPlace, true);
+  assertEquals(normalizeArgs(['-overwrite_original_in_place']), ['--overwrite-original-in-place']);
 });
 
 test('parseCliArgs — values via space and inline equals', () => {

@@ -18,7 +18,7 @@ function lookupTag(name: string, tags: Record<string, TagValue>): TagValue | und
   return key !== undefined ? tags[key] : undefined;
 }
 
-function compare(op: ConditionOp, a: number | string, b: number | string): boolean {
+function compare(op: Exclude<ConditionOp, '=~' | '!~'>, a: number | string, b: number | string): boolean {
   switch (op) {
     case 'eq':
       return a === b;
@@ -32,9 +32,6 @@ function compare(op: ConditionOp, a: number | string, b: number | string): boole
       return a >= b;
     case '<=':
       return a <= b;
-    case '=~':
-    case '!~':
-      return false;
   }
 }
 
