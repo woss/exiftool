@@ -6,6 +6,38 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-10-19
+
+### Added
+- Metadata writing surface: JPEG (ICC, JFIF, Ducky, comment, XMP, IPTC
+  append), PNG (tEXt/iTXt/zTXt, language-qualified text, ICC profile,
+  ancillary chunks, modification date, XMP delete), WebP (ICC profile,
+  XMP delete, EXIF preservation), GIF, EXV, PBM/PGM/PPM, and standalone
+  EXIF, ICC, and XMP writing.
+- CLI write workflows: tag copying (`tagsFromFile` with source-file
+  selectors, exclusions, same-file mappings), conditional write
+  filtering (boolean/regex/parenthesized conditions), output-path
+  templates with source-token expansion, collision counters, batch
+  writes to directories, stdout output, and `-o` XMP sidecars.
+- ExifTool-compatible write modes (`wm`, `wc`, `wg`, and group-creating
+  variants) with CLI validation.
+- XMP list append/removal: Creator and Subject appends, IPTC Keywords,
+  Dublin Core list properties, first-match list-item removal, and empty
+  container cleanup after deletion.
+- PNG read parity: ICC profile parsing and compressed text chunks.
+- Standalone XMP and PBM/PGM/PPM/PPM format writers.
+
+### Fixed
+- JPEG ICC profile segment reassembly; PNG EXIF/ICC/text round-trip
+  preservation, GPS sign encoding, date/value normalization, and
+  late-chunk hoisting.
+- Permission preservation in atomic metadata writes; quiet-mode write
+  failure surfacing; unsupported CLI tag-write reporting.
+
+### Docs
+- CLI and API write workflow documentation and metadata write parity
+  scope.
+
 ## [0.5.2] — 2026-09-29
 
 ### Added
@@ -106,7 +138,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 ### Changed
 - Excluded heavy/test directories from the JSR publish payload.
 
-[Unreleased]: https://github.com/woss/exiftool/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/woss/exiftool/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/woss/exiftool/compare/v0.5.2...v0.6.0
+[0.5.2]: https://github.com/woss/exiftool/compare/v0.5.1...v0.5.2
+[0.5.1]: https://github.com/woss/exiftool/compare/v0.4.0...v0.5.1
 [0.4.0]: https://github.com/woss/exiftool/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/woss/exiftool/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/woss/exiftool/compare/v0.2.0...v0.3.0
