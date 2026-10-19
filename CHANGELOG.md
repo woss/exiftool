@@ -4,6 +4,14 @@ All notable changes to exiftool-ts are documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
 
+## [0.7.1](https://github.com/woss/exiftool/compare/v0.7.0...v0.7.1) (2026-10-19)
+
+
+### Bug Fixes
+
+* **release:** JSON updater for jsr.json; sync version to 0.7.0 ([eb4a2db](https://github.com/woss/exiftool/commit/eb4a2db21d87b130582f2979a84dc460d59d2fea))
+* **release:** use json updater for jsr.json extra-files; sync jsr version to 0.7.0 ([11a3fe6](https://github.com/woss/exiftool/commit/11a3fe6b18a79512eef6463cfd68a4ebe9dd9943))
+
 ## [0.7.0](https://github.com/woss/exiftool/compare/v0.6.0...v0.7.0) (2026-10-19)
 
 
