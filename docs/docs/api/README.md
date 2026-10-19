@@ -1,6 +1,6 @@
-<p align="center">
-  <img src="docs/static/img/logo.svg" alt="exiftool-ts logo" width="96">
-</p>
+<div align="center">
+  <img src="/img/logo.svg" alt="exiftool-ts logo" width="96" />
+</div>
 
 # exiftool-ts
 
@@ -29,7 +29,7 @@ ecosystem:
 
 Early development, moving fast. The full, maintained status matrix lives in the
 [parity docs](https://woss.github.io/exiftool/parity) and the working register
-in [`DIVERGENCES.md`](./DIVERGENCES.md).
+in [`DIVERGENCES.md`](https://github.com/woss/exiftool/blob/main/DIVERGENCES.md).
 
 Value-level parity is enforced by `src/cli/exiftool-parity.test.ts`, which runs
 the real `exiftool` binary on shared fixtures and fails on any undocumented
@@ -207,8 +207,8 @@ the [parity docs](https://woss.github.io/exiftool/parity).
 
 [MIT](LICENSE) — © woss (woss.io), covering this repository's TypeScript code only.
 
-One exception, documented in [NOTICE](NOTICE) and
-[src/tags/generated/LICENSE.md](src/tags/generated/LICENSE.md): the embedded
+One exception, documented in [NOTICE](https://github.com/woss/exiftool/blob/main/NOTICE) and
+[src/tags/generated/LICENSE.md](https://github.com/woss/exiftool/blob/main/src/tags/generated/LICENSE.md): the embedded
 tag-database JSON (`src/tags/generated/`) is derived from Phil Harvey's
 ExifTool (`exiftool -listx` tables and PrintConv values) and is subject to
 ExifTool's own license — GPL-3.0-or-later **or** Artistic License 2.0 —
