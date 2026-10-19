@@ -1,6 +1,6 @@
-**exiftool-ts v0.1.3**
-
-***
+<p align="center">
+  <img src="docs/static/img/logo.svg" alt="exiftool-ts logo" width="96">
+</p>
 
 # exiftool-ts
 
@@ -29,7 +29,7 @@ ecosystem:
 
 Early development, moving fast. The full, maintained status matrix lives in the
 [parity docs](https://woss.github.io/exiftool/parity) and the working register
-in [`DIVERGENCES.md`](_media/DIVERGENCES.md).
+in [`DIVERGENCES.md`](./DIVERGENCES.md).
 
 Value-level parity is enforced by `src/cli/exiftool-parity.test.ts`, which runs
 the real `exiftool` binary on shared fixtures and fails on any undocumented
@@ -89,10 +89,13 @@ can restrict an instance to a set — the bundler then ships only those parsers:
 import { ExifTool } from "@woss/exiftool";
 import { MODERN_PLUGINS } from "@woss/exiftool/plugins";
 
-const tool = new ExifTool({ plugins: MODERN_PLUGINS }); // JPEG, PNG, WebP, AVIF, TIFF-family RAW (read-only)
+const tool = new ExifTool({ plugins: MODERN_PLUGINS }); // JPEG, PNG, GIF, WebP, AVIF — ~91% of web image traffic
 ```
 
-`MODERN_PLUGINS` / `ALL_PLUGINS` cover the shipped formats; individual parsers
+Three presets ship from the plugins subpath: `MODERN_PLUGINS` (web formats,
+per HTTP Archive's Web Almanac 2024), `MODERN_RAW_PLUGINS` (DNG/CR2/NEF/ARW/ORF/RW2
+RAW containers plus `.xmp` sidecar support) and `ALL_PLUGINS` (every shipped
+parser, in detection order). Individual parsers
 (`jpegParser`, `pngParser`, `webpParser`, `avifParser`, `tiffRawParser`) and fully custom plugins
 (`{ format, extensions, canParse, parse, writeBytes? }`) come from the same
 subpath. A plugin without `writeBytes` is read-only. The default — every
@@ -194,11 +197,35 @@ npx vitest run src/cli/exiftool-parity.test.ts
 
 ## Project scope
 
-Near term: deepen EXIF/XMP/IPTC writing, add maker-note decoding, extend the
-container list toward the formats exiftool covers. The long-term target remains
+Near term: deepen XMP/IPTC writing, extend the container list toward the
+formats exiftool covers. EXIF (IFD0/ExifIFD/GPS) writing and MakerNote
+decoding for the core 6 vendors are shipped. The long-term target remains
 parity with ExifTool's reading surface across its supported formats — tracked in
 the [parity docs](https://woss.github.io/exiftool/parity).
 
 ## License
 
-MIT
+[MIT](LICENSE) — © woss (woss.io), covering this repository's TypeScript code only.
+
+One exception, documented in [NOTICE](NOTICE) and
+[src/tags/generated/LICENSE.md](src/tags/generated/LICENSE.md): the embedded
+tag-database JSON (`src/tags/generated/`) is derived from Phil Harvey's
+ExifTool (`exiftool -listx` tables and PrintConv values) and is subject to
+ExifTool's own license — GPL-3.0-or-later **or** Artistic License 2.0 —
+redistributed here under the Artistic License 2.0.
+
+## Credits
+
+**ExifTool was created by [Phil Harvey](https://exiftool.org), who maintains
+it single-handedly since 2003.** This project exists because of his work and
+would not be possible without it. The TypeScript code is an independent
+implementation that uses his tool only as a behavioral reference for output
+parity; the embedded tag-database tables are derived from ExifTool and
+carried under his dual license (see License above). All credit for the
+ExifTool concept, design, and decades of metadata expertise belongs to him.
+Consider [supporting his work](https://exiftool.org/#pay).
+
+
+---
+
+Made with Human and AI effort — [woss.io](https://woss.io)
