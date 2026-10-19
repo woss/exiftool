@@ -5,8 +5,8 @@ slug: /c2pa/overview
 
 # C2PA Content Credentials Overview
 
-> ⚠️ **Implementation Status**: C2PA/JUMBF support is **planned but not yet implemented**.
-> See [C2PA_PLAN.md](../../../C2PA_PLAN.md) for the roadmap. Current parity sweep shows
+> ⚠️ **Implementation Status**: C2PA/JUMBF **reading** is implemented (JPEG APP11 and PNG `caBX`; manifests flatten to tags). Writing and signature validation are not yet.
+> See [C2PA_PLAN.md](https://github.com/woss/exiftool/blob/main/C2PA_PLAN.md) for the roadmap. Current parity sweep shows
 > C2PA tags as MISSING (PhotoshopQuality, PhotoshopFormat, ProgressiveScans).
 >
 > ⚠️ **Reality Check**: C2PA is fundamentally broken as a trust system. See Neal Krawetz's
