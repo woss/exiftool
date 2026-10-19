@@ -65,12 +65,13 @@ The library sweep additionally tracks live divergences found on real-world files
 
 | Area | State |
 |---|---|
-| Read JPEG / PNG / WebP / AVIF-HEIF | ✅ verified against reference exiftool |
+| Read JPEG / PNG / WebP / AVIF-HEIF / GIF / TIFF / EXV / PBM / PGM / PPM | ✅ verified against reference exiftool |
 | EXIF (IFD0 + sub-IFDs + GPS + IFD1) | ✅ both endians |
 | XMP / IPTC-IIM / ICC / Photoshop IRB / JFIF | 🟨 core coverage, not full |
 | MPF embedded-image extraction (`-ee`) | 🟨 partial |
+| C2PA / Content Credentials reading (JPEG APP11, PNG `caBX`; JUMBF boxes + CBOR manifests) | ✅ |
 | TIFF-family RAW reading (TIFF, DNG, CR2, NEF, ARW, ORF, RW2, PEF, ERF, DCR, SRW) | 🟨 read-only; standard IFD0/Exif/GPS/SubIFD/XMP tags with exiftool's NewSubfileType priority. MakerNotes decoded for the core six vendors (Canon, Nikon, Sony, Olympus, Panasonic, Pentax — partial: encrypted regions and custom sub-tables skipped); RW2 image dimensions now decoded; CR3 and RAF not supported. |
-| Write JPEG / PNG / WebP / AVIF | ✅ IFD0 tag subset, `_original` backups |
+| Write JPEG / PNG / WebP / AVIF / GIF / TIFF / EXV / PBM / PGM / PPM | ✅ full metadata writing: EXIF (IFD0/ExifIFD/GPS), XMP (lists, structs, deletes), IPTC, ICC profiles, PNG text chunks, JFIF comments; group write modes (`-w`rite/`-c`reate/`-g`roup semantics), `_original` backups. Plain TIFF rewrites in place; RAW/DNG provenance is kept via `.xmp` sidecars (`writeXmpSidecar`) |
 | `-stay_open` daemon protocol | ✅ stdin command loop |
 | CLI: `-j -csv -X -b -d -c -g -G -v -q -if -o -r -ext -i` | ✅ |
 | Browser export (`@woss/exiftool/browser`) | ✅ same parsers, in-memory buffers |
@@ -79,19 +80,19 @@ The library sweep additionally tracks live divergences found on real-world files
 
 Honest list, in rough priority order:
 
-- **MakerNotes decoding** — vendor-specific binary metadata blocks (Canon, Nikon, Sony, …). This is the single biggest gap: it blocks `LensID`, model-specific crop-factor lookups, and a family of camera-specific tags.
-- **RAW containers** — CR3 (ISOBMFF) and RAF (Fuji) are not supported; the TIFF-based family reads but has no write support and no MakerNotes decoding.
+- **MakerNotes beyond the core six** — Canon, Nikon, Sony, Olympus, Panasonic and Pentax decode (partially: encrypted regions and custom sub-tables skipped); remaining vendors (Fuji, Sigma, …) don't. Still blocks full `LensID` resolution and model-specific crop-factor lookups.
+- **RAW containers** — CR3 (ISOBMFF) and RAF (Fuji) are not supported; the TIFF-based family reads, plain TIFF rewrites in place, and RAW/DNG gets provenance-safe `.xmp` sidecars instead of in-place rewrites.
 - **PDF and video metadata** — not started.
-- **C2PA / Content Credentials (JUMBF + CBOR)** — planned, not implemented. The full architecture and phased plan live in [`C2PA_PLAN.md`](https://github.com/woss/exiftool/blob/main/C2PA_PLAN.md): JUMBF box parser, APP11/`caBX`/QuickTime format hooks, CBOR decoder, tag tables.
-- **Full write surface** — writes cover an IFD0 tag subset on JPEG/PNG/WebP/AVIF. ExifTool writes far more groups (XMP, IPTC, EXIF sub-IFDs, makernotes).
+- **C2PA / Content Credentials (write + remaining readers)** — JUMBF + CBOR *reading* is implemented (JPEG APP11, PNG `caBX`; manifests flatten to `JUMBF:`-grouped tags with C2PA label association). Not done: QuickTime/other container hooks, the generated C2PA tag tables, and any writing/validation. Full plan: [`C2PA_PLAN.md`](https://github.com/woss/exiftool/blob/main/C2PA_PLAN.md).
+- **MakerNotes writing** — writes now cover EXIF (IFD0/ExifIFD/GPS), XMP, IPTC, ICC and text/JFIF groups across 13 formats; ExifTool additionally writes makernotes and exotic vendor groups we don't.
 - **Full XMP/IPTC/ICC coverage** — core coverage today; long tail of schemas and edge cases remains.
 
 ## Roadmap
 
 1. **Shrink the divergence register toward zero** — current sweep priorities: the `RetouchArea*` family (~65 pairs across 5 files), the `GPSAltitude` composite reference suffix, remaining mask struct attributes (`MasksValue`, `ZeroX`/`ZeroY`), and a handful of formatting singles.
-2. **MakerNotes decoding** — unlocks `LensID`, crop-factor-dependent composites, and camera-specific tags.
-3. **C2PA/JUMBF support** — per the phased plan; each format (JPEG, PNG, QuickTime) works independently.
-4. **Deeper writing** — EXIF sub-IFDs, XMP, IPTC-IIM beyond the current IFD0 subset.
+2. **Remaining MakerNotes** — decoding for the rest of the vendor zoo unlocks `LensID`, crop-factor-dependent composites, and camera-specific tags.
+3. **C2PA/JUMBF completion** — reading ships for JPEG/PNG; remaining: QuickTime hooks, generated tag tables, writing.
+4. **Deeper writing** — makernotes and remaining vendor groups beyond the current EXIF/XMP/IPTC/ICC surface.
 5. **More containers** — RAW formats, PDF, video, extending toward ExifTool's reading surface.
 
 ## Helping with parity
