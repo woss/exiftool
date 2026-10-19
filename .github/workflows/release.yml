@@ -3,6 +3,16 @@ name: Release
 on:
   push:
     tags: ['v*']
+  workflow_call:
+    inputs:
+      tag_name:
+        description: 'Release tag (e.g. v0.6.0); required when called from release-please'
+        type: string
+        required: false
+
+env:
+  # Tag-push runs use the pushed ref; workflow_call runs use the input.
+  TAG_NAME: ${{ inputs.tag_name || github.ref_name }}
 
 permissions:
   contents: write
@@ -14,6 +24,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ env.TAG_NAME }}
           lfs: true
           submodules: recursive
       - uses: pnpm/action-setup@v4
@@ -29,7 +40,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Version sync (tag vs package.json / jsr.json)
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
+          TAG="${TAG_NAME#v}"
           for f in package.json jsr.json; do
             CFG=$(node -p "require('./$f').version")
             if [ "$TAG" != "$CFG" ]; then
@@ -44,7 +55,7 @@ jobs:
         run: pnpm coverage-audit
       - name: Changelog section exists for tag
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${TAG_NAME#v}"
           grep -q "^## \[$VERSION\]" CHANGELOG.md || {
             echo "CHANGELOG.md has no '## [$VERSION]' section — add one before tagging"; exit 1
           }
@@ -59,6 +70,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ env.TAG_NAME }}
           lfs: true
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -80,6 +92,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ env.TAG_NAME }}
           lfs: true
       - uses: actions/setup-node@v4
         with:
@@ -93,6 +106,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ env.TAG_NAME }}
           lfs: true
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -101,10 +115,10 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Package dist tarball
-        run: tar czf "exiftool-${GITHUB_REF_NAME}.tar.gz" dist package.json LICENSE NOTICE README.md
+        run: tar czf "exiftool-${TAG_NAME}.tar.gz" dist package.json LICENSE NOTICE README.md
       - name: Extract changelog section
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${TAG_NAME#v}"
           awk -v ver="$VERSION" '
             $0 ~ "^## \\[" ver "\\]" { found=1; next }
             found && /^## \[/ { exit }
@@ -114,5 +128,6 @@ jobs:
       - name: Attach to release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.TAG_NAME }}
           files: exiftool-*.tar.gz
           body_path: release-notes.md

@@ -1,0 +1,37 @@
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+  id-token: write
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    outputs:
+      releases_created: ${{ steps.rp.outputs.releases_created }}
+      tag_name: ${{ steps.rp.outputs.tag_name }}
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: rp
+        with:
+          # GITHUB_TOKEN is sufficient: downstream publish jobs run in this
+          # same workflow via workflow_call, so no recursive-trigger issue.
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Runs in the same workflow run because the tag release-please pushes with
+  # GITHUB_TOKEN does NOT trigger the tag-based release.yml.
+  publish:
+    needs: release-please
+    if: fromJSON(needs.release-please.outputs.releases_created) == true
+    uses: ./.github/workflows/release.yml
+    with:
+      tag_name: ${{ needs.release-please.outputs.tag_name }}
