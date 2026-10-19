@@ -9,6 +9,12 @@ on:
         description: 'Release tag (e.g. v0.6.0); required when called from release-please'
         type: string
         required: false
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag to publish (e.g. v0.6.0)'
+        type: string
+        required: true
 
 env:
   # Tag-push runs use the pushed ref; workflow_call runs use the input.
@@ -81,7 +87,14 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - name: Publish core package
-        run: npm publish --access public --provenance
+        run: |
+          PKG=$(node -p "require('./package.json').name")
+          VER=$(node -p "require('./package.json').version")
+          if npm view "$PKG@$VER" version > /dev/null 2>&1; then
+            echo "$PKG@$VER already published — skipping"
+          else
+            npm publish --access public --provenance
+          fi
 
   publish-jsr:
     needs: gates
@@ -94,9 +107,12 @@ jobs:
         with:
           ref: ${{ env.TAG_NAME }}
           lfs: true
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+          registry-url: https://registry.npmjs.org/
+      - run: pnpm install --frozen-lockfile
       - name: Publish to JSR
         run: npx jsr@latest publish
 
