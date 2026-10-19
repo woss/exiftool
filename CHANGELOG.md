@@ -4,6 +4,20 @@ All notable changes to exiftool-ts are documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
 
+## [0.7.0](https://github.com/woss/exiftool/compare/v0.6.0...v0.7.0) (2026-10-19)
+
+
+### Features
+
+* rework plugin presets — ALL exhaustive, MODERN web-only, new MODERN_RAW ([8496a07](https://github.com/woss/exiftool/commit/8496a07861f6eaff4c916378eb2655db26283340))
+* rework plugin presets — ALL is exhaustive, MODERN is web formats, add MODERN_RAW ([436b4bd](https://github.com/woss/exiftool/commit/436b4bda56c9c59bd2c4dc6ca7f0faef658fd59b))
+
+
+### Bug Fixes
+
+* **docs:** MDX-safe header, resolvable links, correct C2PA status ([c045260](https://github.com/woss/exiftool/commit/c045260be4b7dc9ecfa55c7e9d77e8f5b1796c15))
+* **docs:** MDX-safe header, resolvable links, correct C2PA status ([d67059c](https://github.com/woss/exiftool/commit/d67059cd3b97200131f345441a24a2eda4c29d56))
+
 ## [Unreleased]
 
 ### Changed
