@@ -11,7 +11,8 @@
       "docs",
       "scripts",
       "tests",
-      "src/test"
+      "src/test",
+      "vendor"
     ]
   }
 }
