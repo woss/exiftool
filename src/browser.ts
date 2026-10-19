@@ -6,6 +6,7 @@
 export { ExifToolCore as ExifTool } from './exiftool-core.js';
 export {
   MODERN_PLUGINS,
+  MODERN_RAW_PLUGINS,
   ALL_PLUGINS,
   avifParser,
   jpegParser,

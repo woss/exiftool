@@ -6,6 +6,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [S
 
 ## [Unreleased]
 
+### Changed
+- `MODERN_PLUGINS` is now exactly the web image formats (JPEG, GIF, PNG, WebP,
+  AVIF), chosen from HTTP Archive's Web Almanac 2024 usage data. It no longer
+  includes TIFF-family RAW or the standalone packet formats.
+- `ALL_PLUGINS` is now the same array as `BUILTIN_PLUGINS` — every shipped
+  parser in detection order — instead of an alias of `MODERN_PLUGINS`.
+- New `MODERN_RAW_PLUGINS` preset: the TIFF-family RAW container parser
+  (TIFF/DNG/CR2/NEF/ARW/ORF/RW2/PEF/ERF/DCR/SRW) plus the standalone XMP
+  parser for `.xmp` sidecar writes.
+
 ## [0.6.0] — 2026-10-19
 
 ### Added
