@@ -56,6 +56,10 @@
 - Delete weightless code; refuse needless abstractions; prefer boring
 - NEVER avoidably allocate, copy, or compute in hot paths
 
+### GitButler Workspace — MANDATORY
+
+All git writes go through `but` (GitButler virtual branches) — plain git writes (`git add`/`commit`/`switch`/`checkout`/`push`/`merge`) are FORBIDDEN and corrupt the workspace. Git is inspection-only. Session starts with `but pull`; one lane per feature (`but branch new feat|fix|chore|docs/<topic>`, never `gitbutler*`); commits via `but commit -b <branch> -m "…" <ids>` with IDs from `but diff`. Committing and pushing via `but` is always allowed; merging a PR NEVER happens without the user's explicit go. Full contract: `.omp/rules/gitbutler-workspace.md`.
+
 ### Evidence-Based
 - User-reported state (errors, failures, observations) = ground truth
 - NEVER re-run checks to confirm what user already reported
