@@ -1,6 +1,7 @@
 import { test } from 'vitest';
 import { assertEquals } from '../src/test/asserts.js';
 import { ExifTool } from './exiftool.js';
+import { VERSION } from './version.js';
 import { jpegParser } from './format/jpeg.js';
 import { parseXMP } from './exif/xmp.js';
 import type { FormatParser } from './format/mod.js';
@@ -81,7 +82,7 @@ test('run --version prints version and returns 0', async () => {
   try {
     const code = await tool.run(['--version']);
     assertEquals(code, 0);
-    assertEquals(cap.out, ['0.1.0']);
+    assertEquals(cap.out, [VERSION]);
   } finally {
     cap.restore();
   }
@@ -93,7 +94,7 @@ test('run -ver prints version and returns 0', async () => {
   try {
     const code = await tool.run(['-ver']);
     assertEquals(code, 0);
-    assertEquals(cap.out, ['0.1.0']);
+    assertEquals(cap.out, [VERSION]);
   } finally {
     cap.restore();
   }
