@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { basename, dirname, extname, join, sep } from 'node:path';
 import { normalizeArgs, parseCliArgs, type CliOptions } from './cli/args.js';
 import { ExifTool } from './exiftool.js';
+import { VERSION } from './version.js';
 import { BUILTIN_PLUGINS } from './format/all.js';
 import { formatJSON, formatCSV, formatTabular, formatXML } from './cli/output.js';
 import type { FormatOptions } from './cli/output.js';
@@ -589,7 +590,7 @@ export async function main(
     return 0;
   }
   if (options.version) {
-    console.log('0.1.0');
+    console.log(VERSION);
     return 0;
   }
   const wantsDaemon = options.stayOpen !== undefined &&

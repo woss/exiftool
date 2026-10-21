@@ -1,5 +1,6 @@
 import { readFile, unlink, writeFile } from 'node:fs/promises';
 import { ExifToolCore } from './exiftool-core.js';
+import { VERSION } from './version.js';
 import { detectParser, type ParseHints } from './format/mod.js';
 import type { FileInfo, TagValue, WriteOptions } from './types.js';
 import { writeTags, type WriteResult } from './write/pipeline.js';
@@ -147,7 +148,7 @@ export class ExifTool extends ExifToolCore {
     }
 
     if (args.includes('--version') || args.includes('-ver')) {
-      console.log('0.1.0');
+      console.log(VERSION);
       return 0;
     }
 
@@ -159,7 +160,7 @@ export class ExifTool extends ExifToolCore {
   /** Prints CLI help text. */
   printHelp(): void {
     console.log(`
-exiftool-ts 0.1.0 — metadata read/write tool
+exiftool-ts ${VERSION} — metadata read/write tool
 
 Usage:
   exiftool-ts [OPTIONS] FILE [...]
