@@ -18,8 +18,9 @@ exiftool exists to bring that capability natively into the TypeScript
 ecosystem:
 
 - **Typed end to end** — `read()` returns an inferred `FileInfo`; no parsing strings.
-- **Embeddable** — zero runtime dependencies; import the library directly or
-  ship the CLI alongside your service. No child processes.
+- **Embeddable** — a single runtime dependency (`fflate`, for PNG chunk
+  compression); import the library directly or ship the CLI alongside your
+  service. No child processes.
 - **Trust ExifTool as ground truth** — our parity suite diffs our output against
   the real `exiftool` binary on every run; formatting bugs get caught, not shipped.
 - **Auto-generated tag database** — tag definitions are parsed from the ExifTool
@@ -45,8 +46,8 @@ npm i -g @woss/exiftool
 exiftool-ts photo.jpg
 ```
 
-The package ships compiled JS with full `.d.ts` types and has **zero runtime
-dependencies**.
+The package ships compiled JS with full `.d.ts` types and a single runtime
+dependency (`fflate`).
 
 **JSR** (for Deno consumers, runs from TypeScript source):
 
@@ -131,56 +132,6 @@ exiftool-ts '-Artist=me' photo.jpg              # write a tag (_original backup)
 exiftool-ts --overwrite-original '-Software=x' photo.jpg
 printf -- '-j\nphoto.jpg\n-execute\n-stay_open\nFalse\n' \
   | exiftool-ts -stay_open True                 # persistent daemon
-```
-
-## Architecture
-
-```
-mod.ts               → JSR barrel (re-exports the public API)
-src/
-  cli.ts             → CLI entry point (arg normalization → main())
-  exiftool.ts        → Node ExifTool class (path-based read / write via fs)
-  exiftool-core.ts   → Platform-free core (readBytes / writeBytes / plugins)
-  browser.ts         → Browser entry (platform-free bundle)
-  plugins.ts         → Plugin presets (./plugins subpath)
-  tag-db.ts          → Tag database (name/id/group lookups)
-  types.ts           → Core types (FileInfo, TagEntry, TagValue, …)
-  cli/
-    args.ts          → ExifTool-style argument parser (normalizeArgs + parseCliArgs)
-    filestat.ts      → File-stat tag overlay (FileSize, FileModifyDate, …)
-    filter.ts        → -if condition evaluation
-    glob.ts          → directory recursion / extension filters
-    output.ts        → JSON / XML / CSV / tabular formatters
-    stay-open.ts     → -stay_open daemon command loop
-    verbosity.ts     → -v/-q rendering helpers
-  format/
-    mod.ts           → Plugin contract + detection (FormatParser, detectParser)
-    all.ts           → Built-in plugin set (lazy default)
-    jpeg.ts          → JPEG segment walk (EXIF/XMP/IPTC/ICC/MPF/Adobe)
-    png.ts           → PNG chunk walk (eXIf/iTXt/zTXt/tEXt/iCCP…)
-    webp.ts          → RIFF/VP8X chunk walk
-    avif.ts          → ISOBMFF box walk (meta items, colr, pixi)
-  exif/
-    ifd.ts           → Bounds-checked IFD structure parser
-    tiff.ts          → Shared TIFF engine (both endians, GPS/sub-IFDs)
-    tiff-builder.ts  → TIFF serializer for the write path
-    values.ts        → PrintConv value formatting
-    composite.ts     → Composite tag derivation (35mm equiv, LightValue…)
-    xmp.ts           → XMP/RDF extraction
-    app13.ts         → Photoshop IRB + IPTC IIM extraction
-    icc.ts           → ICC profile header/tag parsing
-  write/
-    pipeline.ts      → Safe-overwrite pipeline (temp swap + _original backup)
-    writers.ts       → Per-container writers (JPEG APP1 / PNG eXIf / WebP / AVIF)
-  utils/
-    crc32.ts         → CRC-32 (PNG chunks)
-    encoding.ts      → String encoding/escaping helpers
-scripts/
-  generate-tags.ts   → Generate tag DB from ExifTool Perl source
-  test-harness.ts    → Compare output against real exiftool
-  coverage-audit.ts  → Enforce 100% line/function coverage gate
-.github/workflows/
-  release.yml        → npm + JSR publish, dist tarball on tags
 ```
 
 ## Development
