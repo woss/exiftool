@@ -4,6 +4,13 @@ All notable changes to exiftool-ts are documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
 
+## [0.7.2](https://github.com/woss/exiftool/compare/v0.7.1...v0.7.2) (2026-10-21)
+
+
+### Bug Fixes
+
+* source CLI --version output from package.json ([#41](https://github.com/woss/exiftool/issues/41)) ([4c40778](https://github.com/woss/exiftool/commit/4c40778a24bf35bf7e375e1672f2fab2a81b5bd1))
+
 ## [0.7.1](https://github.com/woss/exiftool/compare/v0.7.0...v0.7.1) (2026-10-19)
 
 
