@@ -3,12 +3,6 @@ name: Release
 on:
   push:
     tags: ['v*']
-  workflow_call:
-    inputs:
-      tag_name:
-        description: 'Release tag (e.g. v0.6.0); required when called from release-please'
-        type: string
-        required: false
   workflow_dispatch:
     inputs:
       tag_name:
@@ -17,7 +11,7 @@ on:
         required: true
 
 env:
-  # Tag-push runs use the pushed ref; workflow_call runs use the input.
+  # Tag-push runs use the pushed ref; workflow_dispatch runs use the input.
   TAG_NAME: ${{ inputs.tag_name || github.ref_name }}
 
 permissions:
