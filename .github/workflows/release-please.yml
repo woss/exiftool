@@ -7,7 +7,6 @@ on:
 permissions:
   contents: write
   pull-requests: write
-  id-token: write
 
 concurrency:
   group: release-please
@@ -23,15 +22,23 @@ jobs:
       - uses: googleapis/release-please-action@v5
         id: rp
         with:
-          # GITHUB_TOKEN is sufficient: downstream publish jobs run in this
-          # same workflow via workflow_call, so no recursive-trigger issue.
           token: ${{ secrets.GITHUB_TOKEN }}
 
-  # Runs in the same workflow run because the tag release-please pushes with
-  # GITHUB_TOKEN does NOT trigger the tag-based release.yml.
+  # GITHUB_TOKEN tag pushes do not trigger workflows. npm trusted publishing
+  # (OIDC) does not work under workflow_call either (npm ENEEDAUTH in runs
+  # 39342535445 and 39772796614), while direct runs — tag-push and
+  # workflow_dispatch — always published. So dispatch release.yml explicitly.
   publish:
     needs: release-please
     if: fromJSON(needs.release-please.outputs.releases_created) == true
-    uses: ./.github/workflows/release.yml
-    with:
-      tag_name: ${{ needs.release-please.outputs.tag_name }}
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Dispatch release.yml
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          TAG_NAME: ${{ needs.release-please.outputs.tag_name }}
+        run: gh workflow run release.yml --ref main -f tag_name="$TAG_NAME"
