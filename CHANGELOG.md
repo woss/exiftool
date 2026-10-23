@@ -4,6 +4,14 @@ All notable changes to exiftool-ts are documented here.
 
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning: [SemVer](https://semver.org/).
 
+## [0.7.3](https://github.com/woss/exiftool/compare/v0.7.2...v0.7.3) (2026-10-23)
+
+
+### Bug Fixes
+
+* **release:** dispatch release.yml instead of workflow_call ([12bb026](https://github.com/woss/exiftool/commit/12bb0264be5d3d8eda8b19bd39a41c3e109f2ddf))
+* **release:** dispatch release.yml instead of workflow_call ([9a31fe8](https://github.com/woss/exiftool/commit/9a31fe8d78cbff33c6ebb4992b00c9671fe350fb))
+
 ## [0.7.2](https://github.com/woss/exiftool/compare/v0.7.1...v0.7.2) (2026-10-21)
 
 
