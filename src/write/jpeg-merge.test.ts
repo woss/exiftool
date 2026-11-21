@@ -2281,3 +2281,28 @@ test('jpegMergeWriter encodes fixed-count ComponentsConfiguration bytes', async 
     await rm(file, { force: true });
   }
 });
+
+test('jpegMergeWriter routes qualified GPS and catalog-only EXIF tags', async () => {
+  const original = new Uint8Array(readFileSync('assets/01.jpg'));
+  const result = jpegMergeWriter(original, {
+    'gps:GPSLatitude': -47.6, // qualified routing + negative-coordinate ref synthesis
+    'EXIF:AmbientTemperature': 21.5, // catalog-only ExifIFD tag through the JPEG path
+  });
+  assertEquals(result.skipped, []);
+  assertEquals(result.written.includes('EXIF:GPSLatitude'), true);
+  assertEquals(result.written.includes('EXIF:GPSLatitudeRef'), true);
+  assertEquals(result.written.includes('EXIF:AmbientTemperature'), true);
+  const exifSegment = parseJpegSegments(result.bytes).find((segment) => segment.marker === 0xe1)!;
+  const tags = extractExifFromTiff(result.bytes.subarray(exifSegment.payloadStart + 6, exifSegment.payloadEnd));
+  assertEquals(tags.GPSLatitudeRef, 'South');
+  const file = await tempFile('.jpg');
+  try {
+    await writeFile(file, result.bytes);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-n', file]);
+    const parsed = JSON.parse(stdout)[0];
+    assertEquals(parsed.AmbientTemperature, 21.5);
+    assertEquals(parsed.GPSLatitude, -47.6);
+  } finally {
+    await rm(file, { force: true });
+  }
+});

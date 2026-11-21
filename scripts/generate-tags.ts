@@ -32,6 +32,18 @@ const OUTPUT_XMP_NAMESPACES = `${ROOT}/src/tags/generated/xmp-namespaces.json`;
 const OUTPUT_XMP_SHAPES = `${ROOT}/src/tags/generated/xmp-shapes.json`;
 const OUTPUT_XMP_STRUCTS = `${ROOT}/src/tags/generated/xmp-structs.json`;
 const OUTPUT_WRITE_METADATA = `${ROOT}/src/tags/generated/write-metadata.json`;
+const OUTPUT_WRITABLE_EXIF = `${ROOT}/src/exif/generated/writable-exif.json`;
+const EXIF_WRITE_GROUPS = ['IFD0', 'ExifIFD', 'GPS', 'InteropIFD', 'SubIFD', 'IFD1'] as const;
+
+export interface WritableExifTag {
+  id: number;
+  name: string;
+  /** Upstream Perl Writable type, e.g. 'int16u', 'string', 'rational64u'. */
+  type: string;
+  values?: Record<string, string>;
+  protected: boolean;
+  conditional: boolean;
+}
 const CLASSIFIED_WRITABLE_TYPES = new Set([
   '?', 'GUID', 'Unicode', 'boolean', 'date', 'digits', 'double', 'fixed32s', 'fixed32u',
   'float', 'int8s', 'int8u', 'int16s', 'int16u', 'int16uRev', 'int32s', 'int32u',
@@ -116,6 +128,8 @@ for my $table_name (@ARGV) {
         },
         writable => defined($writable) ? "$writable" : undef,
         writeGroup => defined($info->{WriteGroup}) ? "$info->{WriteGroup}" : undef,
+        groups1 => defined($info->{Groups}{1}) ? "$info->{Groups}{1}" : undef,
+        tableWriteGroup => defined($table->{WRITE_GROUP}) ? "$table->{WRITE_GROUP}" : undef,
         protected => !!($info->{Protected} || $table->{PROTECTED}),
         conditional => !!$info->{Condition},
         hasPrintConv => !!$info->{PrintConv},
@@ -300,6 +314,55 @@ export function collectWritableXmpShapes(
   return shapes;
 }
 
+/**
+ * Writable records for the EXIF standard directories (writeGroup
+ * IFD0/ExifIFD/GPS/InteropIFD/SubIFD/IFD1), joined with the -listx
+ * PrintConv value tables. Condition-based tags keep their flag so the
+ * writer can refuse them until a reviewed handler exists.
+ */
+export function collectWritableExifTags(
+  records: Array<{
+    table: string;
+    id: string;
+    name: string;
+    writable?: string;
+    writeGroup?: string | null;
+    groups1?: string | null;
+    tableWriteGroup?: string | null;
+    protected?: boolean;
+    conditional?: boolean;
+  }>,
+  tableByName: Map<string, TableDef>,
+): Record<(typeof EXIF_WRITE_GROUPS)[number], WritableExifTag[]> {
+  const groups = Object.fromEntries(
+    EXIF_WRITE_GROUPS.map((group) => [group, [] as WritableExifTag[]]),
+  ) as Record<(typeof EXIF_WRITE_GROUPS)[number], WritableExifTag[]>;
+  const seen = new Set<string>();
+  for (const record of records) {
+    // Per-tag WriteGroup, else the table's WRITE_GROUP default, else the tag's home group.
+    const writeGroup = record.writeGroup ?? record.tableWriteGroup ?? record.groups1;
+    if (!record.writable || !writeGroup || !(EXIF_WRITE_GROUPS as readonly string[]).includes(writeGroup)) continue;
+    const numericId = Number(record.id);
+    if (!Number.isInteger(numericId) || numericId < 0) continue;
+    const dedupeKey = `${writeGroup}|${record.name}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    const tag = tableByName.get(record.table)?.tags.find((t) => t.id === record.id && t.name === record.name);
+    groups[writeGroup as (typeof EXIF_WRITE_GROUPS)[number]].push({
+      id: numericId,
+      name: record.name,
+      type: record.writable,
+      ...(tag?.values ? { values: tag.values } : {}),
+      protected: !!record.protected,
+      conditional: !!record.conditional,
+    });
+  }
+  for (const list of Object.values(groups)) {
+    list.sort((a, b) => a.id - b.id || a.name.localeCompare(b.name));
+  }
+  return groups;
+}
+
 export function assertWritableTypesClassified(tables: TableDef[]): void {
   const unclassified = new Set(
     tables.flatMap((table) => table.tags)
@@ -405,6 +468,7 @@ print JSON::PP->new->canonical->encode(\%shapes);
           structSchema?: unknown;
         writable?: string;
         writeGroup?: string | null;
+        groups1?: string | null;
         protected?: boolean;
         conditional?: boolean;
         hasPrintConv?: boolean;
@@ -425,6 +489,7 @@ print JSON::PP->new->canonical->encode(\%shapes);
       const prefix = table && resolveXmpTablePrefix(table, xmpNamespaces);
       if (prefix && tag) xmpStructs[`${prefix}:${tag.id}`] = record.structSchema;
     }
+    const writableExif = collectWritableExifTags(writeMetadata.records, tableByName);
 
     const totalTags = tables.reduce((s, t) => s + t.tags.length, 0);
     const writableEntries = tables.flatMap((table) =>
@@ -448,6 +513,9 @@ print JSON::PP->new->canonical->encode(\%shapes);
     await writeFile(OUTPUT_WRITE_METADATA, writeMetadataOutput);
     const xmpStructsOutput = `${JSON.stringify(xmpStructs, null, 2)}\n`;
     await writeFile(OUTPUT_XMP_STRUCTS, xmpStructsOutput);
+    await mkdir(`${ROOT}/src/exif/generated`, { recursive: true });
+    const writableExifOutput = `${JSON.stringify({ exiftoolVersion: version.trim(), groups: writableExif }, null, 2)}\n`;
+    await writeFile(OUTPUT_WRITABLE_EXIF, writableExifOutput);
     const manifest = {
       exiftoolVersion: version.trim(),
       exiftoolSourceTreeSha1: sourceTreeSha256,
@@ -460,6 +528,8 @@ print JSON::PP->new->canonical->encode(\%shapes);
       xmpStructsSha256: sha256(xmpStructsOutput),
       coreWriteMetadataSha256: sha256(writeMetadataOutput),
       coreWriteMetadataRecords: writeMetadata.records.length,
+      writableExifSha256: sha256(writableExifOutput),
+      writableExifTagCount: Object.values(writableExif).reduce((sum, tags) => sum + tags.length, 0),
       unavailableCoreWriteMetadataTables: writeMetadata.missingTables,
       coreWriteMetadataWritableRecords: writeMetadata.records.filter((record) => record.writable).length,
       coreWriteGroupsSpecified: writeMetadata.records.filter((record) => record.writeGroup).length,
@@ -492,6 +562,11 @@ print JSON::PP->new->canonical->encode(\%shapes);
     console.error(`Wrote ${OUTPUT_XMP_SHAPES} (${Object.keys(xmpShapes).length} writable list shapes)`);
     console.error(`Wrote ${OUTPUT_XMP_STRUCTS} (${Object.keys(xmpStructs).length} struct schemas)`);
     console.error(`Wrote ${OUTPUT_WRITE_METADATA} (${writeMetadata.records.length} Perl tag records)`);
+    console.error(
+      `Wrote ${OUTPUT_WRITABLE_EXIF} (${
+        Object.values(writableExif).reduce((sum, tags) => sum + tags.length, 0)
+      } writable EXIF tags)`,
+    );
     console.error(`Wrote ${OUTPUT_MANIFEST}`);
   } catch (error) {
     const e = error as { stderr?: string | Buffer; message?: string };

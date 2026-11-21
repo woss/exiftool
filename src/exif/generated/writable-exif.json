@@ -1,0 +1,3833 @@
+{
+  "exiftoolVersion": "13.64",
+  "groups": {
+    "IFD0": [
+      {
+        "id": 11,
+        "name": "ProcessingSoftware",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 254,
+        "name": "SubfileType",
+        "type": "int32u",
+        "values": {
+          "0": "Full-resolution image",
+          "1": "Reduced-resolution image",
+          "2": "Single page of multi-page image",
+          "3": "Single page of multi-page reduced-resolution image",
+          "4": "Transparency mask",
+          "5": "Transparency mask of reduced-resolution image",
+          "6": "Transparency mask of multi-page image",
+          "7": "Transparency mask of reduced-resolution multi-page image",
+          "8": "Depth map",
+          "9": "Depth map of reduced-resolution image",
+          "16": "Enhanced image data",
+          "65537": "Alternate reduced-resolution image",
+          "65540": "Semantic Mask",
+          "4294967295": "invalid",
+          "Bit0": "Reduced resolution",
+          "Bit1": "Single page",
+          "Bit2": "Transparency mask",
+          "Bit3": "TIFF/IT final page",
+          "Bit4": "TIFF-FX mixed raster content"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 255,
+        "name": "OldSubfileType",
+        "type": "int16u",
+        "values": {
+          "1": "Full-resolution image",
+          "2": "Reduced-resolution image",
+          "3": "Single page of multi-page image"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 256,
+        "name": "ImageWidth",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 257,
+        "name": "ImageHeight",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 258,
+        "name": "BitsPerSample",
+        "type": "int16u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 259,
+        "name": "Compression",
+        "type": "int16u",
+        "values": {
+          "1": "Uncompressed",
+          "2": "CCITT 1D",
+          "3": "T4/Group 3 Fax",
+          "4": "T6/Group 4 Fax",
+          "5": "LZW",
+          "6": "JPEG (old-style)",
+          "7": "JPEG",
+          "8": "Adobe Deflate",
+          "9": "JBIG B&W or VC-5",
+          "10": "JBIG Color",
+          "99": "JPEG",
+          "262": "Kodak 262",
+          "32766": "NeXt or Sony ARW Compressed 2",
+          "32767": "Sony ARW Compressed",
+          "32769": "Packed RAW",
+          "32770": "Samsung SRW Compressed",
+          "32771": "CCIRLEW",
+          "32772": "Samsung SRW Compressed 2",
+          "32773": "PackBits",
+          "32809": "Thunderscan",
+          "32867": "Kodak KDC Compressed",
+          "32895": "IT8CTPAD",
+          "32896": "IT8LW",
+          "32897": "IT8MP",
+          "32898": "IT8BL",
+          "32908": "PixarFilm",
+          "32909": "PixarLog",
+          "32946": "Deflate",
+          "32947": "DCS",
+          "33003": "Aperio JPEG 2000 YCbCr",
+          "33005": "Aperio JPEG 2000 RGB",
+          "34661": "JBIG",
+          "34676": "SGILog",
+          "34677": "SGILog24",
+          "34712": "JPEG 2000",
+          "34713": "Nikon NEF Compressed",
+          "34715": "JBIG2 TIFF FX",
+          "34718": "Microsoft Document Imaging (MDI) Binary Level Codec",
+          "34719": "Microsoft Document Imaging (MDI) Progressive Transform Codec",
+          "34720": "Microsoft Document Imaging (MDI) Vector",
+          "34887": "ESRI Lerc",
+          "34892": "Lossy JPEG",
+          "34925": "LZMA2",
+          "34926": "Zstd (old)",
+          "34927": "WebP (old)",
+          "34933": "PNG",
+          "34934": "JPEG XR",
+          "50000": "Zstd",
+          "50001": "WebP",
+          "50002": "JPEG XL (old)",
+          "52546": "JPEG XL",
+          "65000": "Kodak DCR Compressed",
+          "65535": "Pentax PEF Compressed"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 262,
+        "name": "PhotometricInterpretation",
+        "type": "int16u",
+        "values": {
+          "0": "WhiteIsZero",
+          "1": "BlackIsZero",
+          "2": "RGB",
+          "3": "RGB Palette",
+          "4": "Transparency Mask",
+          "5": "CMYK",
+          "6": "YCbCr",
+          "8": "CIELab",
+          "9": "ICCLab",
+          "10": "ITULab",
+          "32803": "Color Filter Array",
+          "32844": "Pixar LogL",
+          "32845": "Pixar LogLuv",
+          "32892": "Sequential Color Filter",
+          "34892": "Linear Raw",
+          "51177": "Depth Map",
+          "52527": "Semantic Mask"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 263,
+        "name": "Thresholding",
+        "type": "int16u",
+        "values": {
+          "1": "No dithering or halftoning",
+          "2": "Ordered dither or halftone",
+          "3": "Randomized dither"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 264,
+        "name": "CellWidth",
+        "type": "int16u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 265,
+        "name": "CellLength",
+        "type": "int16u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 266,
+        "name": "FillOrder",
+        "type": "int16u",
+        "values": {
+          "1": "Normal",
+          "2": "Reversed"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 269,
+        "name": "DocumentName",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 270,
+        "name": "ImageDescription",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 271,
+        "name": "Make",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 272,
+        "name": "Model",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 273,
+        "name": "PreviewImageStart",
+        "type": "int32u",
+        "protected": true,
+        "conditional": true
+      },
+      {
+        "id": 274,
+        "name": "Orientation",
+        "type": "int16u",
+        "values": {
+          "1": "Horizontal (normal)",
+          "2": "Mirror horizontal",
+          "3": "Rotate 180",
+          "4": "Mirror vertical",
+          "5": "Mirror horizontal and rotate 270 CW",
+          "6": "Rotate 90 CW",
+          "7": "Mirror horizontal and rotate 90 CW",
+          "8": "Rotate 270 CW"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 277,
+        "name": "SamplesPerPixel",
+        "type": "int16u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 278,
+        "name": "RowsPerStrip",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 279,
+        "name": "PreviewImageLength",
+        "type": "int32u",
+        "protected": true,
+        "conditional": true
+      },
+      {
+        "id": 280,
+        "name": "MinSampleValue",
+        "type": "int16u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 281,
+        "name": "MaxSampleValue",
+        "type": "int16u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 282,
+        "name": "XResolution",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 283,
+        "name": "YResolution",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 284,
+        "name": "PlanarConfiguration",
+        "type": "int16u",
+        "values": {
+          "1": "Chunky",
+          "2": "Planar"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 285,
+        "name": "PageName",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 286,
+        "name": "XPosition",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 287,
+        "name": "YPosition",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 290,
+        "name": "GrayResponseUnit",
+        "type": "int16u",
+        "values": {
+          "1": "0.1",
+          "2": "0.001",
+          "3": "0.0001",
+          "4": "1e-05",
+          "5": "1e-06"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 296,
+        "name": "ResolutionUnit",
+        "type": "int16u",
+        "values": {
+          "1": "None",
+          "2": "inches",
+          "3": "cm"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 297,
+        "name": "PageNumber",
+        "type": "int16u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 301,
+        "name": "TransferFunction",
+        "type": "int16u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 305,
+        "name": "Software",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 306,
+        "name": "ModifyDate",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 315,
+        "name": "Artist",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 316,
+        "name": "HostComputer",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 317,
+        "name": "Predictor",
+        "type": "int16u",
+        "values": {
+          "1": "None",
+          "2": "Horizontal differencing",
+          "3": "Floating point",
+          "34892": "Horizontal difference X2",
+          "34893": "Horizontal difference X4",
+          "34894": "Floating point X2",
+          "34895": "Floating point X4"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 318,
+        "name": "WhitePoint",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 319,
+        "name": "PrimaryChromaticities",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 321,
+        "name": "HalftoneHints",
+        "type": "int16u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 322,
+        "name": "TileWidth",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 323,
+        "name": "TileLength",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 332,
+        "name": "InkSet",
+        "type": "int16u",
+        "values": {
+          "1": "CMYK",
+          "2": "Not CMYK"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 337,
+        "name": "TargetPrinter",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 513,
+        "name": "ThumbnailOffset",
+        "type": "int32u",
+        "protected": true,
+        "conditional": true
+      },
+      {
+        "id": 514,
+        "name": "ThumbnailLength",
+        "type": "int32u",
+        "protected": true,
+        "conditional": true
+      },
+      {
+        "id": 529,
+        "name": "YCbCrCoefficients",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 530,
+        "name": "YCbCrSubSampling",
+        "type": "int16u",
+        "values": {
+          "1 1": "YCbCr4:4:4 (1 1)",
+          "1 2": "YCbCr4:4:0 (1 2)",
+          "1 4": "YCbCr4:4:1 (1 4)",
+          "2 1": "YCbCr4:2:2 (2 1)",
+          "2 2": "YCbCr4:2:0 (2 2)",
+          "2 4": "YCbCr4:2:1 (2 4)",
+          "4 1": "YCbCr4:1:1 (4 1)",
+          "4 2": "YCbCr4:1:0 (4 2)"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 531,
+        "name": "YCbCrPositioning",
+        "type": "int16u",
+        "values": {
+          "1": "Centered",
+          "2": "Co-sited"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 532,
+        "name": "ReferenceBlackWhite",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 700,
+        "name": "ApplicationNotes",
+        "type": "int8u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 18246,
+        "name": "Rating",
+        "type": "int16u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 18249,
+        "name": "RatingPercent",
+        "type": "int16u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 33432,
+        "name": "Copyright",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 33550,
+        "name": "PixelScale",
+        "type": "double",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 33723,
+        "name": "IPTC-NAA",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 33920,
+        "name": "IntergraphMatrix",
+        "type": "double",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 33922,
+        "name": "ModelTiePoint",
+        "type": "double",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 34118,
+        "name": "SEMInfo",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 34264,
+        "name": "ModelTransform",
+        "type": "double",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 34377,
+        "name": "PhotoshopSettings",
+        "type": "int8u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 34735,
+        "name": "GeoTiffDirectory",
+        "type": "int16u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 34736,
+        "name": "GeoTiffDoubleParams",
+        "type": "double",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 34737,
+        "name": "GeoTiffAsciiParams",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37724,
+        "name": "ImageSourceData",
+        "type": "undef",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 40091,
+        "name": "XPTitle",
+        "type": "int8u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 40092,
+        "name": "XPComment",
+        "type": "int8u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 40093,
+        "name": "XPAuthor",
+        "type": "int8u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 40094,
+        "name": "XPKeywords",
+        "type": "int8u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 40095,
+        "name": "XPSubject",
+        "type": "int8u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42112,
+        "name": "GDALMetadata",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42113,
+        "name": "GDALNoData",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 50341,
+        "name": "PrintIM",
+        "type": "undef",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 50706,
+        "name": "DNGVersion",
+        "type": "int8u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50707,
+        "name": "DNGBackwardVersion",
+        "type": "int8u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50708,
+        "name": "UniqueCameraModel",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 50709,
+        "name": "LocalizedCameraModel",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 50721,
+        "name": "ColorMatrix1",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50722,
+        "name": "ColorMatrix2",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50723,
+        "name": "CameraCalibration1",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50724,
+        "name": "CameraCalibration2",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50725,
+        "name": "ReductionMatrix1",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50726,
+        "name": "ReductionMatrix2",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50727,
+        "name": "AnalogBalance",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50728,
+        "name": "AsShotNeutral",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50729,
+        "name": "AsShotWhiteXY",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50730,
+        "name": "BaselineExposure",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50731,
+        "name": "BaselineNoise",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50732,
+        "name": "BaselineSharpness",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50734,
+        "name": "LinearResponseLimit",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50735,
+        "name": "CameraSerialNumber",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 50736,
+        "name": "DNGLensInfo",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 50739,
+        "name": "ShadowScale",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50740,
+        "name": "DNGAdobeData",
+        "type": "undef",
+        "protected": true,
+        "conditional": true
+      },
+      {
+        "id": 50740,
+        "name": "DNGPrivateData",
+        "type": "int8u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50741,
+        "name": "MakerNoteSafety",
+        "type": "int16u",
+        "values": {
+          "0": "Unsafe",
+          "1": "Safe"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 50778,
+        "name": "CalibrationIlluminant1",
+        "type": "int16u",
+        "values": {
+          "0": "Unknown",
+          "1": "Daylight",
+          "2": "Fluorescent",
+          "3": "Tungsten (Incandescent)",
+          "4": "Flash",
+          "9": "Fine Weather",
+          "10": "Cloudy",
+          "11": "Shade",
+          "12": "Daylight Fluorescent",
+          "13": "Day White Fluorescent",
+          "14": "Cool White Fluorescent",
+          "15": "White Fluorescent",
+          "16": "Warm White Fluorescent",
+          "17": "Standard Light A",
+          "18": "Standard Light B",
+          "19": "Standard Light C",
+          "20": "D55",
+          "21": "D65",
+          "22": "D75",
+          "23": "D50",
+          "24": "ISO Studio Tungsten",
+          "25": "Daylight",
+          "26": "Day White",
+          "27": "Cool White",
+          "28": "White",
+          "29": "Warm White",
+          "30": "Daylight LED",
+          "31": "Day White LED",
+          "32": "Cool White LED",
+          "33": "White LED",
+          "34": "Warm White LED",
+          "255": "Other"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50779,
+        "name": "CalibrationIlluminant2",
+        "type": "int16u",
+        "values": {
+          "0": "Unknown",
+          "1": "Daylight",
+          "2": "Fluorescent",
+          "3": "Tungsten (Incandescent)",
+          "4": "Flash",
+          "9": "Fine Weather",
+          "10": "Cloudy",
+          "11": "Shade",
+          "12": "Daylight Fluorescent",
+          "13": "Day White Fluorescent",
+          "14": "Cool White Fluorescent",
+          "15": "White Fluorescent",
+          "16": "Warm White Fluorescent",
+          "17": "Standard Light A",
+          "18": "Standard Light B",
+          "19": "Standard Light C",
+          "20": "D55",
+          "21": "D65",
+          "22": "D75",
+          "23": "D50",
+          "24": "ISO Studio Tungsten",
+          "25": "Daylight",
+          "26": "Day White",
+          "27": "Cool White",
+          "28": "White",
+          "29": "Warm White",
+          "30": "Daylight LED",
+          "31": "Day White LED",
+          "32": "Cool White LED",
+          "33": "White LED",
+          "34": "Warm White LED",
+          "255": "Other"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50781,
+        "name": "RawDataUniqueID",
+        "type": "int8u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50827,
+        "name": "OriginalRawFileName",
+        "type": "string",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50828,
+        "name": "OriginalRawFileData",
+        "type": "undef",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50831,
+        "name": "AsShotICCProfile",
+        "type": "undef",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50832,
+        "name": "AsShotPreProfileMatrix",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50833,
+        "name": "CurrentICCProfile",
+        "type": "undef",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50834,
+        "name": "CurrentPreProfileMatrix",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50879,
+        "name": "ColorimetricReference",
+        "type": "int16u",
+        "values": {
+          "0": "Scene-referred",
+          "1": "Output-referred (ICC Profile Dynamic Range)",
+          "2": "Output-referred (High Dyanmic Range)"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50898,
+        "name": "PanasonicTitle",
+        "type": "undef",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 50899,
+        "name": "PanasonicTitle2",
+        "type": "undef",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 50931,
+        "name": "CameraCalibrationSig",
+        "type": "string",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50932,
+        "name": "ProfileCalibrationSig",
+        "type": "string",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50934,
+        "name": "AsShotProfileName",
+        "type": "string",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50936,
+        "name": "ProfileName",
+        "type": "string",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50937,
+        "name": "ProfileHueSatMapDims",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50938,
+        "name": "ProfileHueSatMapData1",
+        "type": "float",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50939,
+        "name": "ProfileHueSatMapData2",
+        "type": "float",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50940,
+        "name": "ProfileToneCurve",
+        "type": "float",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50941,
+        "name": "ProfileEmbedPolicy",
+        "type": "int32u",
+        "values": {
+          "0": "Allow Copying",
+          "1": "Embed if Used",
+          "2": "Never Embed",
+          "3": "No Restrictions"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50942,
+        "name": "ProfileCopyright",
+        "type": "string",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50964,
+        "name": "ForwardMatrix1",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50965,
+        "name": "ForwardMatrix2",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50966,
+        "name": "PreviewApplicationName",
+        "type": "string",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50967,
+        "name": "PreviewApplicationVersion",
+        "type": "string",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50968,
+        "name": "PreviewSettingsName",
+        "type": "string",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50969,
+        "name": "PreviewSettingsDigest",
+        "type": "int8u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50970,
+        "name": "PreviewColorSpace",
+        "type": "int32u",
+        "values": {
+          "0": "Unknown",
+          "1": "Gray Gamma 2.2",
+          "2": "sRGB",
+          "3": "Adobe RGB",
+          "4": "ProPhoto RGB"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50971,
+        "name": "PreviewDateTime",
+        "type": "string",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50972,
+        "name": "RawImageDigest",
+        "type": "int8u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50973,
+        "name": "OriginalRawFileDigest",
+        "type": "int8u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50981,
+        "name": "ProfileLookTableDims",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50982,
+        "name": "ProfileLookTableData",
+        "type": "float",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51043,
+        "name": "TimeCodes",
+        "type": "int8u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 51044,
+        "name": "FrameRate",
+        "type": "rational64s",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 51058,
+        "name": "TStop",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 51081,
+        "name": "ReelName",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 51089,
+        "name": "OriginalDefaultFinalSize",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51090,
+        "name": "OriginalBestQualitySize",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51091,
+        "name": "OriginalDefaultCropSize",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51105,
+        "name": "CameraLabel",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 51107,
+        "name": "ProfileHueSatMapEncoding",
+        "type": "int32u",
+        "values": {
+          "0": "Linear",
+          "1": "sRGB"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51108,
+        "name": "ProfileLookTableEncoding",
+        "type": "int32u",
+        "values": {
+          "0": "Linear",
+          "1": "sRGB"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51109,
+        "name": "BaselineExposureOffset",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51110,
+        "name": "DefaultBlackRender",
+        "type": "int32u",
+        "values": {
+          "0": "Auto",
+          "1": "None"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51111,
+        "name": "NewRawImageDigest",
+        "type": "int8u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51112,
+        "name": "RawToPreviewGain",
+        "type": "double",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51177,
+        "name": "DepthFormat",
+        "type": "int16u",
+        "values": {
+          "0": "Unknown",
+          "1": "Linear",
+          "2": "Inverse"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51178,
+        "name": "DepthNear",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51179,
+        "name": "DepthFar",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51180,
+        "name": "DepthUnits",
+        "type": "int16u",
+        "values": {
+          "0": "Unknown",
+          "1": "Meters"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51181,
+        "name": "DepthMeasureType",
+        "type": "int16u",
+        "values": {
+          "0": "Unknown",
+          "1": "Optical Axis",
+          "2": "Optical Ray"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51182,
+        "name": "EnhanceParams",
+        "type": "string",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 52529,
+        "name": "CalibrationIlluminant3",
+        "type": "int16u",
+        "values": {
+          "0": "Unknown",
+          "1": "Daylight",
+          "2": "Fluorescent",
+          "3": "Tungsten (Incandescent)",
+          "4": "Flash",
+          "9": "Fine Weather",
+          "10": "Cloudy",
+          "11": "Shade",
+          "12": "Daylight Fluorescent",
+          "13": "Day White Fluorescent",
+          "14": "Cool White Fluorescent",
+          "15": "White Fluorescent",
+          "16": "Warm White Fluorescent",
+          "17": "Standard Light A",
+          "18": "Standard Light B",
+          "19": "Standard Light C",
+          "20": "D55",
+          "21": "D65",
+          "22": "D75",
+          "23": "D50",
+          "24": "ISO Studio Tungsten",
+          "25": "Daylight",
+          "26": "Day White",
+          "27": "Cool White",
+          "28": "White",
+          "29": "Warm White",
+          "30": "Daylight LED",
+          "31": "Day White LED",
+          "32": "Cool White LED",
+          "33": "White LED",
+          "34": "Warm White LED",
+          "255": "Other"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 52530,
+        "name": "CameraCalibration3",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 52531,
+        "name": "ColorMatrix3",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 52532,
+        "name": "ForwardMatrix3",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 52533,
+        "name": "IlluminantData1",
+        "type": "undef",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 52534,
+        "name": "IlluminantData2",
+        "type": "undef",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 52535,
+        "name": "IlluminantData3",
+        "type": "undef",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 52537,
+        "name": "ProfileHueSatMapData3",
+        "type": "float",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 52538,
+        "name": "ReductionMatrix3",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 52543,
+        "name": "RGBTables",
+        "type": "undef",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 52544,
+        "name": "ProfileGainTableMap2",
+        "type": "undef",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 52548,
+        "name": "ImageSequenceInfo",
+        "type": "undef",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 52550,
+        "name": "ImageStats",
+        "type": "undef",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 52551,
+        "name": "ProfileDynamicRange",
+        "type": "undef",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 52552,
+        "name": "ProfileGroupName",
+        "type": "string",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 52553,
+        "name": "JXLDistance",
+        "type": "float",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 52554,
+        "name": "JXLEffort",
+        "type": "int32u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 52555,
+        "name": "JXLDecodeSpeed",
+        "type": "int32u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 52897,
+        "name": "SEAL",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      }
+    ],
+    "ExifIFD": [
+      {
+        "id": 33434,
+        "name": "ExposureTime",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 33437,
+        "name": "FNumber",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 34850,
+        "name": "ExposureProgram",
+        "type": "int16u",
+        "values": {
+          "0": "Not Defined",
+          "1": "Manual",
+          "2": "Program AE",
+          "3": "Aperture-priority AE",
+          "4": "Shutter speed priority AE",
+          "5": "Creative (Slow speed)",
+          "6": "Action (High speed)",
+          "7": "Portrait",
+          "8": "Landscape",
+          "9": "Bulb"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 34852,
+        "name": "SpectralSensitivity",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 34855,
+        "name": "ISO",
+        "type": "int16u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 34858,
+        "name": "TimeZoneOffset",
+        "type": "int16s",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 34859,
+        "name": "SelfTimerMode",
+        "type": "int16u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 34864,
+        "name": "SensitivityType",
+        "type": "int16u",
+        "values": {
+          "0": "Unknown",
+          "1": "Standard Output Sensitivity",
+          "2": "Recommended Exposure Index",
+          "3": "ISO Speed",
+          "4": "Standard Output Sensitivity and Recommended Exposure Index",
+          "5": "Standard Output Sensitivity and ISO Speed",
+          "6": "Recommended Exposure Index and ISO Speed",
+          "7": "Standard Output Sensitivity, Recommended Exposure Index and ISO Speed"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 34865,
+        "name": "StandardOutputSensitivity",
+        "type": "int32u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 34866,
+        "name": "RecommendedExposureIndex",
+        "type": "int32u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 34867,
+        "name": "ISOSpeed",
+        "type": "int32u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 34868,
+        "name": "ISOSpeedLatitudeyyy",
+        "type": "int32u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 34869,
+        "name": "ISOSpeedLatitudezzz",
+        "type": "int32u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 36864,
+        "name": "ExifVersion",
+        "type": "undef",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 36867,
+        "name": "DateTimeOriginal",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 36868,
+        "name": "CreateDate",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 36873,
+        "name": "GooglePlusUploadCode",
+        "type": "undef",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 36880,
+        "name": "OffsetTime",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 36881,
+        "name": "OffsetTimeOriginal",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 36882,
+        "name": "OffsetTimeDigitized",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37121,
+        "name": "ComponentsConfiguration",
+        "type": "undef",
+        "values": {
+          "0": "-",
+          "1": "Y",
+          "2": "Cb",
+          "3": "Cr",
+          "4": "R",
+          "5": "G",
+          "6": "B"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 37122,
+        "name": "CompressedBitsPerPixel",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 37377,
+        "name": "ShutterSpeedValue",
+        "type": "rational64s",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37378,
+        "name": "ApertureValue",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37379,
+        "name": "BrightnessValue",
+        "type": "rational64s",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37380,
+        "name": "ExposureCompensation",
+        "type": "rational64s",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37381,
+        "name": "MaxApertureValue",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37382,
+        "name": "SubjectDistance",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37383,
+        "name": "MeteringMode",
+        "type": "int16u",
+        "values": {
+          "0": "Unknown",
+          "1": "Average",
+          "2": "Center-weighted average",
+          "3": "Spot",
+          "4": "Multi-spot",
+          "5": "Multi-segment",
+          "6": "Partial",
+          "255": "Other"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37384,
+        "name": "LightSource",
+        "type": "int16u",
+        "values": {
+          "0": "Unknown",
+          "1": "Daylight",
+          "2": "Fluorescent",
+          "3": "Tungsten (Incandescent)",
+          "4": "Flash",
+          "9": "Fine Weather",
+          "10": "Cloudy",
+          "11": "Shade",
+          "12": "Daylight Fluorescent",
+          "13": "Day White Fluorescent",
+          "14": "Cool White Fluorescent",
+          "15": "White Fluorescent",
+          "16": "Warm White Fluorescent",
+          "17": "Standard Light A",
+          "18": "Standard Light B",
+          "19": "Standard Light C",
+          "20": "D55",
+          "21": "D65",
+          "22": "D75",
+          "23": "D50",
+          "24": "ISO Studio Tungsten",
+          "25": "Daylight",
+          "26": "Day White",
+          "27": "Cool White",
+          "28": "White",
+          "29": "Warm White",
+          "30": "Daylight LED",
+          "31": "Day White LED",
+          "32": "Cool White LED",
+          "33": "White LED",
+          "34": "Warm White LED",
+          "255": "Other"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37385,
+        "name": "Flash",
+        "type": "int16u",
+        "values": {
+          "0": "No Flash",
+          "1": "Fired",
+          "5": "Fired, Return not detected",
+          "7": "Fired, Return detected",
+          "8": "On, Did not fire",
+          "9": "On, Fired",
+          "13": "On, Return not detected",
+          "15": "On, Return detected",
+          "16": "Off, Did not fire",
+          "20": "Off, Did not fire, Return not detected",
+          "24": "Auto, Did not fire",
+          "25": "Auto, Fired",
+          "29": "Auto, Fired, Return not detected",
+          "31": "Auto, Fired, Return detected",
+          "32": "No flash function",
+          "48": "Off, No flash function",
+          "65": "Fired, Red-eye reduction",
+          "69": "Fired, Red-eye reduction, Return not detected",
+          "71": "Fired, Red-eye reduction, Return detected",
+          "73": "On, Red-eye reduction",
+          "77": "On, Red-eye reduction, Return not detected",
+          "79": "On, Red-eye reduction, Return detected",
+          "80": "Off, Red-eye reduction",
+          "88": "Auto, Did not fire, Red-eye reduction",
+          "89": "Auto, Fired, Red-eye reduction",
+          "93": "Auto, Fired, Red-eye reduction, Return not detected",
+          "95": "Auto, Fired, Red-eye reduction, Return detected"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37386,
+        "name": "FocalLength",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37393,
+        "name": "ImageNumber",
+        "type": "int32u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37394,
+        "name": "SecurityClassification",
+        "type": "string",
+        "values": {
+          "C": "Confidential",
+          "R": "Restricted",
+          "S": "Secret",
+          "T": "Top Secret",
+          "U": "Unclassified"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37395,
+        "name": "ImageHistory",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37396,
+        "name": "SubjectArea",
+        "type": "int16u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteApple",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteCanon",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteCasio",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteCasio2",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteDJI",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteDJIInfo",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteFLIR",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteFujiFilm",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteGE",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteGE2",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteGoogle",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteHasselblad",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteHP",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteHP2",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteHP4",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteHP6",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteISL",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteJVC",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteJVCText",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKodak10",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKodak11",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKodak12",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKodak1a",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKodak1b",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKodak2",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKodak3",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKodak4",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKodak5",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKodak6a",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKodak6b",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKodak7",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKodak8a",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKodak8b",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKodak8c",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKodak9",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKodakUnknown",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteKyocera",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteLeica",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteLeica10",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteLeica2",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteLeica3",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteLeica4",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteLeica5",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteLeica6",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteLeica7",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteLeica8",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteLeica9",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteMinolta",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteMinolta2",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteMinolta3",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteMotorola",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteNikon",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteNikon2",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteNikon3",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteNintendo",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteOlympus",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteOlympus2",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteOlympus3",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNotePanasonic",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNotePanasonic2",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNotePanasonic3",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNotePentax",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNotePentax2",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNotePentax3",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNotePentax4",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNotePentax5",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNotePentax6",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNotePhaseOne",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteReconyxHyperFire",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteReconyxHyperFire2",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteReconyxHyperFire4K",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteReconyxMicroFire",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteReconyxUltraFire",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteRicoh",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteRicoh2",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteRicohPentax",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteRicohText",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteSamsung1a",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteSamsung1b",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteSamsung2",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteSanyo",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteSanyoC4",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteSanyoPatch",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteSigma",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteSony",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteSony2",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteSony3",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteSony4",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteSony5",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteSonyEricsson",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteSonySRF",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteUnknown",
+        "type": "undef",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteUnknownBinary",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37500,
+        "name": "MakerNoteUnknownText",
+        "type": "undef",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 37510,
+        "name": "UserComment",
+        "type": "undef",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37511,
+        "name": "LearningOptOutIn",
+        "type": "undef",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37520,
+        "name": "SubSecTime",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37521,
+        "name": "SubSecTimeOriginal",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37522,
+        "name": "SubSecTimeDigitized",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37888,
+        "name": "AmbientTemperature",
+        "type": "rational64s",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37889,
+        "name": "Humidity",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37890,
+        "name": "Pressure",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37891,
+        "name": "WaterDepth",
+        "type": "rational64s",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37892,
+        "name": "Acceleration",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 37893,
+        "name": "CameraElevationAngle",
+        "type": "rational64s",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 39321,
+        "name": "XiaomiSettings",
+        "type": "string",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 39424,
+        "name": "XiaomiModel",
+        "type": "string",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 40960,
+        "name": "FlashpixVersion",
+        "type": "undef",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 40961,
+        "name": "ColorSpace",
+        "type": "int16u",
+        "values": {
+          "1": "sRGB",
+          "2": "Adobe RGB",
+          "65533": "Wide Gamut RGB",
+          "65534": "ICC Profile",
+          "65535": "Uncalibrated"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 40962,
+        "name": "ExifImageWidth",
+        "type": "int16u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 40963,
+        "name": "ExifImageHeight",
+        "type": "int16u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 40964,
+        "name": "RelatedSoundFile",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41483,
+        "name": "FlashEnergy",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41486,
+        "name": "FocalPlaneXResolution",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41487,
+        "name": "FocalPlaneYResolution",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41488,
+        "name": "FocalPlaneResolutionUnit",
+        "type": "int16u",
+        "values": {
+          "1": "None",
+          "2": "inches",
+          "3": "cm",
+          "4": "mm",
+          "5": "um"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41492,
+        "name": "SubjectLocation",
+        "type": "int16u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41493,
+        "name": "ExposureIndex",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41495,
+        "name": "SensingMethod",
+        "type": "int16u",
+        "values": {
+          "1": "Not defined",
+          "2": "One-chip color area",
+          "3": "Two-chip color area",
+          "4": "Three-chip color area",
+          "5": "Color sequential area",
+          "7": "Trilinear",
+          "8": "Color sequential linear"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41728,
+        "name": "FileSource",
+        "type": "undef",
+        "values": {
+          "1": "Film Scanner",
+          "2": "Reflection Print Scanner",
+          "3": "Digital Camera",
+          "\\x03\\x00\\x00\\x00": "Sigma Digital Camera"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41729,
+        "name": "SceneType",
+        "type": "undef",
+        "values": {
+          "1": "Directly photographed"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41730,
+        "name": "CFAPattern",
+        "type": "undef",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41985,
+        "name": "CustomRendered",
+        "type": "int16u",
+        "values": {
+          "0": "Normal",
+          "1": "Custom",
+          "2": "HDR (no original saved)",
+          "3": "HDR (original saved)",
+          "4": "Original (for HDR)",
+          "6": "Panorama",
+          "7": "Portrait HDR",
+          "8": "Portrait"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41986,
+        "name": "ExposureMode",
+        "type": "int16u",
+        "values": {
+          "0": "Auto",
+          "1": "Manual",
+          "2": "Auto bracket"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41987,
+        "name": "WhiteBalance",
+        "type": "int16u",
+        "values": {
+          "0": "Auto",
+          "1": "Manual"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41988,
+        "name": "DigitalZoomRatio",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41989,
+        "name": "FocalLengthIn35mmFormat",
+        "type": "int16u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41990,
+        "name": "SceneCaptureType",
+        "type": "int16u",
+        "values": {
+          "0": "Standard",
+          "1": "Landscape",
+          "2": "Portrait",
+          "3": "Night",
+          "4": "Other"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41991,
+        "name": "GainControl",
+        "type": "int16u",
+        "values": {
+          "0": "None",
+          "1": "Low gain up",
+          "2": "High gain up",
+          "3": "Low gain down",
+          "4": "High gain down"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41992,
+        "name": "Contrast",
+        "type": "int16u",
+        "values": {
+          "0": "Normal",
+          "1": "Low",
+          "2": "High"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41993,
+        "name": "Saturation",
+        "type": "int16u",
+        "values": {
+          "0": "Normal",
+          "1": "Low",
+          "2": "High"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41994,
+        "name": "Sharpness",
+        "type": "int16u",
+        "values": {
+          "0": "Normal",
+          "1": "Soft",
+          "2": "Hard"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41996,
+        "name": "SubjectDistanceRange",
+        "type": "int16u",
+        "values": {
+          "0": "Unknown",
+          "1": "Macro",
+          "2": "Close",
+          "3": "Distant"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41997,
+        "name": "DevelopmentType",
+        "type": "int16u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41998,
+        "name": "DevelopmentTypeDescription",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 41999,
+        "name": "DistortionCorrection",
+        "type": "int16u",
+        "values": {
+          "0": "No",
+          "1": "Yes"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42000,
+        "name": "ChromaticAberrationCorrection",
+        "type": "int16u",
+        "values": {
+          "0": "No",
+          "1": "Yes"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42001,
+        "name": "ShadingCorrection",
+        "type": "int16u",
+        "values": {
+          "0": "No",
+          "1": "Yes"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42002,
+        "name": "NoiseReduction",
+        "type": "int16u",
+        "values": {
+          "0": "No",
+          "1": "Low",
+          "2": "Normal",
+          "3": "High"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42016,
+        "name": "ImageUniqueID",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42032,
+        "name": "OwnerName",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42033,
+        "name": "SerialNumber",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42034,
+        "name": "LensInfo",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42035,
+        "name": "LensMake",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42036,
+        "name": "LensModel",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42037,
+        "name": "LensSerialNumber",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42038,
+        "name": "ImageTitle",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42039,
+        "name": "Photographer",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42040,
+        "name": "ImageEditor",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42041,
+        "name": "CameraFirmware",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42042,
+        "name": "RAWDevelopingSoftware",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42043,
+        "name": "ImageEditingSoftware",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42044,
+        "name": "MetadataEditingSoftware",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42080,
+        "name": "CompositeImage",
+        "type": "int16u",
+        "values": {
+          "0": "Unknown",
+          "1": "Not a Composite Image",
+          "2": "General Composite Image",
+          "3": "Composite Image Captured While Shooting"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42081,
+        "name": "CompositeImageCount",
+        "type": "int16u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42082,
+        "name": "CompositeImageExposureTimes",
+        "type": "undef",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 42240,
+        "name": "Gamma",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 59932,
+        "name": "Padding",
+        "type": "undef",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 59933,
+        "name": "OffsetSchema",
+        "type": "int32s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 65002,
+        "name": "Lens",
+        "type": "string",
+        "protected": false,
+        "conditional": true
+      },
+      {
+        "id": 65100,
+        "name": "RawFile",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 65101,
+        "name": "Converter",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 65105,
+        "name": "Exposure",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 65106,
+        "name": "Shadows",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 65107,
+        "name": "Brightness",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 65111,
+        "name": "Smoothness",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 65112,
+        "name": "MoireFilter",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      }
+    ],
+    "GPS": [
+      {
+        "id": 0,
+        "name": "GPSVersionID",
+        "type": "int8u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 1,
+        "name": "GPSLatitudeRef",
+        "type": "string",
+        "values": {
+          "N": "North",
+          "S": "South"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 2,
+        "name": "GPSLatitude",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 3,
+        "name": "GPSLongitudeRef",
+        "type": "string",
+        "values": {
+          "E": "East",
+          "W": "West"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 4,
+        "name": "GPSLongitude",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 5,
+        "name": "GPSAltitudeRef",
+        "type": "int8u",
+        "values": {
+          "0": "Above Sea Level",
+          "1": "Below Sea Level",
+          "2": "Positive Sea Level (sea-level ref)",
+          "3": "Negative Sea Level (sea-level ref)"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 6,
+        "name": "GPSAltitude",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 7,
+        "name": "GPSTimeStamp",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 8,
+        "name": "GPSSatellites",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 9,
+        "name": "GPSStatus",
+        "type": "string",
+        "values": {
+          "A": "Measurement Active",
+          "V": "Measurement Void"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 10,
+        "name": "GPSMeasureMode",
+        "type": "string",
+        "values": {
+          "2": "2-Dimensional Measurement",
+          "3": "3-Dimensional Measurement"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 11,
+        "name": "GPSDOP",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 12,
+        "name": "GPSSpeedRef",
+        "type": "string",
+        "values": {
+          "K": "km/h",
+          "M": "mph",
+          "N": "knots"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 13,
+        "name": "GPSSpeed",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 14,
+        "name": "GPSTrackRef",
+        "type": "string",
+        "values": {
+          "M": "Magnetic North",
+          "T": "True North"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 15,
+        "name": "GPSTrack",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 16,
+        "name": "GPSImgDirectionRef",
+        "type": "string",
+        "values": {
+          "M": "Magnetic North",
+          "T": "True North"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 17,
+        "name": "GPSImgDirection",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 18,
+        "name": "GPSMapDatum",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 19,
+        "name": "GPSDestLatitudeRef",
+        "type": "string",
+        "values": {
+          "N": "North",
+          "S": "South"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 20,
+        "name": "GPSDestLatitude",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 21,
+        "name": "GPSDestLongitudeRef",
+        "type": "string",
+        "values": {
+          "E": "East",
+          "W": "West"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 22,
+        "name": "GPSDestLongitude",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 23,
+        "name": "GPSDestBearingRef",
+        "type": "string",
+        "values": {
+          "M": "Magnetic North",
+          "T": "True North"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 24,
+        "name": "GPSDestBearing",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 25,
+        "name": "GPSDestDistanceRef",
+        "type": "string",
+        "values": {
+          "K": "Kilometers",
+          "M": "Miles",
+          "N": "Nautical Miles"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 26,
+        "name": "GPSDestDistance",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 27,
+        "name": "GPSProcessingMethod",
+        "type": "undef",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 28,
+        "name": "GPSAreaInformation",
+        "type": "undef",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 29,
+        "name": "GPSDateStamp",
+        "type": "string",
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 30,
+        "name": "GPSDifferential",
+        "type": "int16u",
+        "values": {
+          "0": "No Correction",
+          "1": "Differential Corrected"
+        },
+        "protected": false,
+        "conditional": false
+      },
+      {
+        "id": 31,
+        "name": "GPSHPositioningError",
+        "type": "rational64u",
+        "protected": false,
+        "conditional": false
+      }
+    ],
+    "InteropIFD": [
+      {
+        "id": 1,
+        "name": "InteropIndex",
+        "type": "string",
+        "values": {
+          "R03": "R03 - DCF option file (Adobe RGB)",
+          "R98": "R98 - DCF basic file (sRGB)",
+          "THM": "THM - DCF thumbnail file"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 2,
+        "name": "InteropVersion",
+        "type": "undef",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 4096,
+        "name": "RelatedImageFileFormat",
+        "type": "string",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 4097,
+        "name": "RelatedImageWidth",
+        "type": "int16u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 4098,
+        "name": "RelatedImageHeight",
+        "type": "int16u",
+        "protected": true,
+        "conditional": false
+      }
+    ],
+    "SubIFD": [
+      {
+        "id": 513,
+        "name": "JpgFromRawStart",
+        "type": "int32u",
+        "protected": true,
+        "conditional": true
+      },
+      {
+        "id": 513,
+        "name": "ThumbnailOffset",
+        "type": "int32u",
+        "protected": true,
+        "conditional": true
+      },
+      {
+        "id": 514,
+        "name": "JpgFromRawLength",
+        "type": "int32u",
+        "protected": true,
+        "conditional": true
+      },
+      {
+        "id": 514,
+        "name": "ThumbnailLength",
+        "type": "int32u",
+        "protected": true,
+        "conditional": true
+      },
+      {
+        "id": 28721,
+        "name": "VignettingCorrection",
+        "type": "int16s",
+        "values": {
+          "256": "Off",
+          "257": "Auto",
+          "272": "Auto (ILCE-1)",
+          "511": "No correction params available"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 28722,
+        "name": "VignettingCorrParams",
+        "type": "int16s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 28724,
+        "name": "ChromaticAberrationCorrection",
+        "type": "int16s",
+        "values": {
+          "0": "Off",
+          "1": "Auto",
+          "255": "No correction params available"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 28725,
+        "name": "ChromaticAberrationCorrParams",
+        "type": "int16s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 28726,
+        "name": "DistortionCorrection",
+        "type": "int16s",
+        "values": {
+          "0": "Off",
+          "1": "Auto",
+          "17": "Auto fixed by lens",
+          "255": "No correction params available"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 28727,
+        "name": "DistortionCorrParams",
+        "type": "int16s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 28728,
+        "name": "SonyRawImageSize",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 29456,
+        "name": "BlackLevel",
+        "type": "int16u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 29459,
+        "name": "WB_RGGBLevels",
+        "type": "int16s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 29895,
+        "name": "SonyCropTopLeft",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 29896,
+        "name": "SonyCropSize",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 33421,
+        "name": "CFARepeatPatternDim",
+        "type": "int16u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 33422,
+        "name": "CFAPattern2",
+        "type": "int8u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50712,
+        "name": "LinearizationTable",
+        "type": "int16u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50713,
+        "name": "BlackLevelRepeatDim",
+        "type": "int16u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50715,
+        "name": "BlackLevelDeltaH",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50716,
+        "name": "BlackLevelDeltaV",
+        "type": "rational64s",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50717,
+        "name": "WhiteLevel",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50718,
+        "name": "DefaultScale",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50719,
+        "name": "DefaultCropOrigin",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50720,
+        "name": "DefaultCropSize",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50733,
+        "name": "BayerGreenSplit",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50737,
+        "name": "ChromaBlurRadius",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50738,
+        "name": "AntiAliasStrength",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50780,
+        "name": "BestQualityScale",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50829,
+        "name": "ActiveArea",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50830,
+        "name": "MaskedAreas",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 50935,
+        "name": "NoiseReductionApplied",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51008,
+        "name": "OpcodeList1",
+        "type": "undef",
+        "values": {
+          "1": "WarpRectilinear",
+          "2": "WarpFisheye",
+          "3": "FixVignetteRadial",
+          "4": "FixBadPixelsConstant",
+          "5": "FixBadPixelsList",
+          "6": "TrimBounds",
+          "7": "MapTable",
+          "8": "MapPolynomial",
+          "9": "GainMap",
+          "10": "DeltaPerRow",
+          "11": "DeltaPerColumn",
+          "12": "ScalePerRow",
+          "13": "ScalePerColumn",
+          "14": "WarpRectilinear2"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51009,
+        "name": "OpcodeList2",
+        "type": "undef",
+        "values": {
+          "1": "WarpRectilinear",
+          "2": "WarpFisheye",
+          "3": "FixVignetteRadial",
+          "4": "FixBadPixelsConstant",
+          "5": "FixBadPixelsList",
+          "6": "TrimBounds",
+          "7": "MapTable",
+          "8": "MapPolynomial",
+          "9": "GainMap",
+          "10": "DeltaPerRow",
+          "11": "DeltaPerColumn",
+          "12": "ScalePerRow",
+          "13": "ScalePerColumn",
+          "14": "WarpRectilinear2"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51022,
+        "name": "OpcodeList3",
+        "type": "undef",
+        "values": {
+          "1": "WarpRectilinear",
+          "2": "WarpFisheye",
+          "3": "FixVignetteRadial",
+          "4": "FixBadPixelsConstant",
+          "5": "FixBadPixelsList",
+          "6": "TrimBounds",
+          "7": "MapTable",
+          "8": "MapPolynomial",
+          "9": "GainMap",
+          "10": "DeltaPerRow",
+          "11": "DeltaPerColumn",
+          "12": "ScalePerRow",
+          "13": "ScalePerColumn",
+          "14": "WarpRectilinear2"
+        },
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51041,
+        "name": "NoiseProfile",
+        "type": "double",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 51125,
+        "name": "DefaultUserCrop",
+        "type": "rational64u",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 52525,
+        "name": "ProfileGainTableMap",
+        "type": "undef",
+        "protected": true,
+        "conditional": false
+      },
+      {
+        "id": 52547,
+        "name": "ColumnInterleaveFactor",
+        "type": "int32u",
+        "protected": true,
+        "conditional": false
+      }
+    ],
+    "IFD1": [
+      {
+        "id": 513,
+        "name": "ThumbnailOffset",
+        "type": "int32u",
+        "protected": true,
+        "conditional": true
+      },
+      {
+        "id": 514,
+        "name": "ThumbnailLength",
+        "type": "int32u",
+        "protected": true,
+        "conditional": true
+      }
+    ]
+  }
+}

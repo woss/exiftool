@@ -1621,3 +1621,52 @@ test('GPSVersionID, GPSDateStamp, GPSTimeStamp, GPSAltitudeRef coerce', () => {
   assertEquals(tags.GPSAltitudeRef, 'Above Sea Level');
   assertEquals(tags.LensSpecification, [24, 70, 2.8, 4]);
 });
+
+test('buildTiff writes catalog-only writable tags with upstream round-trip', async () => {
+  const { written, skipped } = buildTiff({
+    ProcessingSoftware: 'exiftool-ts 1.0', // catalog-only IFD0 ASCII
+    AmbientTemperature: -21.5, // catalog-only ExifIFD SRATIONAL
+    Humidity: 55, // catalog-only ExifIFD RATIONAL
+    Contrast: 'Low', // enum PrintConv resolved through the catalog
+  });
+  assertEquals(skipped, []);
+  assertEquals(written.includes('ProcessingSoftware'), true);
+  assertEquals(written.includes('AmbientTemperature'), true);
+  assertEquals(written.includes('Humidity'), true);
+  const file = await tempFile('.tif');
+  try {
+    await writeFile(file, buildTiff({
+      ProcessingSoftware: 'exiftool-ts 1.0',
+      AmbientTemperature: -21.5,
+      Humidity: 55,
+      Contrast: 'Low',
+    }).bytes);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-n', file]);
+    const parsed = JSON.parse(stdout)[0];
+    assertEquals(parsed.ProcessingSoftware, 'exiftool-ts 1.0');
+    assertEquals(parsed.AmbientTemperature, -21.5);
+    assertEquals(parsed.Humidity, 55);
+    assertEquals(parsed.Contrast, 1);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('buildTiff creates the InteropIFD pointer for a qualified catalog tag', async () => {
+  const { bytes, skipped } = buildTiff({ 'interopifd:InteropIndex': 'R98' });
+  assertEquals(skipped, []);
+  const file = await tempFile('.tif');
+  try {
+    await writeFile(file, bytes);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-n', '-G1', '-InteropIFD:InteropIndex', file]);
+    const parsed = JSON.parse(stdout)[0];
+    assertEquals(parsed['InteropIFD:InteropIndex'], 'R98');
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('buildTiff refuses condition-based catalog tags until a handler exists', () => {
+  const { skipped } = buildTiff({ MakerNoteCanon: new Uint8Array([1, 2, 3]) });
+  assertEquals(skipped, ['MakerNoteCanon']);
+});
