@@ -1,4 +1,5 @@
 import type { TagValue } from '../types.js';
+import writableExifJson from './generated/writable-exif.json' with { type: 'json' };
 
 /**
  * Result of building a TIFF structure.
@@ -586,6 +587,79 @@ const IFD_TAG_GROUPS: Record<string, Record<string, IfdTagSpec>> = {
   interopifd: INTEROP_IFD_TAGS,
   subifd: SUB_IFD_TAGS,
 };
+
+interface WritableExifTagJson {
+  id: number;
+  name: string;
+  type: string;
+  values?: Record<string, string>;
+  conditional: boolean;
+}
+
+const writableExif = writableExifJson as unknown as {
+  exiftoolVersion: string;
+  groups: Record<string, WritableExifTagJson[]>;
+};
+
+/** Upstream Perl Writable type → TIFF field type. */
+const WRITABLE_TYPE_TO_TIFF: Record<string, IfdTagSpec['type']> = {
+  int8u: 1,
+  string: 2,
+  int16u: 3,
+  int32u: 4,
+  rational64u: 5,
+  int8s: 6,
+  undef: 7,
+  int16s: 8,
+  int32s: 9,
+  rational64s: 10,
+  float: 11,
+  double: 12,
+  int64u: 16,
+  int64s: 17,
+};
+
+/**
+ * Catalog specs for one upstream write group. Condition-based tags are
+ * excluded: behaviour behind an upstream Condition needs a reviewed
+ * handler, never a generic encode.
+ */
+function catalogSpecs(group: string): Record<string, IfdTagSpec> {
+  const out: Record<string, IfdTagSpec> = {};
+  for (const record of writableExif.groups[group] ?? []) {
+    if (record.conditional) continue;
+    const tiffType = WRITABLE_TYPE_TO_TIFF[record.type];
+    if (!tiffType) continue;
+    out[record.name.toLowerCase()] = {
+      id: record.id,
+      type: tiffType,
+      name: record.name,
+      ...(record.values ? { values: enumValuesToNumberKeys(record.values) } : {}),
+    };
+  }
+  return out;
+}
+
+function enumValuesToNumberKeys(values: Record<string, string>): Record<number, string> {
+  const out: Record<number, string> = {};
+  for (const [code, label] of Object.entries(values)) {
+    const numeric = Number(code);
+    if (Number.isInteger(numeric) && numeric >= 0) out[numeric] = label;
+  }
+  return out;
+}
+
+/** Hand-mapped specs win collisions: they carry exact counts and special encoders. */
+function mergeCatalogInto(table: Record<string, IfdTagSpec>, group: string): void {
+  for (const [name, spec] of Object.entries(catalogSpecs(group))) {
+    if (!table[name]) table[name] = spec;
+  }
+}
+mergeCatalogInto(IFD0_TAGS, 'IFD0');
+mergeCatalogInto(EXIF_IFD_TAGS, 'ExifIFD');
+mergeCatalogInto(GPS_IFD_TAGS, 'GPS');
+mergeCatalogInto(INTEROP_IFD_TAGS, 'InteropIFD');
+mergeCatalogInto(SUB_IFD_TAGS, 'SubIFD');
 
 const HEX_UNDEFINED_TAGS = new Set([
   'RawDataUniqueID', 'PreviewSettingsDigest', 'RawImageDigest', 'OriginalRawFileDigest', 'NewRawImageDigest',

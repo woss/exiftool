@@ -3,6 +3,7 @@ import { assertEquals } from '../src/test/asserts.js';
 import {
   assertPinnedExifToolVersion,
   assertWritableTypesClassified,
+  collectWritableExifTags,
   collectWritableXmpShapes,
   parseExifToolXml,
   parseExifToolXmpNamespaces,
@@ -116,4 +117,51 @@ test('tag generation uses source IDs when XMP display names differ', () => {
     ),
     { 'Iptc4xmpExt:RegistryId': 'bag' },
   );
+});
+
+test('writable EXIF catalog routes by WriteGroup, table WRITE_GROUP, then home group', () => {
+  const tables = parseExifToolXml([
+    "<table name='Exif::Main' g0='EXIF' g1='IFD0'>",
+    " <tag id='11' name='ProcessingSoftware' type='string' writable='true'/>",
+    " <tag id='37386' name='UserComment' type='string' writable='true' g2='Image'/>",
+    '</table>',
+    "<table name='GPS::Main' g0='GPS' g1='GPS'>",
+    " <tag id='2' name='GPSLatitude' type='rational64u' writable='true'/>",
+    '</table>',
+  ].join('\n'));
+  const tableByName = new Map(tables.map((table) => [table.perlName, table]));
+  const groups = collectWritableExifTags([
+    // Explicit per-tag WriteGroup wins over the table default.
+    { table: 'Exif::Main', id: '11', name: 'ProcessingSoftware', writable: 'string', writeGroup: 'IFD0' },
+    // No per-tag WriteGroup: falls back to the tag's home group (Groups{1}).
+    { table: 'Exif::Main', id: '37386', name: 'UserComment', writable: 'string', groups1: 'ExifIFD' },
+    // GPS::Main carries no write group at all: the table-level WRITE_GROUP applies.
+    { table: 'GPS::Main', id: '2', name: 'GPSLatitude', writable: 'rational64u', tableWriteGroup: 'GPS' },
+    { table: 'GPS::Main', id: 'x', name: 'Garbage', writable: 'string' },
+  ], tableByName);
+  assertEquals(groups.IFD0, [{ id: 11, name: 'ProcessingSoftware', type: 'string', protected: false, conditional: false }]);
+  assertEquals(groups.ExifIFD, [{ id: 37386, name: 'UserComment', type: 'string', protected: false, conditional: false }]);
+  assertEquals(groups.GPS, [{ id: 2, name: 'GPSLatitude', type: 'rational64u', protected: false, conditional: false }]);
+});
+
+test('writable EXIF catalog keeps conditional flags and joins PrintConv values', () => {
+  const tables = parseExifToolXml([
+    "<table name='Exif::Main' g0='EXIF' g1='IFD0'>",
+    " <tag id='274' name='Orientation' type='int16u' writable='true'>",
+    '  <values>',
+    "   <key id='1'>",
+    '    <val lang=\'en\'>Horizontal (normal)</val>',
+    "   </key>",
+    '  </values>',
+    ' </tag>',
+    '</table>',
+  ].join('\n'));
+  const tableByName = new Map(tables.map((table) => [table.perlName, table]));
+  const groups = collectWritableExifTags([
+    { table: 'Exif::Main', id: '274', name: 'Orientation', writable: 'int16u', writeGroup: 'IFD0' },
+    { table: 'Exif::Main', id: '37500', name: 'MakerNoteCanon', writable: 'undef', groups1: 'ExifIFD', conditional: true },
+  ], tableByName);
+  assertEquals(groups.IFD0, [{ id: 274, name: 'Orientation', type: 'int16u', values: { 1: 'Horizontal (normal)' }, protected: false, conditional: false }]);
+  // Conditional tags stay in the catalog with their flag; the writer refuses them.
+  assertEquals(groups.ExifIFD, [{ id: 37500, name: 'MakerNoteCanon', type: 'undef', protected: false, conditional: true }]);
 });

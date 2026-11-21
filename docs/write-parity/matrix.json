@@ -2253,13 +2253,13 @@
     },
     "JPEG|EXIF|set": {
       "status": "partial",
-      "reason": "Hand-mapped tags; full writable table and group routing open (serializer-exif spec).",
+      "reason": "Full standard writable catalog with group routing; add/replace modes and per-tag differential sweep open (serializer-exif spec).",
       "fixture": null,
       "test": "src/write/jpeg-merge.test.ts"
     },
     "JPEG|GPS|set": {
-      "status": "partial",
-      "reason": "Partial tag map; negative-coordinate synthesis and group routing open.",
+      "status": "implemented",
+      "reason": "Full GPS tag table, qualified group routing, negative-coordinate ref synthesis; upstream round-trip tests.",
       "fixture": null,
       "test": "src/write/jpeg-merge.test.ts"
     },
@@ -2319,13 +2319,13 @@
     },
     "TIFF|EXIF|set": {
       "status": "partial",
-      "reason": "Plain TIFF subset only; camera RAW write is refused (tiff-raw.ts).",
+      "reason": "Full standard catalog into plain TIFF; camera RAW/SubIFD files refused (tiff-raw.ts); per-tag differential sweep open.",
       "fixture": null,
       "test": "src/write/tiff-merge.test.ts"
     },
     "TIFF|GPS|set": {
       "status": "partial",
-      "reason": "Plain TIFF subset only.",
+      "reason": "Full GPS catalog into plain TIFF; no dedicated GPS round-trip tests yet.",
       "fixture": null,
       "test": "src/write/tiff-merge.test.ts"
     },
