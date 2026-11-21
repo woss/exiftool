@@ -1,11 +1,12 @@
 # omp project config
-
 modelRoles:
-  default: opencode-zen/glm-5.3-flash:auto
+  # architect/coder: opencode-zen (same glm-5.3-flash, zen provider) — proven agentic + cache-healthy
+  default: opencode-zen/glm-5.3-flash
   # cheap tier: swarm fallback model, also drives tiny/smol background work (titles, memory LLM)
-  smol: opencode-zen/big-pickle
-  # reviewer/test_engineer/explorer/sme/researcher/critic/docs/designer/curators
-  slow: opencode-zen/big-pickle
+  smol: opencode-zen/gpt-6-luna
+  # reviewer/test_engineer/explorer/sme/researcher/critic/docs/designer/curators: read-heavy review
+  # work = cache-dominated; ember's $0/M cache reads make reviews ~free (quality unproven — A/B)
+  slow: opencode-zen/muse-ember-1.0
 
 # Swarm agent fallback_models -> retry fallback chains
 retry:
@@ -13,13 +14,14 @@ retry:
   modelFallback: true
   fallbackRevertPolicy: cooldown-expiry
   fallbackChains:
-    # coder/architect fell back to big-pickle
+    # coder/architect: real cross-family fallbacks (was self-referential glm->glm)
     default:
-      - opencode-zen/big-pickle
-    # big-pickle roles fell back to big-pickle / nemotron-3-ultra-free
+      - opencode-zen/gpt-6-luna
+      - opencode-zen/muse-ember-1.0
+    # ember (slow) falls back to proven glm-5.3-flash, then luna
     slow:
-      - opencode-zen/big-pickle
-      - opencode-zen/nemotron-3-ultra-free
+      - opencode-zen/glm-5.3-flash
+      - opencode-zen/gpt-6-luna
 
 # reasoningEffort: high everywhere in the swarm config
 defaultThinkingLevel: high
@@ -52,3 +54,12 @@ autolearn:
 # swarm redaction.rejectDurableSecrets: true
 secrets:
   enabled: true
+# --- GitButler workspace: features are virtual branches in the base checkout ---
+# Subagents share the GitButler workspace and commit to lanes via
+# `but commit -b <branch> -m "…" <ids>` (IDs from `but diff`); git write commands
+# are forbidden in workspace mode (see .omp/rules/worktrees.md).
+# Session escape hatch: run omp with `--config worktree-overlay.yml` to re-enable
+# per-task worktrees when a session genuinely needs them.
+task:
+  isolation:
+    enabled: false

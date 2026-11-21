@@ -4,6 +4,7 @@
 
 Bring exiftool-ts metadata writing toward parity with the vendored Phil Harvey ExifTool 13.55, without treating every readable file type as writable. The upstream support matrix is the contract: implement write (`w`) and create (`c`) only where ExifTool supports them, and record deliberate differences by format, metadata family, and operation.
 
+
 “Full” means parity for the upstream-supported write surface, including tag selection and copy semantics, metadata groups, preservation behavior, and observable CLI/API results. It does not mean writing every tag in every format. MakerNotes, signatures, and other provenance-sensitive blocks need explicit per-family safety rules; unknown binary data must never be rewritten speculatively.
 
 ## Current Baseline
@@ -32,16 +33,14 @@ Maintain a generated or reviewed matrix based on `vendor/exiftool/README` for ea
 Each supported cell needs a documented implementation and tests. Unsupported or intentionally read-only cells must fail clearly or appear in `skipped`; they must not silently report a successful write. Upstream behavior is versioned, and an ExifTool upgrade requires reviewing the matrix and parity fixtures.
 
 ## Exact Upstream Inventory
-
-This inventory is copied from the vendored ExifTool 13.55 `README`. It contains 77 file-type entries marked writable: 70 `r/w` and 7 `r/w/c`. `r/w` means read and write; `r/w/c` additionally means create from scratch. These are upstream claims, not claims that exiftool-ts already supports those operations.
+This inventory was copied from the vendored ExifTool 13.55 `README`. It contains 77 file-type entries marked writable: 70 `r/w` and 7 `r/w/c`. `r/w` means read and write; `r/w/c` additionally means create from scratch. These are upstream claims, not claims that exiftool-ts already supports those operations. Upstream 13.64 adds `MIF3` as `r/w` (78 writable types: 71 `r/w` + 7 `r/w/c`) and `FIT` as read-only (`r`); the metadata-family table is unchanged between 13.55 and 13.64. See the delta section after this inventory.
 
 ### File Types Marked Writable
 
 | Upstream mode | File types |
 | --- | --- |
 | `r/w/c` | `DR4`, `EXIF`, `EXV`, `ICC`, `MIE`, `VRD`, `XMP` |
-| `r/w` | `360`, `3G2`, `3GP`, `AAX`, `AI`, `ARQ`, `ARW`, `AVIF`, `CR2`, `CR3`, `CRM`, `CRW`, `CS1`, `DCP`, `DNG`, `DVB`, `EPS`, `ERF`, `F4A/V`, `FFF`, `FLIF`, `GIF`, `GLV`, `GPR`, `HDP`, `HEIC`, `HEIF`, `IIQ`, `IND`, `INSP`, `JNG`, `JP2`, `JPEG`, `JXL`, `LRV`, `M4A/V`, `MEF`, `MNG`, `MOS`, `MOV`, `MP4`, `MPO`, `MQV`, `MRW`, `NEF`, `NKSC`, `NRW`, `ORF`, `ORI`, `PBM`, `PDF`, `PEF`, `PGM`, `PNG`, `PPM`, `PS`, `PSB`, `PSD`, `QTIF`, `RAF`, `RAW`, `RW2`, `RWL`, `SR2`, `SRW`, `THM`, `TIFF`, `WEBP`, `WDP`, `X3F` |
-
+| `r/w` | `360`, `3G2`, `3GP`, `AAX`, `AI`, `ARQ`, `ARW`, `AVIF`, `CR2`, `CR3`, `CRM`, `CRW`, `CS1`, `DCP`, `DNG`, `DVB`, `EPS`, `ERF`, `F4A/V`, `FFF`, `FLIF`, `GIF`, `GLV`, `GPR`, `HDP`, `HEIC`, `HEIF`, `IIQ`, `IND`, `INSP`, `JNG`, `JP2`, `JPEG`, `JXL`, `LRV`, `M4A/V`, `MEF`, `MNG`, `MOS`, `MOV`, `MP4`, `MPO`, `MQV`, `MRW`, `NEF`, `NKSC`, `NRW`, `ORF`, `ORI`, `PBM`, `PDF`, `PEF`, `PGM`, `PNG`, `PPM`, `PS`, `PSB`, `PSD`, `QTIF`, `RAF`, `RAW`, `RW2`, `RWL`, `SR2`, `SRW`, `THM`, `TIFF`, `WEBP`, `WDP`, `X3F`, `MIF3` |
 The current port has adapters for JPEG, PNG, WebP, AVIF/HEIC/HEIF, and TIFF-family inputs, but these are partial implementations, not full format parity. The TIFF adapter writes plain TIFF only; camera RAW variants must each be explicitly validated before they are advertised writable. Every other type in the table above needs a writer adapter or a documented, tested reason for deferral. File-type aliases and extension handling must follow ExifTool's detected `FileType`, not just filename suffixes.
 
 ### Metadata Families Marked Writable
@@ -74,12 +73,49 @@ Current family coverage is partial: EXIF/GPS use a small hand-maintained tag map
 | Documents and standalone metadata | Partial: standalone EXIF update, EXV update, XMP parser/writer plus sidecar create/merge/delete, ICC whole-profile replacement; TIFF subset | `DR4`, `IND`, `MIE`, `PDF`, `VRD`; complete EXIF/EXV create semantics, ICC tag-level editing/create, XMP namespace/schema and CLI create parity, and each format's distinct write/create semantics |
 
 The grouped rows above are work queues, not permission to mark an entire group supported after one adapter lands. Each individual file type must pass its own matrix cells and release gate.
+## Upstream Delta 13.56–13.64 (Phil Harvey) — catalog regenerated at 13.64
+
+Vendor pin is now `13.64` (dev; 13.55 remains the last production release). Below is the write-relevant delta from 13.56→13.64; catalog tables have been regenerated from 13.64 (1416 tables / 34,002 tags / 14,463 writable; see `src/tags/generated/manifest.json`). Items marked out-of-scope are recorded so they are not mistaken for missing writable cells.
+
+File-type matrix: `+MIF3 r/w` (SlimHEIF `mini`, 13.62 #503), `FIT r` (read-only, 13.56). Metadata-family table unchanged. New writable-type count: 78 (71 `r/w` + 7 `r/w/c`).
+Catalogs: every tag/table change below requires upgrading `vendor/exiftool` then regenerating `src/tag-db.ts` / XMP namespace/shape manifests (section A); regenerate-and-diff is the acceptance gate, not hand-editing the DB.
+Versions: 13.56 Exif 3.1, FLIR/Panasonic/GoPro tables, case-insensitive `GetValue`; 13.57 FIT enums + XML-header behavior; 13.58 `RAFVersion`→`FirmwareVersion`, `RAFCompression`, XML CDATA/comment parse; 13.59 `NewUUID`, XMP-write error escalation, strict `-validate`, Composite SubSec group; 13.60 Exif-for-XMP tags, FujiFilm/Canon/Nikon/Olympus/Ricoh enums, PNG pointer + IFD guards, `QuickTimeUndLang`; 13.61 `NRSetting`→`NoiseReduction`, Sony ARW write amenability; 13.62 `mini` R/W + compressed EXIF/XMP, GIF C2PA delete; 13.63 GIF-extension fix; 13.64 IPTCDigest TIFF padding, `PhotoshopSettings` TIFF code, Insta360 X6 atom robustness.
+
+### A/Tags
+
+- [ ] Regenerate the writable catalog from 13.64 tables: Exif 3.1 new tags, Panasonic `AFAreaMode`, FLIR newer, GoPro compression, FujiFilm `AdvancedFilter`/`GrainEffectRoughness`, EXIF `NoiseReduction` values, Canon/Nikon LensIDs where writable, Olympus `WhiteBalanceFineTune`, Canon EOS RP `ShutterCount`, Nikon `NCTG`, Ricoh GR IV Mono, DJI protobuf/timed-GPS, Garmin FIT decode tables (read-only file type — catalog as `r`, never writable).
+- [ ] Renames in generated DB: `RAFVersion` → `FirmwareVersion` (13.58), DJI `NRSetting` → `NoiseReduction` (13.61), plus Canon tag renames 13.63/13.64; keep old names as aliases where upstream does.
+- [ ] New writable tags: `NewUUID` (Extra, 13.59 #421), Exif-for-XMP tag set (13.60; strict `-validate` interplay), `RAFCompression` value (13.58).
+- [ ] `QuickTimeUndLang` (13.60 #451): API option affecting QuickTime undetermined-language handling. No QuickTime writer exists (section G) — record as read-only/API gap; do not expose it as writable.
+
+### B/C/D — serializer impact
+
+- [ ] B: XML CDATA/comment parse fix (13.58) in `src/exif/xmp.ts` read path used before XMP writes; 13.57 XML-header structured-output revert — verify XMP write round-trip against 13.64 reference.
+- [ ] C: IPTCDigest TIFF padding + stay_open spurious-warning fixes (13.64); `PhotoshopSettings` TIFF format code (13.64) — required before IPTC writes into TIFF-family containers beyond JPEG APP13.
+- [ ] C/B robustness (no new tags): PNG "pointer references previous directory" guard (13.60 #453), IFD first-entry bad-format warning, PGF deep-recursion guard, FLIF hang guard, corrupt-metadata memory caps (13.61) — port as parser hardening tests where these containers exist; FLIF/PGF/M2TS/R3D have no parsers (out-of-scope containers).
+- [ ] D: XMP data-loss write problems escalated Warning→Error (13.59) — map the affected XMP write paths so callers surface errors instead of partial success.
+
+### F/G — containers
+
+- [ ] `MIF3` r/w adapter (13.62 #503): `mif3` detection, low-overhead mini metadata read/write including compressed EXIF and XMP; distinct from AVIF/HEIF `meta` handling; preserve image payload, handle brands/item table. Fixtures + differential tests required (section G contract applies).
+- [ ] GIF: C2PA delete (13.62 #515) + 13.63 extension regression fix (in `src/write/` GIF path + `src/format/gif.ts` parser). Preserve animation/text blocks; delete only the C2PA application extension.
+- [ ] ISO-BMFF video (section G, not built): Insta360 X6 `Meta`/empty `ItemList` patch + trailer write error (13.64), iPhone/standard atom robustness; no action until the MP4/MOV adapter exists — track, don't half-implement.
+- [ ] Sony ARW write compat (13.61 #465): verify against our TIFF/RAW path (section J prework) when ARW matrix cells are probed.
+- [ ] Xiaomi HEIC EXIF delete/recreate crash fix (13.62 #485) and Samsung HEIC `sefd` motion-photo repair (13.60): HEIC has no writer adapter here; record as known upstream-side fixes, no code action.
+
+### H — CLI/API (mostly CLI-only; record, don't port by default)
+
+- [ ] `-eh` alias for `-E`/`-escapeHTML` (13.58): CLI-only, undocumented upstream; adopt only if `-E` is implemented.
+- [ ] `-config -` piped input, `-sort` ordering stability, `-diff` missing-tag guts, `-validate` strictness (13.59): CLI-only; strict `-validate` for Exif-for-XMP worth adopting if validation is ever in scope.
+- [ ] Stay-open pipe-close hang (13.60 #458), `audio2itemlist.args` (13.61 #497), `novelty.config` (13.59 #422): CLI/config files — do not port; note as upstream-only.
+- [ ] Geotag-from-any-GPS-file + FIT as geotag source (13.56): already an open H item (geotag workflows); extend source-file support to FIT only if geotag is adopted.
+- [x] Upgrade gate (section I): submodule bumped from 13.55 to 13.64, inventory counts re-run (78 writable types), matrix delta recorded above.
 
 ## Exact Implementation Checklist
 
 ### A. Source-of-Truth Tag Catalog
 
-- [x] Pin the catalog to ExifTool 13.55 and make the generation script record the upstream version/hash used.
+- [x] Pin the catalog to ExifTool 13.64 and make the generation script record the upstream version/hash used.
 - [ ] For every writable tag, capture canonical name, ID, metadata family, actual read group, preferred write group, supported file types, type, count, list shape, writable/protected status, mandatory status, and enum values.
 - [ ] Do not treat `-listx`'s `writable=true` flag as a complete write recipe. ExifTool's table source carries important `WriteGroup`, `Protected`, conditions, and custom conversion behavior that must also be extracted or explicitly ported.
 - [ ] Preserve aliases and duplicate names as a multimap keyed by name + group; never collapse distinct tags into one global name lookup.
@@ -300,7 +336,7 @@ Implement and test one adapter per upstream file type from the inventory, reusin
 - [ ] PSD/PSB/AI/EPS/PS/IND: document resource blocks, lengths, padding, preview/proprietary data, and safe rewriting.
 - [ ] PDF: object/xref handling, metadata updates, incremental-write choice, encrypted files, signatures, and linearization.
 - [ ] MIE/ICC/XMP/EXIF/EXV/VRD/DR4 standalone types: create/write separately from in-place update; honor the exact upstream `r/w/c` distinction.
-- [ ] CR2/CR3/CRM/CRW/ARW/ARQ/DNG/ERF/FFF/IIQ/MEF/MOS/MRW/NEF/NKSC/NRW/ORF/ORI/PEF/RAF/RAW/RW2/RWL/SR2/SRW/X3F/CS1: implement the specific wrapper and offset changes for each type; no group-wide assumption that one TIFF writer covers all RAW variants.
+- [ ] CR2/CR3/CRM/CRW/ARW/ARQ/DNG/ERF/FFF/IIQ/MEF/MOS/MRW/NEF/NKSC/NRW/ORF/ORI/PEF/RAF/RAW/RW2/RWL/SR2/SRW/X3F/CS1: implement the specific wrapper and offset changes for each type; no group-wide assumption that one TIFF writer covers all RAW variants. CR2, CR3, and RAF are specified in section J as the first fixture-backed batch.
 - [ ] 360/DCP/GPR/LRV/THM/DR4/VRD and remaining matrix entries: inspect the upstream writer module and add type-specific adapter and fixtures.
 
 For every row: implement write-existing, add-new, replace, delete, no-op, malformed input, unsupported operation, preservation, backup, and ExifTool round-trip cases. `create` tests are required only for `DR4`, `EXIF`, `EXV`, `ICC`, `MIE`, `VRD`, and `XMP` unless the upstream version changes.
@@ -373,9 +409,48 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 
 - [ ] Produce a checked-in machine-readable format/family/operation matrix with statuses `implemented`, `partial`, `read-only`, `unsafe`, or `not-started` and links to tests.
 - [ ] CI runs focused tests for every `implemented` cell; a feature cannot be marked implemented if its reference ExifTool test skipped.
-- [x] Keep the vendored source pinned at ExifTool 13.55; verified `vendor/exiftool/exiftool -ver` reports `13.55`.
+- [x] Keep the vendored source pinned at ExifTool 13.64; verified `vendor/exiftool/exiftool -ver` reports `13.64`.
 - [ ] When updating ExifTool, diff file-type flags, metadata-family flags, writable tag definitions, write groups, protected/mode behavior, and upstream writer tests; require review of every change.
 - [ ] Publish the remaining `partial` and `not-started` cells in docs and report exact reasons. “Full parity” is reached only when no upstream `r/w` or `r/w/c` cell in scope remains partial or unexplained.
+
+### J. Canon and Fujifilm RAW: CR2, CR3, RAF (Full Support)
+
+Upstream marks CR2, CR3, and RAF `r/w` — full read/write parity is the target; none are upstream-creatable, so no `create` cases are required. This section lifts these three types out of the generic Camera-RAW queue (section G) as the first fixture-backed RAW batch, motivated by body-serial coverage (ExifIFD `SerialNumber` 0xa431 and `LensSerialNumber` 0xa435, Canon `InternalSerialNumber`, FujiFilm `InternalSerialNumber`). It depends on the complete writable tag tables from sections A/B and the MakerNotes gates from section E. No type is advertised writable until its own cells pass; `read-only` or `unsafe` statuses with reasons are acceptable outcomes for individual cells.
+
+Prerequisites, all three types:
+
+- [ ] Container parser (read side) for each type where absent — CR3 ISOBMFF boxes and the RAF wrapper have no parser today; writing cannot be built without the read path.
+- [ ] Vendor MakerNotes adapters from section E for Canon (CR2/CR3) and FujiFilm (RAF), honoring the opaque/unknown/encrypted preservation rules.
+
+**CR2 — TIFF-based Canon RAW**
+
+- [ ] CR2 header dialect: little-endian TIFF header with IFD0 offset 0x10, the `CR` version marker, and byte-preserving relocation or rewrite of the trailing `CR` trailer.
+- [ ] Full IFD0/ExifIFD/GPS/InteropIFD/IFD1/SubIFD graph writes through the section-B serializer, including SubIFD (raw/preview) offset repair or refusal per the section-B unsafe-rewrite rule.
+- [ ] Canon MakerNotes read-modify-write, including `SerialNumber`, `InternalSerialNumber`, and lens serial tags, with maker base-offset handling and byte-for-byte preservation of unknown maker entries.
+- [ ] Embedded preview/thumbnail preservation when directory layouts shift; refuse the rewrite when an offset cannot be repaired.
+- [ ] XMP, IPTC-IIM, and ICC writes into the TIFF structure where upstream supports them.
+
+**CR3 — ISOBMFF Canon RAW**
+
+- [ ] Box parser/writer: `ftyp crx` brand validation, `moov`, and the CMT box family — `CMT1` (IFD0), `CMT2` (ExifIFD), `CMT3` (MakerNotes), `CMT4` (GPS) — with `iloc`/offset and 32/64-bit size handling.
+- [ ] XMP and ICC item-box writes with unknown-box byte preservation and a `free`/padding strategy for in-place growth.
+- [ ] Canon MakerNotes inside `CMT3` via the section-E Canon adapter; refuse the rewrite on unverifiable offsets.
+- [ ] Media-data (`mdat`) preservation across all writes; no metadata edit may shift or touch media payloads without offset repair.
+
+**RAF — Fujifilm RAW wrapper**
+
+- [ ] RAF wrapper parse: `FUJIFILMCCD-RAW ` header, version, jump/section table, embedded JPEG preview, and the trailing metadata table with offsets/sizes.
+- [ ] EXIF/GPS/XMP/IPTC writes into the RAF metadata structure, updating section sizes/offsets while preserving the embedded preview and raw data blocks byte-for-byte.
+- [ ] FujiFilm MakerNotes via the section-E adapter, including `InternalSerialNumber`; preserve unknown/protected maker data.
+- [ ] Refuse rewrites on unsupported RAF versions/layouts with a clear failure instead of a best-effort mutation.
+
+Cross-cutting, per type:
+
+- [ ] Set/add/replace/delete/no-op, malformed input, unsupported operation, backup, and atomicity cases per the section-G row contract.
+- [ ] Redistributable fixtures per vendor/model; differential tests against ExifTool 13.55: our write read by upstream, upstream write read by us, and unchanged-block byte comparison.
+- [ ] Matrix cells (section I) move from `not-started` only when their focused tests pass.
+
+**Acceptance:** for each of CR2, CR3, and RAF, every upstream-writable family cell has unit plus ExifTool 13.55 differential tests; image/preview/media payloads and unknown blocks survive byte-for-byte; an ExifTool 13.55 read of our output matches values and groups. Read-side body-serial coverage for these types is demonstrated by tests before write support is advertised.
 
 ## Phases
 

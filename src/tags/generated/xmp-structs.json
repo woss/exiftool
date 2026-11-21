@@ -15537,6 +15537,74 @@
     "name": "CompImageExp",
     "namespace": "exifEX"
   },
+  "exifEX:DevelopmentType": {
+    "fields": [
+      {
+        "conditional": "",
+        "enumValues": {
+          "1": "Accurate Reproduction",
+          "2": "Small Differences",
+          "4": "Extreme Differences"
+        },
+        "hasValueConvInv": "",
+        "key": "DevelopmentCharacteristic",
+        "list": null,
+        "name": "DevelopmentCharacteristic",
+        "namespace": "exifEX",
+        "protected": "",
+        "struct": null,
+        "writableType": "integer"
+      },
+      {
+        "conditional": "",
+        "enumValues": {
+          "1": "Factory Default Settings",
+          "2": "Not Default Settings",
+          "4": "Unknown Settings"
+        },
+        "hasValueConvInv": "",
+        "key": "FactoryDefault",
+        "list": null,
+        "name": "FactoryDefault",
+        "namespace": "exifEX",
+        "protected": "",
+        "struct": null,
+        "writableType": "integer"
+      }
+    ],
+    "name": "DevelopmentType",
+    "namespace": "exifEX"
+  },
+  "exifEX:LearningOptOutIn": {
+    "fields": [
+      {
+        "conditional": "",
+        "enumValues": null,
+        "hasValueConvInv": "",
+        "key": "NumberOfSets",
+        "list": null,
+        "name": "NumberOfSets",
+        "namespace": "exifEX",
+        "protected": "",
+        "struct": null,
+        "writableType": "integer"
+      },
+      {
+        "conditional": "",
+        "enumValues": null,
+        "hasValueConvInv": "",
+        "key": "Values",
+        "list": "Seq",
+        "name": "Values",
+        "namespace": "exifEX",
+        "protected": "",
+        "struct": null,
+        "writableType": "integer"
+      }
+    ],
+    "name": "LearningOptOutIn",
+    "namespace": "exifEX"
+  },
   "ics:SubVersions": {
     "fields": [
       {
