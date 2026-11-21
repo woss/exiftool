@@ -88,7 +88,7 @@ const PARTIALS: Record<string, CellOverride> = {
   'JPEG|ICC Profile|set': { status: 'partial', reason: 'Whole-profile set/delete only; ICC tag editing open (serializer-families spec).', fixture: null, test: 'src/write/writers.test.ts' },
   'JPEG|IPTC|set': { status: 'partial', reason: 'Generated datasets in APP13 only; multi-container integration open (serializer-iptc spec).', fixture: null, test: 'src/write/iptc.test.ts' },
   'JPEG|JFIF|set': { status: 'partial', reason: 'Density set/create only; thumbnails and remaining fields open.', fixture: null, test: 'src/write/writers.test.ts' },
-  'JPEG|Photoshop IRB|set': { status: 'partial', reason: 'Scalar resources only; nested/binary resources open (serializer-iptc spec).', fixture: null, test: 'src/write/iptc.test.ts' },
+  'JPEG|Photoshop IRB|set': { status: 'implemented', reason: 'All upstream-writable resources: scalars, thumbnails, ResolutionInfo, URL_List, explicit IPTCDigest (new/old/hex32); nested display resources preserved byte-for-byte.', fixture: null, test: 'src/write/iptc.test.ts' },
   'JPEG|XMP|set': { status: 'partial', reason: 'Registered namespaces only; full schema/struct coverage open (serializer-xmp spec).', fixture: null, test: 'src/write/xmp-writer.test.ts' },
   'PNG|EXIF|set': { status: 'partial', reason: 'eXIf merge only; full tag/group coverage open.', fixture: null, test: 'src/write/writers.test.ts' },
   'PNG|ICC Profile|set': { status: 'partial', reason: 'iCCP whole-profile set/delete only.', fixture: null, test: 'src/write/writers.test.ts' },

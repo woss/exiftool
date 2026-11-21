@@ -2282,8 +2282,8 @@
       "test": "src/write/writers.test.ts"
     },
     "JPEG|Photoshop IRB|set": {
-      "status": "partial",
-      "reason": "Scalar resources only; nested/binary resources open (serializer-iptc spec).",
+      "status": "implemented",
+      "reason": "All upstream-writable resources: scalars, thumbnails, ResolutionInfo, URL_List, explicit IPTCDigest (new/old/hex32); nested display resources preserved byte-for-byte.",
       "fixture": null,
       "test": "src/write/iptc.test.ts"
     },

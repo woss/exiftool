@@ -1,6 +1,14 @@
 import { md5Hex } from '../utils/md5.js';
 import type { TagValue } from '../types.js';
 
+function decodeUtf16be(data: Uint8Array): string {
+  let out = '';
+  for (let i = 0; i + 1 < data.length; i += 2) {
+    out += String.fromCharCode((data[i]! << 8) | data[i + 1]!);
+  }
+  return out;
+}
+
 const IPTC_LOOKUP: Record<number, string> = {
   0: 'ApplicationRecordVersion',
   5: 'ObjectName',
@@ -103,11 +111,26 @@ const IPTC_LOOKUP: Record<number, string> = {
       result['CopyrightFlag'] = resData[0] === 0 ? 'False' : 'True';
     } else if (resId === 0x040b) {
       result['URL'] = new TextDecoder().decode(resData);
+    } else if (resId === 0x041e && resData.length >= 4) {
+      // URL_List: count, then per URL 8 reserved bytes, 4-byte char count, UTF-16BE text.
+      const view = new DataView(resData.buffer, resData.byteOffset, resData.byteLength);
+      const num = view.getUint32(0, false);
+      const urls: string[] = [];
+      let pos = 4;
+      for (let i = 0; i < num && pos + 4 <= resData.length; i++) {
+        pos += 8;
+        if (pos + 4 > resData.length) break;
+        const byteLen = view.getUint32(pos, false) * 2;
+        pos += 4;
+        if (pos + byteLen > resData.length) break;
+        urls.push(decodeUtf16be(resData.subarray(pos, pos + byteLen)));
+        pos += byteLen;
+      }
+      result['URL_List'] = urls;
     } else if ((resId === 0x040d || resId === 0x0419) && resData.length >= 4) {
       const value = new DataView(resData.buffer, resData.byteOffset, resData.byteLength).getUint32(0, false);
       result[resId === 0x040d ? 'GlobalAngle' : 'GlobalAltitude'] = value;
     }
-
     offset += resSize;
     if (resSize % 2 !== 0) offset += 1;
   }

@@ -11,6 +11,7 @@ import {
   resolvePhotoshopResourceWriteRequest,
 } from './iptc.js';
 import { UnsupportedFormatError } from './writers.js';
+import { md5Hex } from '../utils/md5.js';
 import { parseAPP13 } from '../exif/app13.js';
 import { jpegParser } from '../format/jpeg.js';
 import tagData from '../tags/generated/tags.json' with { type: 'json' };
@@ -731,6 +732,86 @@ test('writes large IPTC keywords using extended lengths and split APP13 segments
     await writeFile(file, out.bytes);
     const { stdout } = await execFileP(upstreamExifTool, ['-j', '-IPTC:Keywords', file]);
     assertEquals(JSON.parse(stdout)[0].Keywords, keyword);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('URL_List encodes UTF-16BE and round-trips through upstream', async () => {
+  const urls = ['https://kelp.example/one', 'https://kelp.example/two'];
+  const request = resolvePhotoshopResourceWriteRequest('Photoshop:URL_List', urls)!;
+  const merged = mergePhotoshopIrb(null, [], [request])!;
+  const parsed = parseAPP13(merged.subarray('Photoshop 3.0\0'.length));
+  assertEquals(parsed.URL_List, urls);
+  const jpeg = new Uint8Array(6 + merged.length + 2);
+  jpeg.set([0xff, 0xd8, 0xff, 0xed, (merged.length + 2) >> 8, (merged.length + 2) & 0xff]);
+  jpeg.set(merged, 6);
+  jpeg.set([0xff, 0xd9], 6 + merged.length);
+  const file = await tempFile('.jpg');
+  try {
+    await writeFile(file, jpeg);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-URL_List', file]);
+    assertEquals(JSON.parse(stdout)[0].URL_List, urls);
+  } finally {
+    await rm(file, { force: true });
+  }
+  assertEquals(resolvePhotoshopResourceWriteRequest('Photoshop:URL_List', null), {
+    key: 'Photoshop:URL_List', id: 0x041e, data: null,
+  });
+  assertEquals(resolvePhotoshopResourceWriteRequest('Photoshop:URL_List', [42]), undefined);
+});
+
+test('explicit IPTCDigest supports new/old/hex32 and wins over auto-reconcile', async () => {
+  const kw = (value: string) => [{ key: 'IPTC:Keywords', record: 2, dataset: 25, type: 'string', value }];
+  const base = mergePhotoshopIrb(null, kw('first'))!;
+  const originalIim = (() => {
+    const block = base.subarray('Photoshop 3.0\0'.length);
+    for (let off = 0; off + 12 <= block.length;) {
+      const id = (block[off + 4]! << 8) | block[off + 5]!;
+      const size = (block[off + 8]! << 24) | (block[off + 9]! << 16) | (block[off + 10]! << 8) | block[off + 11]!;
+      if (id === 0x0404) return block.slice(off + 12, off + 12 + size);
+      off += 12 + size + (size % 2);
+    }
+    throw new Error('no IPTC block');
+  })();
+
+  // 'old' digests the original IPTC data even while the update rewrites it.
+  const oldDigest = mergePhotoshopIrb(base, kw('second'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', 'old')!,
+  ])!;
+  assertEquals(parseAPP13(oldDigest.subarray('Photoshop 3.0\0'.length)).IPTCDigest, md5Hex(originalIim));
+
+  // Literal 32-hex stored as raw bytes.
+  const hex = 'ab'.repeat(16);
+  const literal = mergePhotoshopIrb(base, kw('second'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', hex)!,
+  ])!;
+  assertEquals(parseAPP13(literal.subarray('Photoshop 3.0\0'.length)).IPTCDigest, hex);
+
+  // null deletes the digest resource only.
+  const deleted = mergePhotoshopIrb(literal, kw('second'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', null)!,
+  ])!;
+  assertEquals(parseAPP13(deleted.subarray('Photoshop 3.0\0'.length)).IPTCDigest, undefined);
+
+  // Invalid values are refused.
+  assertEquals(resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', 'zz'), undefined);
+  assertEquals(resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', 42), undefined);
+
+  // Upstream sees 'new' == CurrentIPTCDigest (MWG synchronization marker).
+  const newDigest = mergePhotoshopIrb(base, kw('second'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', 'new')!,
+  ])!;
+  const jpeg = new Uint8Array(6 + newDigest.length + 2);
+  jpeg.set([0xff, 0xd8, 0xff, 0xed, (newDigest.length + 2) >> 8, (newDigest.length + 2) & 0xff]);
+  jpeg.set(newDigest, 6);
+  jpeg.set([0xff, 0xd9], 6 + newDigest.length);
+  const file = await tempFile('.jpg');
+  try {
+    await writeFile(file, jpeg);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-IPTCDigest', '-CurrentIPTCDigest', file]);
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream.IPTCDigest.toLowerCase(), upstream.CurrentIPTCDigest.toLowerCase());
   } finally {
     await rm(file, { force: true });
   }
