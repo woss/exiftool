@@ -9,14 +9,14 @@ import {
 } from './generate-tags.js';
 
 test('tag generation requires the pinned ExifTool version', () => {
-  assertPinnedExifToolVersion('13.55');
+  assertPinnedExifToolVersion('13.64');
   let message: string | undefined;
   try {
-    assertPinnedExifToolVersion('13.54');
+    assertPinnedExifToolVersion('13.63');
   } catch (error) {
     message = (error as Error).message;
   }
-  assertEquals(message, 'Expected vendored ExifTool 13.55, found 13.54');
+  assertEquals(message, 'Expected vendored ExifTool 13.64, found 13.63');
 });
 
 test('tag generation rejects unclassified writable type names', () => {
