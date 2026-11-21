@@ -17,7 +17,7 @@
 
 ### Write-parity specs (metadata writing)
 
-- **Spec home**: `docs/write-parity/` — `matrix.json` (generated contract) + `specs/*.md` (per-serializer invariants). `WRITE_PLAN.md` is the requirement source, not the contract.
+- **Spec home**: `docs/write-parity/` — `matrix.json` (generated contract) + `specs/*.md` (per-serializer invariants). `docs/write-parity/plans/WRITE_PLAN.md` is the requirement source, not the contract.
 - **Skill**: `skill://write-parity` — planner/implementer/reviewer roles + differential gates vs vendored ExifTool 13.64. Load before any write-parity lane.
 
 **When to use code-review-graph vs native tools:**

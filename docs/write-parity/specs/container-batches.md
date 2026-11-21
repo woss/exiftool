@@ -36,6 +36,6 @@ ExifTool's detected `FileType`, not filename suffixes.
   or repair + verify.
 - Bakups/atomicity: same-directory temp + rename, `_original` backup by
   default (existing pipeline in `src/write/pipeline.ts`).
-- Stale `13.55` behaviour notes in `WRITE_PLAN.md` (GIF C2PA delete #515,
+- Stale `13.55` behaviour notes in `docs/write-parity/plans/WRITE_PLAN.md` (GIF C2PA delete #515,
   extension fix #516, PNG pointer guard #453, Insta360 X6 atom robustness)
   must be verified against 13.64 before any cell is promoted.

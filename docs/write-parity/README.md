@@ -1,13 +1,15 @@
 # Write-parity spec home
 
-`WRITE_PLAN.md` is the phase map and requirement source. **This directory is
+`docs/write-parity/plans/WRITE_PLAN.md` is the requirement source and phase
+map (archived out of the repo root; superseded sibling plan:
+`plans/C2PA_PLAN.md`). **This directory is
 the executable contract.** If the two disagree, `matrix.json` + the specs here
-win; file a divergence note below and fix `WRITE_PLAN.md` in the same lane.
+win; file a divergence note below and fix the plan in the same lane.
 
 ## Pinned upstream
 
 - Vendor: `vendor/exiftool` — **13.64** (verified: `vendor/exiftool/exiftool -ver`).
-  `WRITE_PLAN.md` cites 13.55 in historical checklist text; always read that
+  `plans/WRITE_PLAN.md` cites 13.55 in historical checklist text; always read that
   as the 13.64 behaviour regenerated in `src/tags/generated/manifest.json`
   (1416 tables / 34,002 tags / 14,463 writable). On upgrade, regenerate the
   catalog, then `pnpm generate-matrix`, and diff both — see skill
