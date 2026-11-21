@@ -6,10 +6,9 @@ description: Metadata-writing parity lanes for exiftool-ts — matrix-driven spe
 ## Source of truth
 
 - `docs/write-parity/README.md` + `matrix.json` (generated) + `specs/*.md` —
-  the executable contract, derived from `vendor/exiftool/README` +
-  `src/tags/generated/manifest.json` (pinned 13.64).
-- `docs/write-parity/plans/WRITE_PLAN.md` — requirement source + phase map only. Where it disagrees
-  with the matrix/specs, follow the code and file the divergence note.
+  the executable contract (consolidates the former `WRITE_PLAN.md` /
+  `C2PA_PLAN.md`, now deleted; git history has them), derived from
+  `vendor/exiftool/README` + `src/tags/generated/manifest.json` (pinned 13.64).
 - Load `skill://code-philosophy` before any BACKEND code change (repo rule).
 
 ## Roles (never same agent plans + verifies)
@@ -37,7 +36,7 @@ description: Metadata-writing parity lanes for exiftool-ts — matrix-driven spe
   family writes into it — promote one `fileType|family|op` cell at a time.
 - Version drift: `matrix.json` `exiftoolVersion` must equal
   `manifest.json` `exiftoolVersion`, which must equal `vendor/exiftool/exiftool -ver`.
-  `docs/write-parity/plans/WRITE_PLAN.md` "13.55" text is historical; verify against 13.64.
+  `docs/write-parity/README.md` "13.55" text is historical; verify against 13.64.
 
 ## Quick commands
 
