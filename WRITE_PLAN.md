@@ -1,5 +1,11 @@
 # Full Metadata Writing Plan
 
+**Executable contract:** `docs/write-parity/` (`matrix.json` generated from
+`vendor/exiftool/README` + `src/tags/generated/manifest.json`, plus
+per-serializer specs). This file is the requirement source and phase map;
+where it disagrees with the matrix/specs, follow `docs/write-parity/`.
+Skill: `write-parity`. Pin: ExifTool **13.64** (13.55 below is historical).
+
 ## Goal
 
 Bring exiftool-ts metadata writing toward parity with the vendored Phil Harvey ExifTool 13.55, without treating every readable file type as writable. The upstream support matrix is the contract: implement write (`w`) and create (`c`) only where ExifTool supports them, and record deliberate differences by format, metadata family, and operation.
@@ -407,7 +413,7 @@ For every row: implement write-existing, add-new, replace, delete, no-op, malfor
 
 ### I. Release and Upgrade Gates
 
-- [ ] Produce a checked-in machine-readable format/family/operation matrix with statuses `implemented`, `partial`, `read-only`, `unsafe`, or `not-started` and links to tests.
+- [x] Produce a checked-in machine-readable format/family/operation matrix with statuses `implemented`, `partial`, `read-only`, `unsafe`, or `not-started` and links to tests. → `docs/write-parity/matrix.json` (`pnpm generate-matrix`, `check-matrix` in CI).
 - [ ] CI runs focused tests for every `implemented` cell; a feature cannot be marked implemented if its reference ExifTool test skipped.
 - [x] Keep the vendored source pinned at ExifTool 13.64; verified `vendor/exiftool/exiftool -ver` reports `13.64`.
 - [ ] When updating ExifTool, diff file-type flags, metadata-family flags, writable tag definitions, write groups, protected/mode behavior, and upstream writer tests; require review of every change.

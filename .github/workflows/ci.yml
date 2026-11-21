@@ -28,5 +28,9 @@ jobs:
         run: pnpm check
       - name: Tests
         run: pnpm test
+      - name: Write-parity matrix (generated, checked-in)
+        run: pnpm check-matrix
+      - name: Write-parity matrix tests
+        run: node node_modules/vitest/vitest.mjs run scripts/generate-matrix.test.ts
       - name: Coverage audit (100% line/function)
         run: pnpm coverage-audit
