@@ -39,6 +39,16 @@ cases. Code: `src/cli.ts`, `src/exiftool.ts`, `src/write/pipeline.ts`,
 - Help text, generated capabilities, and docs advertise **only** implemented
   option/family/container combinations (derive from `matrix.json`).
 
+## Upstream-only (recorded, do not port)
+
+13.56–13.64 CLI/config items intentionally out of scope: `-eh` alias
+(adopt only if `-E` lands), `-config -` piped input, `-sort` stability,
+`-diff` internals, strict `-validate` (worth adopting only if validation
+comes in scope), stay-open pipe-close hang (#458), `audio2itemlist.args`,
+`novelty.config`. Geotag workflows (`-geotag`/`-geosync`/`-geotime`,
+`-globalTimeShift`, FIT as geotag source) stay unsupported until explicitly
+scoped; record as unsupported, never half-advertise.
+
 ## Test vectors
 
 Each op × container × family: bytes where preservation expected, metadata

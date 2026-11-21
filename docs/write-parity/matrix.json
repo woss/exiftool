@@ -2193,7 +2193,7 @@
   "cells": {
     "AVIF|EXIF|set": {
       "status": "partial",
-      "reason": "Partial EXIF write; iloc/64-bit handling open (WRITE_PLAN §G).",
+      "reason": "Partial EXIF write; iloc/64-bit handling open (container-batches spec).",
       "fixture": null,
       "test": "src/format/avif.test.ts"
     },
@@ -2247,13 +2247,13 @@
     },
     "JPEG|EXIF|delete": {
       "status": "partial",
-      "reason": "Null deletes one targeted tag; update/add/replace modes open (WRITE_PLAN §B).",
+      "reason": "Null deletes one targeted tag; update/add/replace modes open (serializer-exif spec).",
       "fixture": null,
       "test": "src/write/jpeg-merge.test.ts"
     },
     "JPEG|EXIF|set": {
       "status": "partial",
-      "reason": "Hand-mapped tags; full writable table and group routing open (WRITE_PLAN §B).",
+      "reason": "Hand-mapped tags; full writable table and group routing open (serializer-exif spec).",
       "fixture": null,
       "test": "src/write/jpeg-merge.test.ts"
     },
@@ -2265,13 +2265,13 @@
     },
     "JPEG|ICC Profile|set": {
       "status": "partial",
-      "reason": "Whole-profile set/delete only; ICC tag editing open (WRITE_PLAN §F).",
+      "reason": "Whole-profile set/delete only; ICC tag editing open (serializer-families spec).",
       "fixture": null,
       "test": "src/write/writers.test.ts"
     },
     "JPEG|IPTC|set": {
       "status": "partial",
-      "reason": "Generated datasets in APP13 only; multi-container integration open (WRITE_PLAN §C).",
+      "reason": "Generated datasets in APP13 only; multi-container integration open (serializer-iptc spec).",
       "fixture": null,
       "test": "src/write/iptc.test.ts"
     },
@@ -2283,13 +2283,13 @@
     },
     "JPEG|Photoshop IRB|set": {
       "status": "partial",
-      "reason": "Scalar resources only; nested/binary resources open (WRITE_PLAN §C).",
+      "reason": "Scalar resources only; nested/binary resources open (serializer-iptc spec).",
       "fixture": null,
       "test": "src/write/iptc.test.ts"
     },
     "JPEG|XMP|set": {
       "status": "partial",
-      "reason": "Registered namespaces only; full schema/struct coverage open (WRITE_PLAN §D).",
+      "reason": "Registered namespaces only; full schema/struct coverage open (serializer-xmp spec).",
       "fixture": null,
       "test": "src/write/xmp-writer.test.ts"
     },
@@ -2313,7 +2313,7 @@
     },
     "PNG|XMP|set": {
       "status": "partial",
-      "reason": "Registered namespaces only (WRITE_PLAN §D).",
+      "reason": "Registered namespaces only (serializer-xmp spec).",
       "fixture": null,
       "test": "src/write/writers.test.ts"
     },

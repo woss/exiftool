@@ -36,6 +36,21 @@ ExifTool's detected `FileType`, not filename suffixes.
   or repair + verify.
 - Bakups/atomicity: same-directory temp + rename, `_original` backup by
   default (existing pipeline in `src/write/pipeline.ts`).
-- Stale `13.55` behaviour notes in `docs/write-parity/plans/WRITE_PLAN.md` (GIF C2PA delete #515,
+- Stale `13.55` behaviour notes (GIF C2PA delete #515,
   extension fix #516, PNG pointer guard #453, Insta360 X6 atom robustness)
   must be verified against 13.64 before any cell is promoted.
+
+## Upstream fix watchlist (13.56–13.64, tracked not ported)
+
+- `MIF3` r/w adapter (13.62 #503): `mif3` detection, mini metadata
+  read/write incl. compressed EXIF/XMP; distinct from AVIF/HEIF `meta`
+  handling; preserve image payload, handle brands/item table.
+- GIF: C2PA application-extension delete only (13.62 #515) + 13.63
+  extension regression fix — animation/text blocks preserved.
+- ISO-BMFF video: Insta360 X6 `Meta`/empty `ItemList` patch + trailer write
+  error (13.64) — track until the MP4/MOV adapter exists; don't half-implement.
+- Sony ARW write compat (13.61 #465): verify against our TIFF/RAW path when
+  ARW cells are probed.
+- Xiaomi HEIC EXIF delete/recreate crash fix (13.62 #485) and Samsung HEIC
+  `sefd` motion-photo repair (13.60): upstream-side fixes, no code action
+  until a HEIC writer adapter exists.

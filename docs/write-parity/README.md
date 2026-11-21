@@ -1,19 +1,31 @@
 # Write-parity spec home
 
-`docs/write-parity/plans/WRITE_PLAN.md` is the requirement source and phase
-map (archived out of the repo root; superseded sibling plan:
-`plans/C2PA_PLAN.md`). **This directory is
-the executable contract.** If the two disagree, `matrix.json` + the specs here
-win; file a divergence note below and fix the plan in the same lane.
+The executable contract for metadata writing. Goal: parity with vendored
+ExifTool's write surface — implement write (`w`) / create (`c`) only where
+upstream supports them, record deliberate differences per
+`fileType|family|op`. "Full" means upstream-supported write parity (tag
+selection, copy semantics, groups, preservation, observable results), **not**
+writing every tag in every format. Provenance-sensitive blocks (MakerNotes,
+signatures, unknown binary) follow per-family safety rules; never rewritten
+speculatively.
+
+Consolidated from the former root `WRITE_PLAN.md` + `C2PA_PLAN.md`
+(deleted; see git history). If code and these docs disagree, follow the code
+and file a divergence note.
 
 ## Pinned upstream
 
-- Vendor: `vendor/exiftool` — **13.64** (verified: `vendor/exiftool/exiftool -ver`).
-  `plans/WRITE_PLAN.md` cites 13.55 in historical checklist text; always read that
-  as the 13.64 behaviour regenerated in `src/tags/generated/manifest.json`
-  (1416 tables / 34,002 tags / 14,463 writable). On upgrade, regenerate the
-  catalog, then `pnpm generate-matrix`, and diff both — see skill
-  `write-parity`.
+- Vendor: `vendor/exiftool` — **13.64** (verified: `vendor/exiftool/exiftool -ver`),
+  regenerated in `src/tags/generated/manifest.json` (1416 tables / 34,002
+  tags / 14,463 writable). On upgrade: regenerate the catalog, then
+  `pnpm generate-matrix`, diff both — see skill `write-parity`.
+- Catalog gates (from plan §A): aliases stay a multimap keyed name+group
+  (never one global lookup); simple tables generate as data, condition-based
+  behaviour becomes reviewed TypeScript handlers; generation fails on
+  unclassified writable types; a report must list writable tags lacking a
+  destination group, encoder, inverse PrintConv, or fixture; `-listx`
+  `writable=true` alone is never a write recipe (WriteGroup/Protected/
+  conditions come from the pinned Perl tables).
 
 ## `matrix.json` — the contract
 
@@ -38,7 +50,7 @@ everything else is `not-started` by default.
 
 ## Specs
 
-| Spec | Covers (WRITE_PLAN) |
+| Spec | Covers (former plan §) |
 |---|---|
 | `specs/serializer-exif.md` | §B EXIF/TIFF/GPS |
 | `specs/serializer-xmp.md` | §D XMP |
@@ -52,6 +64,22 @@ everything else is `not-started` by default.
 Each spec states: upstream source, scope + non-goals, invariants, operations,
 test vectors, exit gate. A lane that cannot state the invariants stays
 `not-started`/`unsafe` with a reason.
+
+## Phase order (execution sequencing)
+
+| # | Phase | Exit gate |
+|---|---|---|
+| 0 | Parity baseline | every current capability has a test-backed matrix status; unexplained claims removed |
+| 1 | Core serializers (§B→C→D→F→E order) | each claimed family/tag cell has unit + differential tests |
+| 2 | Existing containers, then new batches | per-container structural + preservation + read-after-write tests |
+| 3 | Assignment, group resolution, deletion, `-wm` | collisions/invalid values/deletes match upstream on supported cells |
+| 4 | List ops + tag copy | repeated values, groups, ordering, precedence differential-tested |
+| 5 | Filesystem/batch/output semantics | mixed-success batch tests match files, backups, diagnostics, exit codes |
+| 6 | Binary, date/geotag, shared API model | API + CLI share request semantics; help advertises only implemented behaviour |
+| 7 | Differential release gates | no advertised capability lacks a passing focused test; docs agree with runtime |
+
+Serializers precede container adapters: container work consumes family
+encoders. Within the matrix, promote one `fileType|family|op` cell at a time.
 
 ## Agent workflow (one lane = one cell cluster)
 
