@@ -11,7 +11,7 @@ The deal in one sentence: **any value difference from real ExifTool is either fi
 
 ## How parity is enforced
 
-The reference implementation is the real ExifTool binary, **pinned to 13.55** in CI (both the CI and release workflows download the 13.55 tarball, so local and CI comparisons test the same reference).
+The reference implementation is the real ExifTool binary, **pinned to 13.64** in CI (both the CI and release workflows download the 13.64 tarball, so local and CI comparisons test the same reference).
 
 ### 1. The parity suite (`src/cli/exiftool-parity.test.ts`)
 

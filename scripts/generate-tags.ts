@@ -25,7 +25,7 @@ interface TableDef {
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const EXIFTOOL_DIR = join(ROOT, 'vendor/exiftool');
 const EXIFTOOL_BIN = join(EXIFTOOL_DIR, 'exiftool');
-const PINNED_EXIFTOOL_VERSION = '13.55';
+const PINNED_EXIFTOOL_VERSION = '13.64';
 const OUTPUT_JSON = `${ROOT}/src/tags/generated/tags.json`;
 const OUTPUT_MANIFEST = `${ROOT}/src/tags/generated/manifest.json`;
 const OUTPUT_XMP_NAMESPACES = `${ROOT}/src/tags/generated/xmp-namespaces.json`;

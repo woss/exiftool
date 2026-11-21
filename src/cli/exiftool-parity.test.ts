@@ -25,7 +25,7 @@ const ASSETS = ['assets/01.jpg', 'assets/03.jpg', 'assets/04-ai.png', 'assets/05
 
 /**
  * Tags whose printed values intentionally diverge from reference ExifTool
- * 13.55 today. Each entry documents why. Shrinking this set is progress;
+ * 13.64 today. Each entry documents why. Shrinking this set is progress;
  * growing it requires a documented reason.
  */
 const KNOWN_DIVERGENCES: Record<string, string> = {

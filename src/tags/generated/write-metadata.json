@@ -5017,7 +5017,7 @@
         "g1": "IFD0",
         "g2": "Image"
       },
-      "writable": null,
+      "writable": "int8u",
       "writeGroup": "IFD0"
     },
     {
@@ -8508,6 +8508,27 @@
     },
     {
       "conditional": "",
+      "hasPrintConv": 1,
+      "hasPrintConvInv": 1,
+      "hasStruct": "",
+      "hasValueConv": "",
+      "hasValueConvInv": "",
+      "id": "37511",
+      "list": null,
+      "name": "LearningOptOutIn",
+      "protected": "",
+      "structSchema": null,
+      "table": "Exif::Main",
+      "tableGroups": {
+        "g0": "EXIF",
+        "g1": "IFD0",
+        "g2": "Image"
+      },
+      "writable": "undef",
+      "writeGroup": null
+    },
+    {
+      "conditional": "",
       "hasPrintConv": "",
       "hasPrintConvInv": "",
       "hasStruct": "",
@@ -9902,6 +9923,132 @@
       "id": "41996",
       "list": null,
       "name": "SubjectDistanceRange",
+      "protected": "",
+      "structSchema": null,
+      "table": "Exif::Main",
+      "tableGroups": {
+        "g0": "EXIF",
+        "g1": "IFD0",
+        "g2": "Image"
+      },
+      "writable": "int16u",
+      "writeGroup": null
+    },
+    {
+      "conditional": "",
+      "hasPrintConv": 1,
+      "hasPrintConvInv": "",
+      "hasStruct": "",
+      "hasValueConv": 1,
+      "hasValueConvInv": 1,
+      "id": "41997",
+      "list": null,
+      "name": "DevelopmentType",
+      "protected": "",
+      "structSchema": null,
+      "table": "Exif::Main",
+      "tableGroups": {
+        "g0": "EXIF",
+        "g1": "IFD0",
+        "g2": "Image"
+      },
+      "writable": "int16u",
+      "writeGroup": null
+    },
+    {
+      "conditional": "",
+      "hasPrintConv": "",
+      "hasPrintConvInv": "",
+      "hasStruct": "",
+      "hasValueConv": 1,
+      "hasValueConvInv": 1,
+      "id": "41998",
+      "list": null,
+      "name": "DevelopmentTypeDescription",
+      "protected": "",
+      "structSchema": null,
+      "table": "Exif::Main",
+      "tableGroups": {
+        "g0": "EXIF",
+        "g1": "IFD0",
+        "g2": "Image"
+      },
+      "writable": "string",
+      "writeGroup": null
+    },
+    {
+      "conditional": "",
+      "hasPrintConv": 1,
+      "hasPrintConvInv": "",
+      "hasStruct": "",
+      "hasValueConv": "",
+      "hasValueConvInv": "",
+      "id": "41999",
+      "list": null,
+      "name": "DistortionCorrection",
+      "protected": "",
+      "structSchema": null,
+      "table": "Exif::Main",
+      "tableGroups": {
+        "g0": "EXIF",
+        "g1": "IFD0",
+        "g2": "Image"
+      },
+      "writable": "int16u",
+      "writeGroup": null
+    },
+    {
+      "conditional": "",
+      "hasPrintConv": 1,
+      "hasPrintConvInv": "",
+      "hasStruct": "",
+      "hasValueConv": "",
+      "hasValueConvInv": "",
+      "id": "42000",
+      "list": null,
+      "name": "ChromaticAberrationCorrection",
+      "protected": "",
+      "structSchema": null,
+      "table": "Exif::Main",
+      "tableGroups": {
+        "g0": "EXIF",
+        "g1": "IFD0",
+        "g2": "Image"
+      },
+      "writable": "int16u",
+      "writeGroup": null
+    },
+    {
+      "conditional": "",
+      "hasPrintConv": 1,
+      "hasPrintConvInv": "",
+      "hasStruct": "",
+      "hasValueConv": "",
+      "hasValueConvInv": "",
+      "id": "42001",
+      "list": null,
+      "name": "ShadingCorrection",
+      "protected": "",
+      "structSchema": null,
+      "table": "Exif::Main",
+      "tableGroups": {
+        "g0": "EXIF",
+        "g1": "IFD0",
+        "g2": "Image"
+      },
+      "writable": "int16u",
+      "writeGroup": null
+    },
+    {
+      "conditional": "",
+      "hasPrintConv": 1,
+      "hasPrintConvInv": "",
+      "hasStruct": "",
+      "hasValueConv": "",
+      "hasValueConvInv": "",
+      "id": "42002",
+      "list": null,
+      "name": "NoiseReduction",
       "protected": "",
       "structSchema": null,
       "table": "Exif::Main",
@@ -51301,6 +51448,27 @@
       "hasStruct": "",
       "hasValueConv": "",
       "hasValueConvInv": "",
+      "id": "ChromaticAberrationCorrection",
+      "list": null,
+      "name": "ChromaticAberrationCorrection",
+      "protected": "",
+      "structSchema": null,
+      "table": "XMP::exifEX",
+      "tableGroups": {
+        "g0": "XMP",
+        "g1": "XMP-exifEX",
+        "g2": "Image"
+      },
+      "writable": "integer",
+      "writeGroup": null
+    },
+    {
+      "conditional": "",
+      "hasPrintConv": 1,
+      "hasPrintConvInv": "",
+      "hasStruct": "",
+      "hasValueConv": "",
+      "hasValueConvInv": "",
       "id": "CompositeImage",
       "list": null,
       "name": "CompositeImage",
@@ -51480,6 +51648,148 @@
         "g2": "Image"
       },
       "writable": "string",
+      "writeGroup": null
+    },
+    {
+      "conditional": "",
+      "hasPrintConv": "",
+      "hasPrintConvInv": "",
+      "hasStruct": 1,
+      "hasValueConv": "",
+      "hasValueConvInv": "",
+      "id": "DevelopmentType",
+      "list": null,
+      "name": "DevelopmentType",
+      "protected": "",
+      "structSchema": {
+        "fields": [
+          {
+            "conditional": "",
+            "enumValues": {
+              "1": "Accurate Reproduction",
+              "2": "Small Differences",
+              "4": "Extreme Differences"
+            },
+            "hasValueConvInv": "",
+            "key": "DevelopmentCharacteristic",
+            "list": null,
+            "name": "DevelopmentCharacteristic",
+            "namespace": "exifEX",
+            "protected": "",
+            "struct": null,
+            "writableType": "integer"
+          },
+          {
+            "conditional": "",
+            "enumValues": {
+              "1": "Factory Default Settings",
+              "2": "Not Default Settings",
+              "4": "Unknown Settings"
+            },
+            "hasValueConvInv": "",
+            "key": "FactoryDefault",
+            "list": null,
+            "name": "FactoryDefault",
+            "namespace": "exifEX",
+            "protected": "",
+            "struct": null,
+            "writableType": "integer"
+          }
+        ],
+        "name": "DevelopmentType",
+        "namespace": "exifEX"
+      },
+      "table": "XMP::exifEX",
+      "tableGroups": {
+        "g0": "XMP",
+        "g1": "XMP-exifEX",
+        "g2": "Image"
+      },
+      "writable": "string",
+      "writeGroup": null
+    },
+    {
+      "conditional": "",
+      "hasPrintConv": "",
+      "hasPrintConvInv": "",
+      "hasStruct": "",
+      "hasValueConv": "",
+      "hasValueConvInv": "",
+      "id": "DevelopmentTypeDescription",
+      "list": null,
+      "name": "DevelopmentTypeDescription",
+      "protected": "",
+      "structSchema": null,
+      "table": "XMP::exifEX",
+      "tableGroups": {
+        "g0": "XMP",
+        "g1": "XMP-exifEX",
+        "g2": "Image"
+      },
+      "writable": "string",
+      "writeGroup": null
+    },
+    {
+      "conditional": "",
+      "hasPrintConv": "",
+      "hasPrintConvInv": "",
+      "hasStruct": "",
+      "hasValueConv": "",
+      "hasValueConvInv": "",
+      "id": "DevelopmentTypeDevelopmentCharacteristic",
+      "list": null,
+      "name": "DevelopmentTypeCharacteristic",
+      "protected": "",
+      "structSchema": null,
+      "table": "XMP::exifEX",
+      "tableGroups": {
+        "g0": "XMP",
+        "g1": "XMP-exifEX",
+        "g2": "Image"
+      },
+      "writable": "string",
+      "writeGroup": null
+    },
+    {
+      "conditional": "",
+      "hasPrintConv": 1,
+      "hasPrintConvInv": "",
+      "hasStruct": "",
+      "hasValueConv": "",
+      "hasValueConvInv": "",
+      "id": "DistortionCorrection",
+      "list": null,
+      "name": "DistortionCorrection",
+      "protected": "",
+      "structSchema": null,
+      "table": "XMP::exifEX",
+      "tableGroups": {
+        "g0": "XMP",
+        "g1": "XMP-exifEX",
+        "g2": "Image"
+      },
+      "writable": "integer",
+      "writeGroup": null
+    },
+    {
+      "conditional": "",
+      "hasPrintConv": 1,
+      "hasPrintConvInv": "",
+      "hasStruct": "",
+      "hasValueConv": "",
+      "hasValueConvInv": "",
+      "id": "GPSAltitudeRef",
+      "list": null,
+      "name": "GPSAltitudeRef",
+      "protected": "",
+      "structSchema": null,
+      "table": "XMP::exifEX",
+      "tableGroups": {
+        "g0": "XMP",
+        "g1": "XMP-exifEX",
+        "g2": "Image"
+      },
+      "writable": "integer",
       "writeGroup": null
     },
     {
@@ -51696,6 +52006,56 @@
       "conditional": "",
       "hasPrintConv": "",
       "hasPrintConvInv": "",
+      "hasStruct": 1,
+      "hasValueConv": "",
+      "hasValueConvInv": "",
+      "id": "LearningOptOutIn",
+      "list": null,
+      "name": "LearningOptOutIn",
+      "protected": "",
+      "structSchema": {
+        "fields": [
+          {
+            "conditional": "",
+            "enumValues": null,
+            "hasValueConvInv": "",
+            "key": "NumberOfSets",
+            "list": null,
+            "name": "NumberOfSets",
+            "namespace": "exifEX",
+            "protected": "",
+            "struct": null,
+            "writableType": "integer"
+          },
+          {
+            "conditional": "",
+            "enumValues": null,
+            "hasValueConvInv": "",
+            "key": "Values",
+            "list": "Seq",
+            "name": "Values",
+            "namespace": "exifEX",
+            "protected": "",
+            "struct": null,
+            "writableType": "integer"
+          }
+        ],
+        "name": "LearningOptOutIn",
+        "namespace": "exifEX"
+      },
+      "table": "XMP::exifEX",
+      "tableGroups": {
+        "g0": "XMP",
+        "g1": "XMP-exifEX",
+        "g2": "Image"
+      },
+      "writable": "string",
+      "writeGroup": null
+    },
+    {
+      "conditional": "",
+      "hasPrintConv": "",
+      "hasPrintConvInv": "",
       "hasStruct": "",
       "hasValueConv": "",
       "hasValueConvInv": "",
@@ -51778,6 +52138,27 @@
     },
     {
       "conditional": "",
+      "hasPrintConv": 1,
+      "hasPrintConvInv": "",
+      "hasStruct": "",
+      "hasValueConv": "",
+      "hasValueConvInv": "",
+      "id": "LightSource",
+      "list": null,
+      "name": "LightSource",
+      "protected": "",
+      "structSchema": null,
+      "table": "XMP::exifEX",
+      "tableGroups": {
+        "g0": "XMP",
+        "g1": "XMP-exifEX",
+        "g2": "Image"
+      },
+      "writable": "string",
+      "writeGroup": null
+    },
+    {
+      "conditional": "",
       "hasPrintConv": "",
       "hasPrintConvInv": "",
       "hasStruct": "",
@@ -51795,6 +52176,27 @@
         "g2": "Image"
       },
       "writable": "string",
+      "writeGroup": null
+    },
+    {
+      "conditional": "",
+      "hasPrintConv": 1,
+      "hasPrintConvInv": "",
+      "hasStruct": "",
+      "hasValueConv": "",
+      "hasValueConvInv": "",
+      "id": "NoiseReduction",
+      "list": null,
+      "name": "NoiseReduction",
+      "protected": "",
+      "structSchema": null,
+      "table": "XMP::exifEX",
+      "tableGroups": {
+        "g0": "XMP",
+        "g1": "XMP-exifEX",
+        "g2": "Image"
+      },
+      "writable": "integer",
       "writeGroup": null
     },
     {
@@ -51912,6 +52314,27 @@
       "id": "SensitivityType",
       "list": null,
       "name": "SensitivityType",
+      "protected": "",
+      "structSchema": null,
+      "table": "XMP::exifEX",
+      "tableGroups": {
+        "g0": "XMP",
+        "g1": "XMP-exifEX",
+        "g2": "Image"
+      },
+      "writable": "integer",
+      "writeGroup": null
+    },
+    {
+      "conditional": "",
+      "hasPrintConv": 1,
+      "hasPrintConvInv": "",
+      "hasStruct": "",
+      "hasValueConv": "",
+      "hasValueConvInv": "",
+      "id": "ShadingCorrection",
+      "list": null,
+      "name": "ShadingCorrection",
       "protected": "",
       "structSchema": null,
       "table": "XMP::exifEX",
