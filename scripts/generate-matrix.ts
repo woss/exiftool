@@ -78,26 +78,26 @@ export function parseUpstreamTables(readme: string): { fileTypes: MatrixEntry[];
   return { fileTypes, families };
 }
 
-// Partial cells for adapters that already exist (WRITE_PLAN §Current Container
+// Partial cells for adapters that already exist (former plan Current Container
 // Matrix). Key = fileType|family|op. Promote to implemented only with a test.
 const PARTIALS: Record<string, CellOverride> = {
   'JPEG|Ducky APP12|set': { status: 'partial', reason: 'Quality/Comment/Copyright only; unknown blocks preserved byte-for-byte.', fixture: null, test: 'src/write/writers.test.ts' },
-  'JPEG|EXIF|delete': { status: 'partial', reason: 'Null deletes one targeted tag; update/add/replace modes open (WRITE_PLAN §B).', fixture: null, test: 'src/write/jpeg-merge.test.ts' },
-  'JPEG|EXIF|set': { status: 'partial', reason: 'Hand-mapped tags; full writable table and group routing open (WRITE_PLAN §B).', fixture: null, test: 'src/write/jpeg-merge.test.ts' },
+  'JPEG|EXIF|delete': { status: 'partial', reason: 'Null deletes one targeted tag; update/add/replace modes open (serializer-exif spec).', fixture: null, test: 'src/write/jpeg-merge.test.ts' },
+  'JPEG|EXIF|set': { status: 'partial', reason: 'Hand-mapped tags; full writable table and group routing open (serializer-exif spec).', fixture: null, test: 'src/write/jpeg-merge.test.ts' },
   'JPEG|GPS|set': { status: 'partial', reason: 'Partial tag map; negative-coordinate synthesis and group routing open.', fixture: null, test: 'src/write/jpeg-merge.test.ts' },
-  'JPEG|ICC Profile|set': { status: 'partial', reason: 'Whole-profile set/delete only; ICC tag editing open (WRITE_PLAN §F).', fixture: null, test: 'src/write/writers.test.ts' },
-  'JPEG|IPTC|set': { status: 'partial', reason: 'Generated datasets in APP13 only; multi-container integration open (WRITE_PLAN §C).', fixture: null, test: 'src/write/iptc.test.ts' },
+  'JPEG|ICC Profile|set': { status: 'partial', reason: 'Whole-profile set/delete only; ICC tag editing open (serializer-families spec).', fixture: null, test: 'src/write/writers.test.ts' },
+  'JPEG|IPTC|set': { status: 'partial', reason: 'Generated datasets in APP13 only; multi-container integration open (serializer-iptc spec).', fixture: null, test: 'src/write/iptc.test.ts' },
   'JPEG|JFIF|set': { status: 'partial', reason: 'Density set/create only; thumbnails and remaining fields open.', fixture: null, test: 'src/write/writers.test.ts' },
-  'JPEG|Photoshop IRB|set': { status: 'partial', reason: 'Scalar resources only; nested/binary resources open (WRITE_PLAN §C).', fixture: null, test: 'src/write/iptc.test.ts' },
-  'JPEG|XMP|set': { status: 'partial', reason: 'Registered namespaces only; full schema/struct coverage open (WRITE_PLAN §D).', fixture: null, test: 'src/write/xmp-writer.test.ts' },
+  'JPEG|Photoshop IRB|set': { status: 'partial', reason: 'Scalar resources only; nested/binary resources open (serializer-iptc spec).', fixture: null, test: 'src/write/iptc.test.ts' },
+  'JPEG|XMP|set': { status: 'partial', reason: 'Registered namespaces only; full schema/struct coverage open (serializer-xmp spec).', fixture: null, test: 'src/write/xmp-writer.test.ts' },
   'PNG|EXIF|set': { status: 'partial', reason: 'eXIf merge only; full tag/group coverage open.', fixture: null, test: 'src/write/writers.test.ts' },
   'PNG|ICC Profile|set': { status: 'partial', reason: 'iCCP whole-profile set/delete only.', fixture: null, test: 'src/write/writers.test.ts' },
   'PNG|PNG|set': { status: 'partial', reason: 'tEXt/iTXt/zTXt subset; remaining writable PNG fields open.', fixture: null, test: 'src/write/writers.test.ts' },
-  'PNG|XMP|set': { status: 'partial', reason: 'Registered namespaces only (WRITE_PLAN §D).', fixture: null, test: 'src/write/writers.test.ts' },
+  'PNG|XMP|set': { status: 'partial', reason: 'Registered namespaces only (serializer-xmp spec).', fixture: null, test: 'src/write/writers.test.ts' },
   'WEBP|EXIF|set': { status: 'partial', reason: 'EXIF merge subset; full semantics open.', fixture: null, test: 'src/write/writers.test.ts' },
   'WEBP|ICC Profile|set': { status: 'partial', reason: 'ICCP whole-profile set/delete only.', fixture: null, test: 'src/write/writers.test.ts' },
   'WEBP|XMP|set': { status: 'partial', reason: 'Partial property set; deletion covered, structured shapes open.', fixture: null, test: 'src/write/writers.test.ts' },
-  'AVIF|EXIF|set': { status: 'partial', reason: 'Partial EXIF write; iloc/64-bit handling open (WRITE_PLAN §G).', fixture: null, test: 'src/format/avif.test.ts' },
+  'AVIF|EXIF|set': { status: 'partial', reason: 'Partial EXIF write; iloc/64-bit handling open (container-batches spec).', fixture: null, test: 'src/format/avif.test.ts' },
   'HEIC|EXIF|set': { status: 'partial', reason: 'Partial EXIF write; item/iloc handling open.', fixture: null, test: 'src/format/avif.test.ts' },
   'HEIF|EXIF|set': { status: 'partial', reason: 'Partial EXIF write; item/iloc handling open.', fixture: null, test: 'src/format/avif.test.ts' },
   'GIF|XMP|set': { status: 'partial', reason: 'XMP application extension subset; C2PA delete open.', fixture: null, test: 'src/write/gif.test.ts' },
