@@ -83,7 +83,7 @@ Honest list, in rough priority order:
 - **MakerNotes beyond the core six** — Canon, Nikon, Sony, Olympus, Panasonic and Pentax decode (partially: encrypted regions and custom sub-tables skipped); remaining vendors (Fuji, Sigma, …) don't. Still blocks full `LensID` resolution and model-specific crop-factor lookups.
 - **RAW containers** — CR3 (ISOBMFF) and RAF (Fuji) are not supported; the TIFF-based family reads, plain TIFF rewrites in place, and RAW/DNG gets provenance-safe `.xmp` sidecars instead of in-place rewrites.
 - **PDF and video metadata** — not started.
-- **C2PA / Content Credentials (write + remaining readers)** — JUMBF + CBOR *reading* is implemented (JPEG APP11, PNG `caBX`; manifests flatten to `JUMBF:`-grouped tags with C2PA label association). Not done: QuickTime/other container hooks, the generated C2PA tag tables, and any writing/validation. Full plan: [`C2PA_PLAN.md`](https://github.com/woss/exiftool/blob/main/C2PA_PLAN.md).
+- **C2PA / Content Credentials (write + remaining readers)** — JUMBF + CBOR *reading* is implemented (JPEG APP11, PNG `caBX`; manifests flatten to `JUMBF:`-grouped tags with C2PA label association). Not done: QuickTime/other container hooks, the generated C2PA tag tables, and any writing/validation. Former `C2PA_PLAN.md` roadmap is archived in git history.
 - **MakerNotes writing** — writes now cover EXIF (IFD0/ExifIFD/GPS), XMP, IPTC, ICC and text/JFIF groups across 13 formats; ExifTool additionally writes makernotes and exotic vendor groups we don't.
 - **Full XMP/IPTC/ICC coverage** — core coverage today; long tail of schemas and edge cases remains.
 

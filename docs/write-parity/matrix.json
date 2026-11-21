@@ -1,0 +1,2357 @@
+{
+  "version": 1,
+  "exiftoolVersion": "13.64",
+  "generatedFrom": "vendor/exiftool/README + src/tags/generated/manifest.json",
+  "fileTypes": [
+    {
+      "name": "360",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DR4",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "JNG",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "O",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "RSRC",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "3FR",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DSF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "JP2",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ODP",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "RTF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "3G2",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DSS",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "JPEG",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ODS",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "RW2",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "3GP",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DV",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "JSON",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ODT",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "RWL",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "7Z",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DVB",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "JXL",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "OFR",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "RWZ",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "A",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DVR-MS",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "K25",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "OGG",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "RM",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "AA",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DYLIB",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "KDC",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "OGV",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "SEQ",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "AAC",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "EIP",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "KEY",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ONP",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "SKETCH",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "AAE",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "EPS",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "KVAR",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "OPUS",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "SO",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "AAX",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "EPUB",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "LA",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ORF",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "SR2",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ACR",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ERF",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "LFP",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ORI",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "SRF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "AFM",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "EXE",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "LIF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "OTF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "SRW",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "AI",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "EXIF",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "LNK",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PAC",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "SVG",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "AIFF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "EXR",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "LRV",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PAGES",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "SWF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "APE",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "EXV",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "M2TS",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PBM",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "THM",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ARQ",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "F4A/V",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "M4A/V",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PCAP",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "TIFF",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ARW",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "FFF",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MACOS",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PCAPNG",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "TNEF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ASF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "FIT",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MAX",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PCD",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "TORRENT",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "AVI",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "FITS",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MEF",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PCX",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "TTC",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "AVIF",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "FLA",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MIE",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PDB",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "TTF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "AZW",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "FLAC",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MIF3",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PDF",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "TXT",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "BMP",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "FLIF",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MIFF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PEF",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "URL",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "BPG",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "FLV",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MKA",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PFA",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "VCF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "BTF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "FPF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MKS",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PFB",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "VNT",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "C2PA",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "FPX",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MKV",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PFM",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "VRD",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "CHM",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "GIF",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MNG",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PGF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "VSD",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "COS",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "GLV",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MOBI",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PGM",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "VSDX",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "CR2",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "GPR",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MODD",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PLIST",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "WAV",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "CR3",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "GZ",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MOI",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PICT",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "WDP",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "CRM",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "HDP",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MOS",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PMP",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "WEBP",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "CRW",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "HDR",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MOV",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PNG",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "WEBM",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "CS1",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "HEIC",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MP3",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PPM",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "WMA",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "CSV",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "HEIF",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MP4",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PPT",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "WMV",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "CUR",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "HTML",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MPC",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PPTX",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "WOFF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "CZI",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ICC",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MPG",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PS",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "WOFF2",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DCM",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ICO",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MPO",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PSB",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "WPG",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DCP",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ICS",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MQV",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PSD",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "WTV",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DCR",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "IDML",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MRC",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PSP",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "WV",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DFONT",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "IIQ",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MRW",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "QTIF",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "X3F",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DIVX",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "IND",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MXF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "R3D",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "XCF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DJVU",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "INSP",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "NEF",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "RA",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "XISF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DLL",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "INSV",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "NKA",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "RAF",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "XLS",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DNG",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "INX",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "NKSC",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "RAM",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "XLSX",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DOC",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ISO",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "NRW",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "RAR",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "XMP",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DOCX",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ITC",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "NUMBERS",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "RAW",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ZIP",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DPX",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "J2C",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "NXD",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "RIFF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    }
+  ],
+  "families": [
+    {
+      "name": "EXIF",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "CIFF",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "Ricoh RMETA",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "GPS",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "AFCP",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "Picture Info",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "IPTC",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "Kodak Meta",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "Adobe APP14",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "XMP",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "FotoStation",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MPF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MakerNotes",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PhotoMechanic",
+      "upstream": "r/w",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "Stim",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "Photoshop IRB",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "JPEG 2000",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DPX",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ICC Profile",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DICOM",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "APE",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MIE",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "Flash",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "Vorbis",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "JFIF",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "FlashPix",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "SPIFF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "Ducky APP12",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "QuickTime",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "DjVu",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PDF",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "Matroska",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "M2TS",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PNG",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "MXF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PE/COFF",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "Canon VRD",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "PrintIM",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "AVCHD",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "Nikon Capture",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "FLAC",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ZIP",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "GeoTIFF",
+      "upstream": "r/w/c",
+      "status": "not-started",
+      "reason": null,
+      "fixture": null,
+      "test": null
+    },
+    {
+      "name": "ID3",
+      "upstream": "r",
+      "status": "read-only",
+      "reason": "Upstream read-only (r); not a write-parity target.",
+      "fixture": null,
+      "test": null
+    }
+  ],
+  "cells": {
+    "AVIF|EXIF|set": {
+      "status": "partial",
+      "reason": "Partial EXIF write; iloc/64-bit handling open (container-batches spec).",
+      "fixture": null,
+      "test": "src/format/avif.test.ts"
+    },
+    "EXIF|EXIF|set": {
+      "status": "partial",
+      "reason": "Standalone update subset; create semantics open.",
+      "fixture": null,
+      "test": "src/format/exif.test.ts"
+    },
+    "EXV|EXIF|set": {
+      "status": "partial",
+      "reason": "Standalone update subset; create semantics open.",
+      "fixture": null,
+      "test": "src/format/exv.test.ts"
+    },
+    "GIF|ICC Profile|set": {
+      "status": "partial",
+      "reason": "ICC application extension subset.",
+      "fixture": null,
+      "test": "src/write/gif.test.ts"
+    },
+    "GIF|XMP|set": {
+      "status": "partial",
+      "reason": "XMP application extension subset; C2PA delete open.",
+      "fixture": null,
+      "test": "src/write/gif.test.ts"
+    },
+    "HEIC|EXIF|set": {
+      "status": "partial",
+      "reason": "Partial EXIF write; item/iloc handling open.",
+      "fixture": null,
+      "test": "src/format/avif.test.ts"
+    },
+    "HEIF|EXIF|set": {
+      "status": "partial",
+      "reason": "Partial EXIF write; item/iloc handling open.",
+      "fixture": null,
+      "test": "src/format/avif.test.ts"
+    },
+    "ICC|ICC Profile|set": {
+      "status": "partial",
+      "reason": "Whole-profile replacement only; tag editing open.",
+      "fixture": null,
+      "test": "src/format/icc.test.ts"
+    },
+    "JPEG|Ducky APP12|set": {
+      "status": "partial",
+      "reason": "Quality/Comment/Copyright only; unknown blocks preserved byte-for-byte.",
+      "fixture": null,
+      "test": "src/write/writers.test.ts"
+    },
+    "JPEG|EXIF|delete": {
+      "status": "partial",
+      "reason": "Null deletes one targeted tag; update/add/replace modes open (serializer-exif spec).",
+      "fixture": null,
+      "test": "src/write/jpeg-merge.test.ts"
+    },
+    "JPEG|EXIF|set": {
+      "status": "partial",
+      "reason": "Hand-mapped tags; full writable table and group routing open (serializer-exif spec).",
+      "fixture": null,
+      "test": "src/write/jpeg-merge.test.ts"
+    },
+    "JPEG|GPS|set": {
+      "status": "partial",
+      "reason": "Partial tag map; negative-coordinate synthesis and group routing open.",
+      "fixture": null,
+      "test": "src/write/jpeg-merge.test.ts"
+    },
+    "JPEG|ICC Profile|set": {
+      "status": "partial",
+      "reason": "Whole-profile set/delete only; ICC tag editing open (serializer-families spec).",
+      "fixture": null,
+      "test": "src/write/writers.test.ts"
+    },
+    "JPEG|IPTC|set": {
+      "status": "partial",
+      "reason": "Generated datasets in APP13 only; multi-container integration open (serializer-iptc spec).",
+      "fixture": null,
+      "test": "src/write/iptc.test.ts"
+    },
+    "JPEG|JFIF|set": {
+      "status": "partial",
+      "reason": "Density set/create only; thumbnails and remaining fields open.",
+      "fixture": null,
+      "test": "src/write/writers.test.ts"
+    },
+    "JPEG|Photoshop IRB|set": {
+      "status": "partial",
+      "reason": "Scalar resources only; nested/binary resources open (serializer-iptc spec).",
+      "fixture": null,
+      "test": "src/write/iptc.test.ts"
+    },
+    "JPEG|XMP|set": {
+      "status": "partial",
+      "reason": "Registered namespaces only; full schema/struct coverage open (serializer-xmp spec).",
+      "fixture": null,
+      "test": "src/write/xmp-writer.test.ts"
+    },
+    "PNG|EXIF|set": {
+      "status": "partial",
+      "reason": "eXIf merge only; full tag/group coverage open.",
+      "fixture": null,
+      "test": "src/write/writers.test.ts"
+    },
+    "PNG|ICC Profile|set": {
+      "status": "partial",
+      "reason": "iCCP whole-profile set/delete only.",
+      "fixture": null,
+      "test": "src/write/writers.test.ts"
+    },
+    "PNG|PNG|set": {
+      "status": "partial",
+      "reason": "tEXt/iTXt/zTXt subset; remaining writable PNG fields open.",
+      "fixture": null,
+      "test": "src/write/writers.test.ts"
+    },
+    "PNG|XMP|set": {
+      "status": "partial",
+      "reason": "Registered namespaces only (serializer-xmp spec).",
+      "fixture": null,
+      "test": "src/write/writers.test.ts"
+    },
+    "TIFF|EXIF|set": {
+      "status": "partial",
+      "reason": "Plain TIFF subset only; camera RAW write is refused (tiff-raw.ts).",
+      "fixture": null,
+      "test": "src/write/tiff-merge.test.ts"
+    },
+    "TIFF|GPS|set": {
+      "status": "partial",
+      "reason": "Plain TIFF subset only.",
+      "fixture": null,
+      "test": "src/write/tiff-merge.test.ts"
+    },
+    "WEBP|EXIF|set": {
+      "status": "partial",
+      "reason": "EXIF merge subset; full semantics open.",
+      "fixture": null,
+      "test": "src/write/writers.test.ts"
+    },
+    "WEBP|ICC Profile|set": {
+      "status": "partial",
+      "reason": "ICCP whole-profile set/delete only.",
+      "fixture": null,
+      "test": "src/write/writers.test.ts"
+    },
+    "WEBP|XMP|set": {
+      "status": "partial",
+      "reason": "Partial property set; deletion covered, structured shapes open.",
+      "fixture": null,
+      "test": "src/write/writers.test.ts"
+    },
+    "XMP|XMP|set": {
+      "status": "partial",
+      "reason": "Parser/writer + sidecar subset; namespace/schema parity open.",
+      "fixture": null,
+      "test": "src/format/xmp.test.ts"
+    }
+  }
+}

@@ -90,7 +90,7 @@ exiftool-ts -EXIF:GPS* image.jpg
 
 ## C2PA Specific Flags (not yet implemented)
 
-The following flags are designed for ExifTool compatibility and will be implemented per the [C2PA plan](https://github.com/woss/exiftool/blob/main/C2PA_PLAN.md):
+The following flags are designed for ExifTool compatibility; C2PA writing is not scoped yet (write-parity status: [`docs/write-parity/`](https://github.com/woss/exiftool/tree/main/docs/write-parity)):
 
 ```bash
 # All C2PA tags
