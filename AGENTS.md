@@ -6,21 +6,23 @@
 
 ## Primary Tools
 
-### CodeGraph — Code Exploration (MUST USE FIRST)
-- **Tool**: `codegraph_explore` (via `xd://mcp__codegraph_explore`)
-- **Repo**: https://github.com/colbymchenry/codegraph
+### Code Intelligence — code-review-graph MCP (MUST USE FIRST)
+- **Tool**: `code-review-graph` MCP (stdio, `.omp/mcp.json`) — persistent knowledge graph of this repo
 - **Rule**: Use for ALL structural questions — "how does X work", "where is Y defined", "what calls Z", "trace flow from A to B"
-- **Do NOT grep/read first** — CodeGraph returns verbatim line-numbered source + call paths + blast radius in one call
-- **Trust results** — AST-parsed, no re-verification with grep needed
-- **Index lag**: ~500ms behind writes; don't re-query immediately after editing
+- **Do NOT grep/read first** — graph tools return callers/impact/tests with line numbers in one call
+- **Start every code task**: `get_minimal_context(task=…)`; keep `detail_level="minimal"`, escalate only if insufficient
+- **Common tools**: `query_graph` (callers_of / callees_of / imports_of / tests_for), `get_impact_radius`, `semantic_search_nodes`, `detect_changes`
+- **Staleness**: graph updates only on build/update — run `code-review-graph update --brief` after editing, `code-review-graph build` after big merges (~5s; `.code-review-graph/` DB is gitignored)
+- **Skills**: `.omp/skills/code-review-graph/` (explore, review changes, debug, refactor)
 
-**When to use CodeGraph vs native tools:**
+**When to use code-review-graph vs native tools:**
 | Task | Tool |
 |---|---|
-| How does X work / architecture / trace flow | `codegraph_explore` |
-| Find symbol definition | `codegraph_explore` (name it) |
-| What calls function Y | `codegraph_explore` (name Y) |
-| What would break if I change Z | `codegraph_explore` (name Z) |
+| How does X work / architecture / trace flow | `query_graph` / `get_architecture_overview` |
+| Find symbol definition | `semantic_search_nodes` (name it) |
+| What calls function Y | `query_graph` pattern=`callers_of` |
+| What would break if I change Z | `get_impact_radius` / `detect_changes` |
+| Test coverage of a function | `query_graph` pattern=`tests_for` |
 | Literal text search (strings, comments, logs) | `grep` / `read` |
 | Configs, docs, non-indexed files | `read` / `glob` |
 
@@ -80,7 +82,7 @@ All git writes go through `but` (GitButler virtual branches) — plain git write
 ## Workflow
 
 1. **Scope** → Read relevant context; plan before multi-file work
-2. **Research** → `codegraph_explore` FIRST; reuse patterns; `lsp references` before exported-symbol changes
+2. **Research** → `code-review-graph` MCP FIRST (`get_minimal_context` / `query_graph`); reuse patterns; `lsp references` before exported-symbol changes
 3. **Decompose** → Todo init with first reads/edits (never solo todo turn)
 4. **Implement** → Fix source, not symptoms; clean cutover
 5. **Verify** → Run thing, observe result; behavioral tests for contracts
@@ -108,7 +110,7 @@ All git writes go through `but` (GitButler virtual branches) — plain git write
 
 ## MCP Servers (Auto-Available)
 
-- **codegraph** — `codegraph_explore` (primary exploration)
+- **code-review-graph** — persistent code knowledge graph (primary code intelligence; `.omp/mcp.json`)
 - **memory** — Persist/retrieve memories across sessions
 - **context7** — Current library docs (use for ANY library question)
 - **gh_grep** — Real GitHub code examples
@@ -140,9 +142,11 @@ This is **exiftool-ts** — TypeScript wrapper for ExifTool.
 ## Quick Reference
 
 ```
-codegraph_explore "how does X work"     → architecture, flow, source
-codegraph_explore "find symbol Y"       → definition + callers + blast radius
-codegraph_explore "trace A to B"        → call path with dynamic hops
+code-review-graph build                → full graph rebuild (~5s; DB gitignored)
+code-review-graph update --brief       → incremental reparse of changed files
+code-review-graph detect-changes       → risk-scored change impact (read-only)
+get_minimal_context(task=…)            → MCP entry point for any code task
+query_graph callers_of Y               → callers / blast radius
 rtk gain                                → token savings
 rtk discover                            → missed opportunities
 caveman mode                            → ALWAYS ON

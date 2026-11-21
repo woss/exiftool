@@ -1,0 +1,2 @@
+[tools]
+"pipx:code-review-graph[all]" = "2.4.0"
