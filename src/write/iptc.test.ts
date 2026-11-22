@@ -6,10 +6,13 @@ import { readFile, rm, writeFile } from 'node:fs/promises';
 import { tempFile } from '../test/tmp.js';
 import { jpegMergeWriter, parseJpegSegments } from './jpeg-merge.js';
 import {
+  IPTC_BINARY_LENGTHS,
+  IPTC_DIGIT_LENGTHS,
   mergePhotoshopIrb,
   resolveIptcWriteRequest,
   resolvePhotoshopResourceWriteRequest,
 } from './iptc.js';
+import type { IptcWriteRequest } from './iptc.js';
 import { UnsupportedFormatError } from './writers.js';
 import { md5Hex } from '../utils/md5.js';
 import { parseAPP13 } from '../exif/app13.js';
@@ -812,6 +815,50 @@ test('explicit IPTCDigest supports new/old/hex32 and wins over auto-reconcile', 
     const { stdout } = await execFileP(upstreamExifTool, ['-j', '-IPTCDigest', '-CurrentIPTCDigest', file]);
     const upstream = JSON.parse(stdout)[0];
     assertEquals(upstream.IPTCDigest.toLowerCase(), upstream.CurrentIPTCDigest.toLowerCase());
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('IIM encoder sweeps all 105 writable IPTC datasets through APP13', async () => {
+  const RECORDS: Record<string, number> = {
+    'IPTC::EnvelopeRecord': 1,
+    'IPTC::ApplicationRecord': 2,
+    'IPTC::NewsPhoto': 3,
+  };
+  const tables = (tagData as TableDef[]).filter((table) => table.perlName in RECORDS);
+  const requests: IptcWriteRequest[] = [];
+  const requestedNames: string[] = [];
+  for (const table of tables) {
+    for (const tag of table.tags) {
+      if (!tag.writable) continue;
+      const name = tag.name;
+      const value = tag.type === 'undef'
+        ? new Uint8Array(IPTC_BINARY_LENGTHS.get(`${RECORDS[table.perlName]}:${tag.id}`)?.min ?? 256)
+        : tag.type === 'digits'
+        ? '0'.repeat(IPTC_DIGIT_LENGTHS.get(`${RECORDS[table.perlName]}:${tag.id}`) ?? 1)
+        : tag.type === 'string'
+        ? name === 'CodedCharacterSet' ? 'ESC % G' : 'exiftool-ts'
+        : 1;
+      const request = resolveIptcWriteRequest(`IPTC:${name}`, value);
+      if (!request) throw new Error(`IPTC:${name} (${tag.type}) refused by the IIM encoder`);
+      requests.push(request);
+      requestedNames.push(name);
+    }
+  }
+  assertEquals(requests.length, 105);
+  const merged = mergePhotoshopIrb(null, requests)!;
+  const jpeg = new Uint8Array(6 + merged.length + 2);
+  jpeg.set([0xff, 0xd8, 0xff, 0xed, (merged.length + 2) >> 8, (merged.length + 2) & 0xff]);
+  jpeg.set(merged, 6);
+  jpeg.set([0xff, 0xd9], 6 + merged.length);
+  const file = await tempFile('.jpg');
+  try {
+    await writeFile(file, jpeg);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-a', file]);
+    const upstream = JSON.parse(stdout)[0] as Record<string, unknown>;
+    const missing = requestedNames.filter((name) => upstream[name] === undefined);
+    assertEquals(missing, []);
   } finally {
     await rm(file, { force: true });
   }

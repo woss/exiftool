@@ -237,11 +237,11 @@ export function resolvePhotoshopResourceWriteRequest(
 }
 
 const IPTC_TAGS = new Map<string, Omit<IptcWriteRequest, 'key' | 'value'>>();
-const IPTC_BINARY_LENGTHS = new Map<string, { min: number; max: number }>([
+export const IPTC_BINARY_LENGTHS = new Map<string, { min: number; max: number }>([
   ['2:125', { min: 7360, max: 7360 }],
   ['2:202', { min: 0, max: 256000 }],
 ]);
-const IPTC_DIGIT_LENGTHS = new Map<string, number>([
+export const IPTC_DIGIT_LENGTHS = new Map<string, number>([
   ['1:40', 8], ['1:60', 1], ['1:70', 8],
   ['2:8', 2], ['2:10', 1], ['2:30', 8], ['2:37', 8], ['2:42', 2], ['2:47', 8], ['2:50', 8],
   ['2:55', 8], ['2:62', 8], ['2:151', 6], ['2:152', 2], ['2:153', 6],

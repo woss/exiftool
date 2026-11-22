@@ -2269,9 +2269,15 @@
       "fixture": null,
       "test": "src/write/writers.test.ts"
     },
+    "JPEG|IPTC|delete": {
+      "status": "implemented",
+      "reason": "Null deletes targeted datasets; empty Keywords removes the record; sibling datasets and XMP Subject preserved.",
+      "fixture": null,
+      "test": "src/write/iptc.test.ts"
+    },
     "JPEG|IPTC|set": {
-      "status": "partial",
-      "reason": "Generated datasets in APP13 only; multi-container integration open (serializer-iptc spec).",
+      "status": "implemented",
+      "reason": "All 105 writable datasets generated from the catalog: digits widths, enums, dates, binary lengths, CodedCharacterSet; upstream 13.64 sweep + round-trips.",
       "fixture": null,
       "test": "src/write/iptc.test.ts"
     },
