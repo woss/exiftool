@@ -863,3 +863,73 @@ test('IIM encoder sweeps all 105 writable IPTC datasets through APP13', async ()
     await rm(file, { force: true });
   }
 });
+
+test('digest replaces replace existing blocks; resource loop skips no-ops', async () => {
+  const kw = (value: string) => [{ key: 'IPTC:Keywords', record: 2, dataset: 25, type: 'string', value }];
+  // Seed a payload that already carries a digest block: both explicit digest
+  // paths take the replace-existing branch.
+  const seeded = mergePhotoshopIrb(null, kw('first'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', 'new')!,
+  ])!;
+  const oldOnExisting = mergePhotoshopIrb(seeded, kw('second'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', 'old')!,
+  ])!;
+  const hex = 'cd'.repeat(16);
+  const literalOnExisting = mergePhotoshopIrb(oldOnExisting, kw('second'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', hex)!,
+  ])!;
+  assertEquals(parseAPP13(literalOnExisting.subarray('Photoshop 3.0\0'.length)).IPTCDigest, hex);
+
+  // Duplicate requests for one absent resource: last wins, one block created.
+  const urlReq = resolvePhotoshopResourceWriteRequest('Photoshop:URL_List', 'https://a.example')!;
+  const urlReq2 = resolvePhotoshopResourceWriteRequest('Photoshop:URL_List', 'https://b.example')!;
+  const doubled = mergePhotoshopIrb(null, [], [urlReq, urlReq2])!;
+  assertEquals(parseAPP13(doubled.subarray('Photoshop 3.0\0'.length)).URL_List, ['https://b.example']);
+
+  // Two existing blocks with the same id: one request replaces the first,
+  // the duplicate block is dropped instead of surviving twice.
+  const header = new TextEncoder().encode('Photoshop 3.0\0');
+  const block = (id: number, value: number): Uint8Array => {
+    const data = new Uint8Array(16);
+    data.set([0x38, 0x42, 0x49, 0x4d], 0);
+    new DataView(data.buffer).setUint16(4, id, false);
+    data.set([0, 0], 6);
+    new DataView(data.buffer).setUint32(8, 4, false);
+    new DataView(data.buffer).setUint32(12, value, false);
+    return data;
+  };
+  const angleRequest = resolvePhotoshopResourceWriteRequest('Photoshop:GlobalAngle', 45)!;
+  const twoBlocks = new Uint8Array(header.length + 16 + 16);
+  twoBlocks.set(header);
+  twoBlocks.set(block(0x040d, 1), header.length);
+  twoBlocks.set(block(0x040d, 2), header.length + 16);
+  const deduped = mergePhotoshopIrb(twoBlocks, [], [angleRequest])!;
+  const dedupedBlocks = parseAPP13(deduped.subarray('Photoshop 3.0\0'.length));
+  assertEquals(dedupedBlocks.GlobalAngle, 45);
+  // Exactly one GlobalAngle block survives.
+  let angleBlocks = 0;
+  const out = deduped.subarray(header.length);
+  for (let off = 0; off + 12 <= out.length;) {
+    if (out[off] === 0x38 && out[off + 1] === 0x42 && out[off + 2] === 0x49 && out[off + 3] === 0x4d) {
+      const size = (out[off + 8]! << 24) | (out[off + 9]! << 16) | (out[off + 10]! << 8) | out[off + 11]!;
+      if (((out[off + 4]! << 8) | out[off + 5]!) === 0x040d) angleBlocks += 1;
+      off += 12 + size + (size % 2);
+    } else {
+      break;
+    }
+  }
+  assertEquals(angleBlocks, 1);
+
+  // Deleting a resource that does not exist is a no-op (no empty block).
+  const noQuality = mergePhotoshopIrb(null, kw('first'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:PhotoshopQuality', null)!,
+  ])!;
+  assertEquals(parseAPP13(noQuality.subarray('Photoshop 3.0\0'.length)).PhotoshopQuality, undefined);
+
+  // Multiple delete requests for the same absent resource also create nothing.
+  const noQualityTwice = mergePhotoshopIrb(null, kw('first'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:PhotoshopQuality', null)!,
+    resolvePhotoshopResourceWriteRequest('Photoshop:PhotoshopQuality', null)!,
+  ])!;
+  assertEquals(parseAPP13(noQualityTwice.subarray('Photoshop 3.0\0'.length)).PhotoshopQuality, undefined);
+});
