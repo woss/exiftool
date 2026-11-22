@@ -78,6 +78,8 @@ export const COVERAGE_ALLOWLIST: Record<string, string> = {
     'best-effort temp cleanup catch fires only when rm rejects on real filesystem errors (EACCES/EBUSY), which the fixtures cannot produce',
   'src/write/jpeg-merge.ts':
     'Extended XMP packets larger than 4 GiB cannot be represented as a practical Uint8Array/string test fixture; segment-level size limits are covered below that bound',
+  'src/write/xmp-writer.ts':
+    'generated-struct Alt-list-field arm: no ExifTool 13.64 struct schema declares an rdf:Alt list field; the branch guards future catalog bumps',
   'src/exif/cbor.ts':
     'unreachable default-major throw (byte>>5 is always 0..7) and bigint epoch fallback: the decoder emits JS numbers, never bigint',
   'src/exif/makernotes.ts':
