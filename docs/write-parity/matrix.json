@@ -2293,9 +2293,15 @@
       "fixture": null,
       "test": "src/write/iptc.test.ts"
     },
+    "JPEG|XMP|delete": {
+      "status": "implemented",
+      "reason": "Element/attribute forms removed across sibling descriptions; unrelated properties preserved.",
+      "fixture": null,
+      "test": "src/write/xmp-writer.test.ts"
+    },
     "JPEG|XMP|set": {
-      "status": "partial",
-      "reason": "Registered namespaces only; full schema/struct coverage open (serializer-xmp spec).",
+      "status": "implemented",
+      "reason": "All RDF shapes, catalog-driven structs (110 schemas), enums, lang-alts, dates; nested Camera Raw/IPTC structs upstream-verified.",
       "fixture": null,
       "test": "src/write/xmp-writer.test.ts"
     },

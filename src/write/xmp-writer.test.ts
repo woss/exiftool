@@ -2,11 +2,13 @@ import { test } from 'vitest';
 import { assertEquals } from '../test/asserts.js';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { readFileSync } from 'node:fs';
 import { rm, writeFile } from 'node:fs/promises';
 import { tempFile } from '../test/tmp.js';
 import { parseXMP } from '../exif/xmp.js';
 import type { TagStructValue } from '../types.js';
 import { UnsupportedFormatError } from './writers.js';
+import { jpegMergeWriter } from './jpeg-merge.js';
 import {
   buildXmpPropertiesPacket,
   deleteXmpProperties,
@@ -1459,4 +1461,56 @@ test('serializeXmpProperty rejects incompatible value shapes', () => {
     }
     assertEquals(threw, true);
   }
+});
+
+test('generated struct schemas drive nested Camera Raw and IPTC structs', async () => {
+  const file = await tempFile('.jpg');
+  const original = new Uint8Array(readFileSync('assets/01.jpg'));
+  const result = jpegMergeWriter(original, {
+    'XMP-crs:Look': {
+      'crs:Amount': 50,
+      'crs:UUID': 'abc-123',
+      'crs:Parameters': {
+        'crs:ProcessVersion': '15.4',
+        'crs:ToneCurvePV2012': ['0,0', '255,255'],
+        'crs:ConvertToGrayscale': false,
+      },
+    },
+    'XMP-Iptc4xmpExt:ImageRegion': [{
+      'Iptc4xmpExt:Boundary': {
+        'Iptc4xmpExt:Shape': 'rectangle',
+        'Iptc4xmpExt:X': 10,
+        'Iptc4xmpExt:Vertices': [{ 'Iptc4xmpExt:X': 1, 'Iptc4xmpExt:Y': 2 }],
+      },
+      'Iptc4xmpExt:Role': [{ 'xmp:Identifier': ['face-id'] }],
+      'Iptc4xmpExt:ID': 'r1',
+    }],
+  } as never);
+  assertEquals(result.skipped, []);
+  try {
+    await writeFile(file, result.bytes);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-a', file]);
+    const tags = JSON.parse(stdout)[0];
+    assertEquals(tags.LookAmount, 50);
+    assertEquals(tags.LookParametersProcessVersion, 15.4);
+    assertEquals(tags.LookParametersToneCurvePV2012, ['0,0', '255,255']);
+    assertEquals(tags.LookParametersConvertToGrayscale, false);
+    assertEquals(tags.ImageRegionBoundaryShape, 'rectangle');
+    assertEquals(tags.ImageRegionBoundaryVerticesX, 1);
+    assertEquals(tags.ImageRegionBoundaryVerticesY, 2);
+    assertEquals(tags.ImageRegionRoleIdentifier, 'face-id');
+    assertEquals(tags.ImageRegionId, 'r1');
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('generated structs reject field names outside the schema', () => {
+  const error = (() => {
+    try {
+      serializeXmpProperty('crs:Look', { 'crs:Amount': 1, 'crs:LookParams': {} } as never);
+      return undefined;
+    } catch (e) { return e as UnsupportedFormatError; }
+  })();
+  assertEquals(error instanceof UnsupportedFormatError, true);
 });
