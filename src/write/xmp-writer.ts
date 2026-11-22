@@ -230,6 +230,88 @@ const XMP_STRUCT_FIELD_ALTS: Record<string, Set<string>> = {
   'Iptc4xmpExt:Genre': new Set(['Iptc4xmpExt:CvTermName']),
 };
 
+import xmpStructData from '../tags/generated/xmp-structs.json' with { type: 'json' };
+
+interface GeneratedStructField {
+  key: string;
+  name: string;
+  namespace: string | null;
+  list: string | null;
+  enumValues: Record<string, string> | null;
+  struct: unknown;
+  writableType: string | null;
+  conditional: string | boolean;
+  protected: string | boolean;
+}
+
+interface GeneratedStructSchema {
+  fields?: GeneratedStructField[];
+  truncated?: unknown;
+  recursive?: unknown;
+}
+
+const generatedStructs = xmpStructData as unknown as Record<string, GeneratedStructSchema>;
+const generatedNestedStructs = new Map<string, GeneratedStructSchema>();
+
+/**
+ * Expands one generated struct schema into the lookup tables above.
+ * Hand-curated schemas win wholesale; nested inline structs get synthetic
+ * keys (`parent|field`) usable recursively by the same lookups.
+ */
+function registerGeneratedStruct(key: string, schema: GeneratedStructSchema): void {
+  if (XMP_STRUCT_FIELDS[key]) return; // hand-curated wins
+  if (!schema?.fields) return;
+  const fields = new Set<string>();
+  for (const field of schema.fields) {
+    if (field.conditional) continue;
+    if (!field.namespace || !field.name) continue;
+    const fullName = `${field.namespace}:${field.name}`;
+    fields.add(fullName);
+    if (field.list === 'Bag' || field.list === 'Seq') {
+      (XMP_STRUCT_FIELD_LISTS[key] ??= {})[fullName] = field.list.toLowerCase() as 'bag' | 'seq';
+      if (field.struct) {
+        const child = field.struct as GeneratedStructSchema;
+        if (child.truncated || child.recursive || !child.fields) continue;
+        const childKey = `${key}|${fullName}`;
+        generatedNestedStructs.set(childKey, child);
+        (XMP_STRUCT_FIELD_LIST_ITEMS[key] ??= {})[fullName] = childKey;
+      }
+      continue;
+    }
+    if (field.list === 'Alt') {
+      (XMP_STRUCT_FIELD_ALTS[key] ??= new Set()).add(fullName);
+    }
+    if (field.struct) {
+      const child = field.struct as GeneratedStructSchema;
+      if (child.truncated || child.recursive || !child.fields) continue;
+      const childKey = `${key}|${fullName}`;
+      generatedNestedStructs.set(childKey, child);
+      (XMP_STRUCT_FIELD_STRUCTS[key] ??= {})[fullName] = childKey;
+    }
+  }
+  if (fields.size > 0) XMP_STRUCT_FIELDS[key] = fields;
+}
+
+for (const [key, schema] of Object.entries(generatedStructs)) {
+  if (schema.truncated || schema.recursive) continue;
+  registerGeneratedStruct(key, schema);
+  // Struct lists: a generated struct whose property also carries a bag/seq/alt shape.
+  const shape = SHAPES[key];
+  if ((shape === 'bag' || shape === 'seq' || shape === 'alt') && XMP_STRUCT_FIELDS[key]) {
+    XMP_STRUCT_LIST_SHAPES[key] ??= shape;
+  } else if (XMP_STRUCT_FIELDS[key]) {
+    XMP_STRUCT_PROPERTIES.add(key);
+  }
+}
+// Inline nested schemas registered above expand the same way (breadth-first
+// until fixpoint; upstream Perl caps struct depth at 12).
+for (let guard = 0; generatedNestedStructs.size > 0 && guard < 12; guard++) {
+  for (const [key, schema] of [...generatedNestedStructs]) {
+    generatedNestedStructs.delete(key);
+    registerGeneratedStruct(key, schema);
+  }
+}
+
 const XMP_TABLE_PREFIXES: Record<string, string> = {
   'XMP::acdsee': 'acdsee',
   'XMP::crd': 'crd',
