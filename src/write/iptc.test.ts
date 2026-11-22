@@ -6,11 +6,15 @@ import { readFile, rm, writeFile } from 'node:fs/promises';
 import { tempFile } from '../test/tmp.js';
 import { jpegMergeWriter, parseJpegSegments } from './jpeg-merge.js';
 import {
+  IPTC_BINARY_LENGTHS,
+  IPTC_DIGIT_LENGTHS,
   mergePhotoshopIrb,
   resolveIptcWriteRequest,
   resolvePhotoshopResourceWriteRequest,
 } from './iptc.js';
+import type { IptcWriteRequest } from './iptc.js';
 import { UnsupportedFormatError } from './writers.js';
+import { md5Hex } from '../utils/md5.js';
 import { parseAPP13 } from '../exif/app13.js';
 import { jpegParser } from '../format/jpeg.js';
 import tagData from '../tags/generated/tags.json' with { type: 'json' };
@@ -734,4 +738,198 @@ test('writes large IPTC keywords using extended lengths and split APP13 segments
   } finally {
     await rm(file, { force: true });
   }
+});
+
+test('URL_List encodes UTF-16BE and round-trips through upstream', async () => {
+  const urls = ['https://kelp.example/one', 'https://kelp.example/two'];
+  const request = resolvePhotoshopResourceWriteRequest('Photoshop:URL_List', urls)!;
+  const merged = mergePhotoshopIrb(null, [], [request])!;
+  const parsed = parseAPP13(merged.subarray('Photoshop 3.0\0'.length));
+  assertEquals(parsed.URL_List, urls);
+  const jpeg = new Uint8Array(6 + merged.length + 2);
+  jpeg.set([0xff, 0xd8, 0xff, 0xed, (merged.length + 2) >> 8, (merged.length + 2) & 0xff]);
+  jpeg.set(merged, 6);
+  jpeg.set([0xff, 0xd9], 6 + merged.length);
+  const file = await tempFile('.jpg');
+  try {
+    await writeFile(file, jpeg);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-URL_List', file]);
+    assertEquals(JSON.parse(stdout)[0].URL_List, urls);
+  } finally {
+    await rm(file, { force: true });
+  }
+  assertEquals(resolvePhotoshopResourceWriteRequest('Photoshop:URL_List', null), {
+    key: 'Photoshop:URL_List', id: 0x041e, data: null,
+  });
+  assertEquals(resolvePhotoshopResourceWriteRequest('Photoshop:URL_List', [42]), undefined);
+});
+
+test('explicit IPTCDigest supports new/old/hex32 and wins over auto-reconcile', async () => {
+  const kw = (value: string) => [{ key: 'IPTC:Keywords', record: 2, dataset: 25, type: 'string', value }];
+  const base = mergePhotoshopIrb(null, kw('first'))!;
+  const originalIim = (() => {
+    const block = base.subarray('Photoshop 3.0\0'.length);
+    for (let off = 0; off + 12 <= block.length;) {
+      const id = (block[off + 4]! << 8) | block[off + 5]!;
+      const size = (block[off + 8]! << 24) | (block[off + 9]! << 16) | (block[off + 10]! << 8) | block[off + 11]!;
+      if (id === 0x0404) return block.slice(off + 12, off + 12 + size);
+      off += 12 + size + (size % 2);
+    }
+    throw new Error('no IPTC block');
+  })();
+
+  // 'old' digests the original IPTC data even while the update rewrites it.
+  const oldDigest = mergePhotoshopIrb(base, kw('second'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', 'old')!,
+  ])!;
+  assertEquals(parseAPP13(oldDigest.subarray('Photoshop 3.0\0'.length)).IPTCDigest, md5Hex(originalIim));
+
+  // Literal 32-hex stored as raw bytes.
+  const hex = 'ab'.repeat(16);
+  const literal = mergePhotoshopIrb(base, kw('second'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', hex)!,
+  ])!;
+  assertEquals(parseAPP13(literal.subarray('Photoshop 3.0\0'.length)).IPTCDigest, hex);
+
+  // null deletes the digest resource only.
+  const deleted = mergePhotoshopIrb(literal, kw('second'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', null)!,
+  ])!;
+  assertEquals(parseAPP13(deleted.subarray('Photoshop 3.0\0'.length)).IPTCDigest, undefined);
+
+  // Invalid values are refused.
+  assertEquals(resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', 'zz'), undefined);
+  assertEquals(resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', 42), undefined);
+
+  // Upstream sees 'new' == CurrentIPTCDigest (MWG synchronization marker).
+  const newDigest = mergePhotoshopIrb(base, kw('second'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', 'new')!,
+  ])!;
+  const jpeg = new Uint8Array(6 + newDigest.length + 2);
+  jpeg.set([0xff, 0xd8, 0xff, 0xed, (newDigest.length + 2) >> 8, (newDigest.length + 2) & 0xff]);
+  jpeg.set(newDigest, 6);
+  jpeg.set([0xff, 0xd9], 6 + newDigest.length);
+  const file = await tempFile('.jpg');
+  try {
+    await writeFile(file, jpeg);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-IPTCDigest', '-CurrentIPTCDigest', file]);
+    const upstream = JSON.parse(stdout)[0];
+    assertEquals(upstream.IPTCDigest.toLowerCase(), upstream.CurrentIPTCDigest.toLowerCase());
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('IIM encoder sweeps all 105 writable IPTC datasets through APP13', async () => {
+  const RECORDS: Record<string, number> = {
+    'IPTC::EnvelopeRecord': 1,
+    'IPTC::ApplicationRecord': 2,
+    'IPTC::NewsPhoto': 3,
+  };
+  const tables = (tagData as TableDef[]).filter((table) => table.perlName in RECORDS);
+  const requests: IptcWriteRequest[] = [];
+  const requestedNames: string[] = [];
+  for (const table of tables) {
+    for (const tag of table.tags) {
+      if (!tag.writable) continue;
+      const name = tag.name;
+      const value = tag.type === 'undef'
+        ? new Uint8Array(IPTC_BINARY_LENGTHS.get(`${RECORDS[table.perlName]}:${tag.id}`)?.min ?? 256)
+        : tag.type === 'digits'
+        ? '0'.repeat(IPTC_DIGIT_LENGTHS.get(`${RECORDS[table.perlName]}:${tag.id}`) ?? 1)
+        : tag.type === 'string'
+        ? name === 'CodedCharacterSet' ? 'ESC % G' : 'exiftool-ts'
+        : 1;
+      const request = resolveIptcWriteRequest(`IPTC:${name}`, value);
+      if (!request) throw new Error(`IPTC:${name} (${tag.type}) refused by the IIM encoder`);
+      requests.push(request);
+      requestedNames.push(name);
+    }
+  }
+  assertEquals(requests.length, 105);
+  const merged = mergePhotoshopIrb(null, requests)!;
+  const jpeg = new Uint8Array(6 + merged.length + 2);
+  jpeg.set([0xff, 0xd8, 0xff, 0xed, (merged.length + 2) >> 8, (merged.length + 2) & 0xff]);
+  jpeg.set(merged, 6);
+  jpeg.set([0xff, 0xd9], 6 + merged.length);
+  const file = await tempFile('.jpg');
+  try {
+    await writeFile(file, jpeg);
+    const { stdout } = await execFileP(upstreamExifTool, ['-j', '-a', file]);
+    const upstream = JSON.parse(stdout)[0] as Record<string, unknown>;
+    const missing = requestedNames.filter((name) => upstream[name] === undefined);
+    assertEquals(missing, []);
+  } finally {
+    await rm(file, { force: true });
+  }
+});
+
+test('digest replaces replace existing blocks; resource loop skips no-ops', async () => {
+  const kw = (value: string) => [{ key: 'IPTC:Keywords', record: 2, dataset: 25, type: 'string', value }];
+  // Seed a payload that already carries a digest block: both explicit digest
+  // paths take the replace-existing branch.
+  const seeded = mergePhotoshopIrb(null, kw('first'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', 'new')!,
+  ])!;
+  const oldOnExisting = mergePhotoshopIrb(seeded, kw('second'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', 'old')!,
+  ])!;
+  const hex = 'cd'.repeat(16);
+  const literalOnExisting = mergePhotoshopIrb(oldOnExisting, kw('second'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:IPTCDigest', hex)!,
+  ])!;
+  assertEquals(parseAPP13(literalOnExisting.subarray('Photoshop 3.0\0'.length)).IPTCDigest, hex);
+
+  // Duplicate requests for one absent resource: last wins, one block created.
+  const urlReq = resolvePhotoshopResourceWriteRequest('Photoshop:URL_List', 'https://a.example')!;
+  const urlReq2 = resolvePhotoshopResourceWriteRequest('Photoshop:URL_List', 'https://b.example')!;
+  const doubled = mergePhotoshopIrb(null, [], [urlReq, urlReq2])!;
+  assertEquals(parseAPP13(doubled.subarray('Photoshop 3.0\0'.length)).URL_List, ['https://b.example']);
+
+  // Two existing blocks with the same id: one request replaces the first,
+  // the duplicate block is dropped instead of surviving twice.
+  const header = new TextEncoder().encode('Photoshop 3.0\0');
+  const block = (id: number, value: number): Uint8Array => {
+    const data = new Uint8Array(16);
+    data.set([0x38, 0x42, 0x49, 0x4d], 0);
+    new DataView(data.buffer).setUint16(4, id, false);
+    data.set([0, 0], 6);
+    new DataView(data.buffer).setUint32(8, 4, false);
+    new DataView(data.buffer).setUint32(12, value, false);
+    return data;
+  };
+  const angleRequest = resolvePhotoshopResourceWriteRequest('Photoshop:GlobalAngle', 45)!;
+  const twoBlocks = new Uint8Array(header.length + 16 + 16);
+  twoBlocks.set(header);
+  twoBlocks.set(block(0x040d, 1), header.length);
+  twoBlocks.set(block(0x040d, 2), header.length + 16);
+  const deduped = mergePhotoshopIrb(twoBlocks, [], [angleRequest])!;
+  const dedupedBlocks = parseAPP13(deduped.subarray('Photoshop 3.0\0'.length));
+  assertEquals(dedupedBlocks.GlobalAngle, 45);
+  // Exactly one GlobalAngle block survives.
+  let angleBlocks = 0;
+  const out = deduped.subarray(header.length);
+  for (let off = 0; off + 12 <= out.length;) {
+    if (out[off] === 0x38 && out[off + 1] === 0x42 && out[off + 2] === 0x49 && out[off + 3] === 0x4d) {
+      const size = (out[off + 8]! << 24) | (out[off + 9]! << 16) | (out[off + 10]! << 8) | out[off + 11]!;
+      if (((out[off + 4]! << 8) | out[off + 5]!) === 0x040d) angleBlocks += 1;
+      off += 12 + size + (size % 2);
+    } else {
+      break;
+    }
+  }
+  assertEquals(angleBlocks, 1);
+
+  // Deleting a resource that does not exist is a no-op (no empty block).
+  const noQuality = mergePhotoshopIrb(null, kw('first'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:PhotoshopQuality', null)!,
+  ])!;
+  assertEquals(parseAPP13(noQuality.subarray('Photoshop 3.0\0'.length)).PhotoshopQuality, undefined);
+
+  // Multiple delete requests for the same absent resource also create nothing.
+  const noQualityTwice = mergePhotoshopIrb(null, kw('first'), [
+    resolvePhotoshopResourceWriteRequest('Photoshop:PhotoshopQuality', null)!,
+    resolvePhotoshopResourceWriteRequest('Photoshop:PhotoshopQuality', null)!,
+  ])!;
+  assertEquals(parseAPP13(noQualityTwice.subarray('Photoshop 3.0\0'.length)).PhotoshopQuality, undefined);
 });

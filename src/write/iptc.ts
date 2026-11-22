@@ -43,6 +43,8 @@ export interface PhotoshopResourceWriteRequest {
   offset?: number;
   createSize?: number;
   requireExisting?: boolean;
+  /** IPTCDigest only: digest computed over the merged ('new') or original ('old') IPTC data. */
+  digestSource?: 'new' | 'old';
 }
 
 const PHOTOSHOP_RESOURCE_IDS: Record<string, number> = {
@@ -104,10 +106,69 @@ const PHOTOSHOP_RESOLUTION_FIELDS: Record<string, { offset: number; type: 'fixed
   displayedunitsy: { offset: 12, type: 'unit' },
 };
 
+/** UTF-16BE code units (Photoshop URL_List strings are big-endian UTF-16). */
+function utf16be(value: string): Uint8Array {
+  const out = new Uint8Array(value.length * 2);
+  for (let i = 0; i < value.length; i++) {
+    const unit = value.charCodeAt(i);
+    out[i * 2] = unit >> 8;
+    out[i * 2 + 1] = unit & 255;
+  }
+  return out;
+}
+
+/** Count, then per URL: 8 reserved bytes, 4-byte char count, UTF-16BE text (upstream URL_List ValueConv inverse). */
+function encodeUrlList(value: TagValue): Uint8Array | undefined {
+  const urls = typeof value === 'string'
+    ? [value]
+    : Array.isArray(value) && value.every((item) => typeof item === 'string')
+    ? value as string[]
+    : undefined;
+  if (!urls) return undefined;
+  const parts: Uint8Array[] = [];
+  const count = new Uint8Array(4);
+  new DataView(count.buffer).setUint32(0, urls.length, false);
+  parts.push(count);
+  for (const url of urls) {
+    const text = utf16be(url);
+    const entry = new Uint8Array(8 + 4 + text.length);
+    new DataView(entry.buffer).setUint32(8, url.length, false);
+    entry.set(text, 12);
+    parts.push(entry);
+  }
+  const total = parts.reduce((sum, part) => sum + part.length, 0);
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
 export function resolvePhotoshopResourceWriteRequest(
   key: string,
   value: TagValue,
 ): PhotoshopResourceWriteRequest | undefined {
+  if (/^Photoshop:IPTCDigest$/i.test(key)) {
+    if (value === null) return { key, id: 0x0425, data: null };
+    if (typeof value !== 'string') return undefined;
+    const trimmed = value.trim().toLowerCase();
+    if (trimmed === 'new' || trimmed === 'old') {
+      return { key, id: 0x0425, data: null, digestSource: trimmed };
+    }
+    if (!/^[0-9a-f]{32}$/.test(trimmed)) return undefined;
+    return {
+      key,
+      id: 0x0425,
+      data: Uint8Array.from(trimmed.match(/../g)!.map((hex) => Number.parseInt(hex, 16))),
+    };
+  }
+  if (/^Photoshop:URL_List$/i.test(key)) {
+    if (value === null) return { key, id: 0x041e, data: null };
+    const data = encodeUrlList(value);
+    return data ? { key, id: 0x041e, data } : undefined;
+  }
   if (/^Photoshop:PhotoshopQuality$/i.test(key)) {
     if (value === null) return { key, id: 0x0406, data: null, requireExisting: true };
     const quality = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN;
@@ -176,11 +237,11 @@ export function resolvePhotoshopResourceWriteRequest(
 }
 
 const IPTC_TAGS = new Map<string, Omit<IptcWriteRequest, 'key' | 'value'>>();
-const IPTC_BINARY_LENGTHS = new Map<string, { min: number; max: number }>([
+export const IPTC_BINARY_LENGTHS = new Map<string, { min: number; max: number }>([
   ['2:125', { min: 7360, max: 7360 }],
   ['2:202', { min: 0, max: 256000 }],
 ]);
-const IPTC_DIGIT_LENGTHS = new Map<string, number>([
+export const IPTC_DIGIT_LENGTHS = new Map<string, number>([
   ['1:40', 8], ['1:60', 1], ['1:70', 8],
   ['2:8', 2], ['2:10', 1], ['2:30', 8], ['2:37', 8], ['2:42', 2], ['2:47', 8], ['2:50', 8],
   ['2:55', 8], ['2:62', 8], ['2:151', 6], ['2:152', 2], ['2:153', 6],
@@ -482,23 +543,51 @@ function rebuildPhotoshopIrb(
   const mergedIim = iptcTouched
     ? buildIptcIim(iptcBlock?.data ?? null, requests)
     : iptcBlock?.data ?? new Uint8Array(0);
-  const digestIndex = iptcTouched ? blocks.findIndex((block) => block.id === IPTC_DIGEST_RESOURCE_ID) : -1;
+  const digestIndex = blocks.findIndex((block) => block.id === IPTC_DIGEST_RESOURCE_ID);
   const digestBlock = digestIndex < 0 ? undefined : blocks[digestIndex];
-  if (digestBlock && iptcBlock && digestBlock.data.length === 16) {
+  const digestRequest = resourceRequests.find((request) => request.id === IPTC_DIGEST_RESOURCE_ID);
+  const resourceRequestsWithoutDigest = digestRequest
+    ? resourceRequests.filter((request) => request !== digestRequest)
+    : resourceRequests;
+  const digestBytesFrom = (source: 'new' | 'old'): Uint8Array => {
+    const input = source === 'new' ? mergedIim : iptcBlock?.data ?? new Uint8Array(0);
+    return Uint8Array.from(md5Hex(input).match(/../g)!.map((hex) => Number.parseInt(hex, 16)));
+  };
+  if (digestRequest?.digestSource) {
+    // Explicit digest request: computed over the final merged (new) or original (old) IPTC data.
+    const computed = digestBytesFrom(digestRequest.digestSource);
+    if (digestBlock) {
+      digestBlock.data = computed;
+      digestBlock.dataPadding = new Uint8Array(0);
+    } else {
+      blocks.push({ sig: '8BIM', id: IPTC_DIGEST_RESOURCE_ID, name: new Uint8Array([0, 0]), data: computed, dataPadding: new Uint8Array(0) });
+    }
+  } else if (digestRequest && digestRequest.data === null) {
+    // Explicit null deletes the digest resource only.
+    if (digestBlock) blocks.splice(blocks.indexOf(digestBlock), 1);
+  } else if (digestRequest && digestRequest.data) {
+    // Explicit literal digest: replace the stored 16 bytes (create when absent).
+    if (digestBlock) {
+      digestBlock.data = digestRequest.data;
+      digestBlock.dataPadding = new Uint8Array(0);
+    } else {
+      blocks.push({ sig: '8BIM', id: IPTC_DIGEST_RESOURCE_ID, name: new Uint8Array([0, 0]), data: digestRequest.data, dataPadding: new Uint8Array(0) });
+    }
+  } else if (digestBlock && iptcTouched && iptcBlock && digestBlock.data.length === 16) {
+    // Auto-reconcile: recalculate only when the stored digest matches the pre-edit block.
     const oldDigest = md5Hex(iptcBlock.data);
     const storedDigest = [...digestBlock.data].map((byte) => byte.toString(16).padStart(2, '0')).join('');
     if (storedDigest === oldDigest) {
       if (mergedIim.length > 0) {
-        const newDigest = md5Hex(mergedIim);
-        digestBlock.data = Uint8Array.from(newDigest.match(/../g)!.map((byte) => Number.parseInt(byte, 16)));
+        digestBlock.data = digestBytesFrom('new');
         digestBlock.dataPadding = new Uint8Array(0);
       } else {
-        blocks.splice(digestIndex, 1);
+        blocks.splice(blocks.indexOf(digestBlock), 1);
       }
     }
   }
   const requestsById = new Map<number, PhotoshopResourceWriteRequest[]>();
-  for (const request of resourceRequests) {
+  for (const request of resourceRequestsWithoutDigest) {
     const group = requestsById.get(request.id) ?? [];
     group.push(request);
     requestsById.set(request.id, group);
